@@ -1,0 +1,4397 @@
+{
+  "schema_version": "1.0",
+  "written": "2026-10-04",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate."
+  },
+  "conventions": {
+    "RESOLVE": "Not stated in the catalogue summary this registry was built from. Must be read off the original paper. Deliberately NOT guessed - a wrong log base, component definition or magnitude scale is a silent factor-of-two class of error.",
+    "approximate": "true where Douglas qualifies the range. Indicative, not a boundary you can defend.",
+    "coefficients.status": {
+      "anchor_only": "The spec appendix supplies a reproducible anchor branch (normally PGA). The spectral table still requires the original paper. No kernel is implemented yet, so the wrapper still refuses.",
+      "partial": "Some values are given but not enough to evaluate even the anchor branch. The gap is named in coefficients.needed.",
+      "original_table_required": "Equation and metadata only; no numerical coefficients in the catalogue.",
+      "unavailable_by_nature": "The catalogue states the coefficients are not given at all.",
+      "present": "params/coeffs/<model_id>.json exists with recorded provenance AND a MedianKernel is registered."
+    },
+    "tectonic_types": [
+      "ACTIVE_SHALLOW_CRUST",
+      "SUBDUCTION_INTERFACE",
+      "SUBDUCTION_INTRASLAB",
+      "STABLE_CONTINENTAL"
+    ],
+    "spatial_correlation": "None of the 30 supplies one. Every entry is a single-site marginal - see README.md.",
+    "reproduction": "Per-model completeness, from the spec appendix section 11.2. ANCHOR_BRANCH_REPRODUCIBLE does NOT mean the full spectral GMPE is reproducible: unless a period table is supplied, off-anchor periods must be refused, never interpolated from the anchor.",
+    "anchor_note": "What a coefficient block implies without stating it - an unnamed site coefficient, an unnamed reference class, a horizontal branch whose component definition is not given. Recorded so the inference is visible; the field itself stays RESOLVE where the appendix is silent.",
+    "aleatory": "Published variability, in the model's OWN log base. Naming follows each source: some give tau/phi, some a single total sigma, Bindi gives event/station, Hong adds an orientation term. Do not normalise these onto one vocabulary."
+  },
+  "models": {
+    "boore-atkinson-2008": {
+      "benchmark_id": "01",
+      "kind": "gmpe",
+      "label": "Boore & Atkinson (2008)",
+      "douglas_refs": [
+        "2.240",
+        "4.143"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.27,
+        "max": 7.9,
+        "approximate": true,
+        "hinge_mw": 6.75,
+        "mref": 4.5
+      },
+      "distance": {
+        "metric": "Rjb",
+        "field": "rjb_km",
+        "min_km": 0.0,
+        "max_km": 280.0,
+        "approximate": true,
+        "rref_km": 1.0,
+        "h_km": 1.35
+      },
+      "site": {
+        "parameterization": "vs30_continuous",
+        "nonlinear": true,
+        "fields": [
+          "vs30_mps"
+        ],
+        "vref_mps": 760.0,
+        "v1_mps": 180.0,
+        "v2_mps": 300.0,
+        "anchor_note": "Nonlinear site parameters blin/b1/b2 and a1/a2/pga_low are given for PGA."
+      },
+      "mechanism": {
+        "classes": [
+          "unspecified",
+          "strike_slip",
+          "normal",
+          "reverse"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.01,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": [
+          0.01,
+          0.02,
+          0.03,
+          0.05,
+          0.075,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.4,
+          0.5,
+          0.75,
+          1.0,
+          1.5,
+          2.0,
+          3.0,
+          4.0,
+          5.0,
+          7.5,
+          10.0
+        ]
+      },
+      "component": "GMRotI50",
+      "log_base": "ln",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism"
+        ],
+        "distance": [
+          "rjb_km"
+        ],
+        "site": [
+          "vs30_mps"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The period-dependent SPECTRAL table for FM(M), FD(Rjb,M), FLIN and FNL. The PGA anchor coefficients (e1-e7, c1-c3, h, blin, b1, b2, Mh, Vref) and tau/phi are now available from the spec appendix; the spectral table is not."
+      },
+      "implementation_notes": [
+        "Piecewise magnitude scaling about a hinge magnitude.",
+        "Nonlinear site term requires reference-rock PGA computed internally.",
+        "Long-period coefficients rest on far fewer records than short-period ones."
+      ],
+      "reason_for_inclusion": "NGA anchor; nonlinear Vs30 site response.",
+      "aleatory": {
+        "published": true,
+        "phi_intra": 0.502,
+        "tau_inter_unspecified_mech": 0.265,
+        "tau_inter_specified_mech": 0.26,
+        "sigma_total_unspecified_mech": 0.566,
+        "sigma_total_specified_mech": 0.56
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/boore_atkinson_2008.py coefficient table; period count and range (21 periods, 0.01-10 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "campbell-bozorgnia-2008": {
+      "benchmark_id": "02",
+      "kind": "gmpe",
+      "label": "Campbell & Bozorgnia (2008)",
+      "douglas_refs": [
+        "2.241",
+        "4.144"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.27,
+        "max": 7.9,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "min_km": 0.07,
+        "max_km": 199.27
+      },
+      "site": {
+        "parameterization": "vs30_continuous",
+        "nonlinear": true,
+        "fields": [
+          "vs30_mps",
+          "z2p5_km"
+        ],
+        "k1_mps": 865.0,
+        "anchor_note": "Site nonlinearity via k1/k2/k3 is given for PGA."
+      },
+      "mechanism": {
+        "classes": [
+          "strike_slip",
+          "normal",
+          "reverse"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.01,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": [
+          0.01,
+          0.02,
+          0.03,
+          0.05,
+          0.075,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.4,
+          0.5,
+          0.75,
+          1.0,
+          1.5,
+          2.0,
+          3.0,
+          4.0,
+          5.0,
+          7.5,
+          10.0
+        ]
+      },
+      "component": "GMRotI50",
+      "log_base": "ln",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism",
+          "ztor_km",
+          "dip_deg"
+        ],
+        "distance": [
+          "rrup_km",
+          "rjb_km"
+        ],
+        "site": [
+          "vs30_mps",
+          "z2p5_km"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The period-dependent SPECTRAL table for fmag + fdis + fflt + fhng + fsite + fsed. PGA anchor coefficients c0-c12 and k1-k3 with the full aleatory decomposition are now available."
+      },
+      "implementation_notes": [
+        "Rupture geometry must be supplied explicitly, never derived from a single distance measure.",
+        "Published short-period rule: PSA must not fall below PGA where the paper specifies it.",
+        "Hanging-wall flags depend on geometry, not on distance alone."
+      ],
+      "reason_for_inclusion": "NGA anchor; rupture geometry, hanging wall, sediment/site effects.",
+      "aleatory": {
+        "published": true,
+        "phi_intra": 0.478,
+        "tau_inter": 0.219,
+        "sigma_total": 0.526,
+        "sigma_arbitrary_component": 0.551,
+        "sigma_component": 0.166
+      },
+      "component_note": "Still not named. The appendix publishes both a total sigma and an arbitrary-component sigma, which implies the median is for a defined average horizontal component - confirm which from the paper.",
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 0.07 km (rrup)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 199.27 km (rrup)",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code I50; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/campbell_bozorgnia_2008.py declares IMC.GMRotI50",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/campbell_bozorgnia_2008.py coefficient table; period count and range (21 periods, 0.01-10 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "abrahamson-silva-2008": {
+      "benchmark_id": "03",
+      "kind": "gmpe",
+      "label": "Abrahamson & Silva (2008/2009)",
+      "douglas_refs": [
+        "2.251",
+        "4.150"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.27,
+        "max": 7.9,
+        "approximate": true,
+        "hinge_mw": 6.75
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "min_km": 0.06,
+        "max_km": 200.0,
+        "approximate": true
+      },
+      "site": {
+        "parameterization": "vs30_continuous",
+        "nonlinear": true,
+        "fields": [
+          "vs30_mps",
+          "z1p0_km"
+        ],
+        "vlin_mps": 865.1,
+        "b_nonlinear": -1.186,
+        "n_nonlinear": 1.18,
+        "anchor_note": "Nonlinear site parameters VLIN, b, n, c are given for the reference branch."
+      },
+      "mechanism": {
+        "classes": [
+          "strike_slip",
+          "normal",
+          "reverse"
+        ],
+        "extra_flags": [
+          "aftershock"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.01,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": [
+          0.01,
+          0.02,
+          0.03,
+          0.04,
+          0.05,
+          0.075,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.4,
+          0.5,
+          0.75,
+          1.0,
+          1.5,
+          2.0,
+          3.0,
+          4.0,
+          5.0,
+          7.5,
+          10.0
+        ]
+      },
+      "component": "GMRotI50",
+      "log_base": "ln",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism",
+          "ztor_km",
+          "dip_deg",
+          "width_km",
+          "aftershock"
+        ],
+        "distance": [
+          "rrup_km",
+          "rjb_km",
+          "rx_km"
+        ],
+        "site": [
+          "vs30_mps",
+          "z1p0_km"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The period-dependent SPECTRAL table, including the authors' own smoothing. PGA/reference coefficients (a1-a18 subset, VLIN, b, c, n, c1, c2, c4) and the aleatory model are now available."
+      },
+      "implementation_notes": [
+        "Reference-rock PGA for the nonlinear site term must be computed exactly as the source defines it.",
+        "Do not invent coefficients at periods the smoothed tables omit."
+      ],
+      "reason_for_inclusion": "NGA anchor; nonlinear site, hanging wall, basin/depth terms.",
+      "aleatory": {
+        "published": true,
+        "note": "s1/s2 differ for measured vs estimated Vs30; s3, s4 and rho(T,PGA) are given.",
+        "s1_vs30_estimated": 0.59,
+        "s2_vs30_estimated": 0.47,
+        "s1_vs30_measured": 0.576,
+        "s2_vs30_measured": 0.453,
+        "s3": 0.47,
+        "s4": 0.3
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA / reference branch",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 0.06* km (rrup), approximate",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 200* km; Douglas (2011) BRGM/RP-59356-FR, section 2.251: authors believe model applicable for 0 <= dr <= 200 km",
+        "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): values starred",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code I50; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/abrahamson_silva_2008.py declares IMC.GMRotI50",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/abrahamson_silva_2008.py coefficient table; period count and range (22 periods, 0.01-10 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "chiou-youngs-2008": {
+      "benchmark_id": "04",
+      "kind": "gmpe",
+      "label": "Chiou & Youngs (2008)",
+      "douglas_refs": [
+        "2.255",
+        "4.155"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.27,
+        "max": 7.9,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "min_km": 0.2,
+        "max_km": 70.0,
+        "approximate": true,
+        "authors_stated_validity_km": [
+          0.0,
+          200.0
+        ]
+      },
+      "site": {
+        "parameterization": "vs30_continuous",
+        "nonlinear": true,
+        "fields": [
+          "vs30_mps",
+          "z1p0_km"
+        ],
+        "phi7_mps": 580.0,
+        "anchor_note": "Site terms phi1-phi8 are given for the reference branch."
+      },
+      "mechanism": {
+        "classes": [
+          "strike_slip",
+          "normal",
+          "reverse"
+        ],
+        "extra_flags": [
+          "aftershock"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.01,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": [
+          0.01,
+          0.02,
+          0.03,
+          0.04,
+          0.05,
+          0.075,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.4,
+          0.5,
+          0.75,
+          1.0,
+          1.5,
+          2.0,
+          3.0,
+          4.0,
+          5.0,
+          7.5,
+          10.0
+        ]
+      },
+      "component": "GMRotI50",
+      "log_base": "ln",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism",
+          "ztor_km",
+          "dip_deg",
+          "width_km",
+          "aftershock"
+        ],
+        "distance": [
+          "rrup_km",
+          "rjb_km",
+          "rx_km"
+        ],
+        "site": [
+          "vs30_mps",
+          "z1p0_km"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The period-dependent SPECTRAL table. PGA/reference coefficients (c1-c10, cn, cM, c_gamma1-3, phi1-phi8) and the tau/sigma model are now available."
+      },
+      "implementation_notes": [
+        "Implement the nonlinear Vs30 term and its reference-motion dependence as published; do not rearrange it into an approximate power law.",
+        "Regression-test at periods where the source coefficients were smoothed or changed."
+      ],
+      "reason_for_inclusion": "NGA anchor; detailed nonlinear site and source/path formulation.",
+      "aleatory": {
+        "published": true,
+        "tau1": 0.3437,
+        "tau2": 0.2637,
+        "sigma1": 0.4458,
+        "sigma2": 0.3459,
+        "sigma3": 0.8,
+        "sigma4": 0.0663
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA / reference branch",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 0.2* km (rrup); footnote: authors believe model valid to 0 km",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 70* km (rrup) -- records beyond 70 km were excluded (Douglas (2011) BRGM/RP-59356-FR, section 2.255); footnote: authors believe model valid to 200 km",
+        "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): values starred",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code I50; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/chiou_youngs_2008.py declares IMC.GMRotI50",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/chiou_youngs_2008.py coefficient table; period count and range (22 periods, 0.01-10 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "idriss-2008": {
+      "benchmark_id": "05",
+      "kind": "gmpe",
+      "label": "Idriss (2008)",
+      "douglas_refs": [
+        "2.258",
+        "4.158"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.5,
+        "max": 7.7,
+        "approximate": true,
+        "break_mw": 6.75,
+        "note": "alpha1/alpha2 switch at Mw 6.75: 3.7066/-0.1252 below, 5.6315/-0.4104 above."
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "min_km": 0.3,
+        "max_km": 199.3
+      },
+      "site": {
+        "parameterization": "vs30_banded",
+        "nonlinear": false,
+        "fields": [
+          "vs30_mps"
+        ],
+        "primary_band_mps": [
+          450,
+          900
+        ],
+        "note": "A correction applies for Vs30 > 900 m/s. This is not a continuous nonlinear site model - do not generalise it into one.",
+        "high_vs30_correction": "Delta_alpha1(T) = ln[(1+11T+0.27T^2)/(1+16T+0.08T^2)] for Vs30 > 900 m/s"
+      },
+      "mechanism": {
+        "classes": [
+          "strike_slip_or_normal",
+          "reverse_or_oblique"
+        ],
+        "note": "A single fault-style term phi(T)*F in the published equation.",
+        "anchor_note": "A single fault-style flag F with coefficient 0.12. Which classes F encodes is still not stated.",
+        "flag_values": {
+          "strike_slip_or_normal": 0,
+          "reverse_or_oblique": 1
+        }
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.01,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 31,
+          "t_min_s": 0.01,
+          "t_max_s": 10.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; Idriss (2008) has no OpenQuake implementation (only idriss_2014.py) and the paper is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "GMRotI50",
+      "log_base": "ln",
+      "internal_units": "g",
+      "equation": "ln(PSA) = alpha1(T) + alpha2(T)*M - [beta1(T) + beta2(T)*M]*ln(Rrup + 10) + gamma(T)*Rrup + phi(T)*F",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "vs30_mps"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The period-dependent SPECTRAL table for alpha1, alpha2, beta1, beta2, gamma and phi. PGA/headline values, the magnitude break, the sigma expression and the high-Vs30 correction are now available."
+      },
+      "implementation_notes": [
+        "Magnitude-dependent sigma with clipping magnitudes.",
+        "Test above and below the magnitude breakpoint and around Vs30 = 900 m/s."
+      ],
+      "reason_for_inclusion": "Deliberately simpler NGA-era functional form.",
+      "sigma_rule": "1.28 + 0.05*ln(T) - 0.08*M, capped at M=5 and M=7.5; for T<0.05 use T=0.05",
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA / headline branch",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 0.3 km (rrup)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 199.3 km (rrup); Douglas (2011) BRGM/RP-59356-FR, section 2.258: records from > 200 km excluded",
+        "mechanism.classes": "Douglas (2011) BRGM/RP-59356-FR, section 2.258: F = 0 strike-slip (rake within 30 deg of horizontal; normal events included); F = 1 reverse (rake within 30 deg of vertical upwards; reverse-oblique and normal-oblique included)",
+        "periods.t_min_s": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): Tmin 0.01 s",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code I50"
+      }
+    },
+    "faccioli-2010": {
+      "benchmark_id": "06",
+      "kind": "gmpe",
+      "label": "Faccioli et al. (2010)",
+      "douglas_refs": [
+        "2.283",
+        "4.182"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.5,
+        "max": 7.6,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "min_km": 0.2,
+        "max_km": 200.0,
+        "approximate": true
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "scheme": "Eurocode-style",
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "Site coefficients aB/aC/aD confirm A as the reference class."
+      },
+      "mechanism": {
+        "classes": [
+          "normal",
+          "reverse",
+          "strike_slip"
+        ],
+        "anchor_note": "Confirmed by the aN/aR/aS coefficients."
+      },
+      "imts": [
+        "SD"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.05,
+        "t_max_s": 20.0,
+        "approximate": true,
+        "grid": [
+          0.05,
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9,
+          1.0,
+          1.25,
+          1.5,
+          2.0,
+          2.5,
+          3.0,
+          4.0,
+          5.0,
+          7.5,
+          10.0,
+          15.0,
+          20.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "log10",
+      "internal_units": {
+        "PGA": "m/s2",
+        "SD": "cm"
+      },
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The published SPECTRAL subset table for the long-period displacement response. Anchor coefficients a1-a5, aB/aC/aD, aN/aR/aS, k1-k3 and sigma are now available."
+      },
+      "implementation_notes": [
+        "Long-period displacement response is the defining benchmark feature.",
+        "Do not interpolate across unpublished long-period coefficients."
+      ],
+      "reason_for_inclusion": "Long-period/end-member displacement response model.",
+      "internal_units_note": "The anchor block states log_base 10 but gives NO units. Still to be read off the paper.",
+      "aleatory": {
+        "published": true,
+        "sigma_total": 0.3616
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "Douglas chapter-2 anchor equation",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): rmin 0.2* km (rrup; rhypo for small events)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): rmax 200* km",
+        "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): values starred",
+        "periods.t_min_s": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): Tmin 0.05 s",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/cauzzi_faccioli_2008.py FaccioliEtAl2010 inherits IMC.GEOMETRIC_MEAN",
+        "internal_units": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/cauzzi_faccioli_2008.py converts PGA 'from m/s**2 to g' and DRS via DRS*(2*pi/T)**2*1e-2 (i.e. DRS in cm). Independent check: the PGA anchor (a1=-1.18, a2=0.559, a3=-1.624, a4=0.018, a5=0.445) gives 10**0.12 = 1.3 at Mw 6, Rrup 10 km, rock -- plausible as 1.3 m/s2 (0.13 g), absurd as 1.3 cm/s2. Douglas (2011) BRGM/RP-59356-FR, section 2.283 states 'DRS(T) is in cm/s2', which is dimensionally impossible for a displacement spectrum and is treated as a catalogue error.",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/cauzzi_faccioli_2008.py (FaccioliEtAl2010.COEFFS, 'table 1 page 7') coefficient table; period count and range (22 periods, 0.05-20 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. Douglas section 4.182: coefficients given only for a subset of the periods analysed -- do not interpolate between them."
+      },
+      "units_warning": "Douglas (2011) section 2.283 labels the units 'cm/s2'. That is wrong for a displacement spectrum and, for the PGA anchor, off by a factor of 100. Units are per-IMT: PGA in m/s2, SD (DRS) in cm. Confirm against Faccioli et al. (2010) Table 1 before writing a coefficient file."
+    },
+    "cauzzi-faccioli-2008": {
+      "benchmark_id": "07",
+      "kind": "gmpe",
+      "label": "Cauzzi & Faccioli (2008)",
+      "douglas_refs": [
+        "2.254",
+        "4.152"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 7.2,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "min_km": 6.0,
+        "max_km": 150.0,
+        "approximate": true,
+        "implementation_note": "OpenQuake clips Rhypo at 15 km 'as per Ezio Faccioli's personal communication'. That clip is not in Douglas (2011); do not adopt it without a source."
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "Resolved from the aB/aC/aD site coefficients; A is the reference class."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "anchor_note": "The horizontal-PGA anchor block contains no mechanism term. The displacement-spectrum branches may differ."
+      },
+      "imts": [
+        "SD"
+      ],
+      "damping": [
+        0.05,
+        0.1,
+        0.2,
+        0.3
+      ],
+      "periods": {
+        "t_min_s": 0.05,
+        "t_max_s": 20.0,
+        "approximate": true,
+        "grid": [
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1.0,
+          1.05,
+          1.1,
+          1.15,
+          1.2,
+          1.25,
+          1.3,
+          1.35,
+          1.4,
+          1.45,
+          1.5,
+          1.55,
+          1.6,
+          1.65,
+          1.7,
+          1.75,
+          1.8,
+          1.85,
+          1.9,
+          1.95,
+          2.0,
+          2.05,
+          2.1,
+          2.15,
+          2.2,
+          2.25,
+          2.3,
+          2.35,
+          2.4,
+          2.45,
+          2.5,
+          2.55,
+          2.6,
+          2.65,
+          2.7,
+          2.75,
+          2.8,
+          2.85,
+          2.9,
+          2.95,
+          3.0,
+          3.05,
+          3.1,
+          3.15,
+          3.2,
+          3.25,
+          3.3,
+          3.35,
+          3.4,
+          3.45,
+          3.5,
+          3.55,
+          3.6,
+          3.65,
+          3.7,
+          3.75,
+          3.8,
+          3.85,
+          3.9,
+          3.95,
+          4.0,
+          4.05,
+          4.1,
+          4.15,
+          4.2,
+          4.25,
+          4.3,
+          4.35,
+          4.4,
+          4.45,
+          4.5,
+          4.55,
+          4.6,
+          4.65,
+          4.7,
+          4.75,
+          4.8,
+          4.85,
+          4.9,
+          4.95,
+          5.0,
+          5.05,
+          5.1,
+          5.15,
+          5.2,
+          5.25,
+          5.3,
+          5.35,
+          5.4,
+          5.45,
+          5.5,
+          5.55,
+          5.6,
+          5.65,
+          5.7,
+          5.75,
+          5.8,
+          5.85,
+          5.9,
+          5.95,
+          6.0,
+          6.05,
+          6.1,
+          6.15,
+          6.2,
+          6.25,
+          6.3,
+          6.35,
+          6.4,
+          6.45,
+          6.5,
+          6.55,
+          6.6,
+          6.65,
+          6.7,
+          6.75,
+          6.8,
+          6.85,
+          6.9,
+          6.95,
+          7.0,
+          7.05,
+          7.1,
+          7.15,
+          7.2,
+          7.25,
+          7.3,
+          7.35,
+          7.4,
+          7.45,
+          7.5,
+          7.55,
+          7.6,
+          7.65,
+          7.7,
+          7.75,
+          7.8,
+          7.85,
+          7.9,
+          7.95,
+          8.0,
+          8.05,
+          8.1,
+          8.15,
+          8.2,
+          8.25,
+          8.3,
+          8.35,
+          8.4,
+          8.45,
+          8.5,
+          8.55,
+          8.6,
+          8.65,
+          8.7,
+          8.75,
+          8.8,
+          8.85,
+          8.9,
+          8.95,
+          9.0,
+          9.05,
+          9.1,
+          9.15,
+          9.2,
+          9.25,
+          9.3,
+          9.35,
+          9.4,
+          9.45,
+          9.5,
+          9.55,
+          9.6,
+          9.65,
+          9.7,
+          9.75,
+          9.8,
+          9.85,
+          9.9,
+          9.95,
+          10.0,
+          10.05,
+          10.1,
+          10.15,
+          10.2,
+          10.25,
+          10.3,
+          10.35,
+          10.4,
+          10.45,
+          10.5,
+          10.55,
+          10.6,
+          10.65,
+          10.7,
+          10.75,
+          10.8,
+          10.85,
+          10.9,
+          10.95,
+          11.0,
+          11.05,
+          11.1,
+          11.15,
+          11.2,
+          11.25,
+          11.3,
+          11.35,
+          11.4,
+          11.45,
+          11.5,
+          11.55,
+          11.6,
+          11.65,
+          11.7,
+          11.75,
+          11.8,
+          11.85,
+          11.9,
+          11.95,
+          12.0,
+          12.05,
+          12.1,
+          12.15,
+          12.2,
+          12.25,
+          12.3,
+          12.35,
+          12.4,
+          12.45,
+          12.5,
+          12.55,
+          12.6,
+          12.65,
+          12.7,
+          12.75,
+          12.8,
+          12.85,
+          12.9,
+          12.95,
+          13.0,
+          13.05,
+          13.1,
+          13.15,
+          13.2,
+          13.25,
+          13.3,
+          13.35,
+          13.4,
+          13.45,
+          13.5,
+          13.55,
+          13.6,
+          13.65,
+          13.7,
+          13.75,
+          13.8,
+          13.85,
+          13.9,
+          13.95,
+          14.0,
+          14.05,
+          14.1,
+          14.15,
+          14.2,
+          14.25,
+          14.3,
+          14.35,
+          14.4,
+          14.45,
+          14.5,
+          14.55,
+          14.6,
+          14.65,
+          14.7,
+          14.75,
+          14.8,
+          14.85,
+          14.9,
+          14.95,
+          15.0,
+          15.05,
+          15.1,
+          15.15,
+          15.2,
+          15.25,
+          15.3,
+          15.35,
+          15.4,
+          15.45,
+          15.5,
+          15.55,
+          15.6,
+          15.65,
+          15.7,
+          15.75,
+          15.8,
+          15.85,
+          15.9,
+          15.95,
+          16.0,
+          16.05,
+          16.1,
+          16.15,
+          16.2,
+          16.25,
+          16.3,
+          16.35,
+          16.4,
+          16.45,
+          16.5,
+          16.55,
+          16.6,
+          16.65,
+          16.7,
+          16.75,
+          16.8,
+          16.85,
+          16.9,
+          16.95,
+          17.0,
+          17.05,
+          17.1,
+          17.15,
+          17.2,
+          17.25,
+          17.3,
+          17.35,
+          17.4,
+          17.45,
+          17.5,
+          17.55,
+          17.6,
+          17.65,
+          17.7,
+          17.75,
+          17.8,
+          17.85,
+          17.9,
+          17.95,
+          18.0,
+          18.05,
+          18.1,
+          18.15,
+          18.2,
+          18.25,
+          18.3,
+          18.35,
+          18.4,
+          18.45,
+          18.5,
+          18.55,
+          18.6,
+          18.65,
+          18.7,
+          18.75,
+          18.8,
+          18.85,
+          18.9,
+          18.95,
+          19.0,
+          19.05,
+          19.1,
+          19.15,
+          19.2,
+          19.25,
+          19.3,
+          19.35,
+          19.4,
+          19.45,
+          19.5,
+          19.55,
+          19.6,
+          19.65,
+          19.7,
+          19.75,
+          19.8,
+          19.85,
+          19.9,
+          19.95,
+          20.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "log10",
+      "internal_units": "m/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism"
+        ],
+        "distance": [
+          "rhypo_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The ELECTRONIC SUPPLEMENTARY MATERIAL displacement-spectrum tables for all four damping ratios. Only the horizontal-PGA anchor (a1, a2, a3, aB, aC, aD, sigma) is available."
+      },
+      "implementation_notes": [
+        "Reject a damping ratio that is not published unless a separately documented interpolation rule exists.",
+        "Broadband digital-record model; displacement response is the emphasis."
+      ],
+      "reason_for_inclusion": "Broadband displacement and damping diversity.",
+      "component_note": "The anchor branch is labelled horizontal, but which horizontal definition is not stated.",
+      "aleatory": {
+        "published": true,
+        "sigma_total": 0.344
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "horizontal PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 6* km (rhypo)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 150* km (rhypo)",
+        "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): values starred",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/cauzzi_faccioli_2008.py declares IMC.GEOMETRIC_MEAN ('On functional forms', p. 462)",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/cauzzi_faccioli_2008.py (CauzziFaccioli2008.COEFFS, 'constructed from the electronic supplements') coefficient table; period count and range (400 periods, 0.05-20 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. Grid is 0.05 to 20.00 s in 0.05 s steps. The OpenQuake table carries two further rows (20.03, 21.03 s) outside the published 0.05-20 s range; they are excluded."
+      }
+    },
+    "chen-yu-2008a": {
+      "benchmark_id": "08",
+      "kind": "gmpe",
+      "label": "Chen & Yu (2008a)",
+      "douglas_refs": [
+        "4.154",
+        "4.153"
+      ],
+      "region": "Worldwide",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 7.5,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "RESOLVE",
+        "field": "RESOLVE",
+        "note": "Douglas describes a source-distance form defined in the paper. Resolve before coding; do not assume Rrup."
+      },
+      "site": {
+        "parameterization": "fixed_condition",
+        "condition": "Vs30 >= 500 m/s",
+        "fields": [],
+        "note": "Douglas section 4.153: only records from sites with Vs30 >= 500 m/s are used, and the functional form has no site term. A single calibration condition, not a set of classes. Do NOT add a site-amplification model."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "anchor_note": "The reproduced functional form contains no mechanism term."
+      },
+      "imts": [
+        "SA"
+      ],
+      "damping": [
+        0.005,
+        0.02,
+        0.07,
+        0.1,
+        0.2
+      ],
+      "periods": {
+        "t_min_s": 0.04,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": null,
+          "t_min_s": 0.04,
+          "t_max_s": 10.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; Douglas gives Ts = U (unknown number of periods). Still RESOLVE."
+        }
+      },
+      "component": "both_horizontal_components",
+      "log_base": "RESOLVE",
+      "internal_units": "RESOLVE",
+      "required": {
+        "rupture": [
+          "mw"
+        ],
+        "distance": [
+          "RESOLVE"
+        ],
+        "site": []
+      },
+      "coefficients": {
+        "status": "original_table_required",
+        "needed": "The whole damping-dependent coefficient set. The appendix reproduces the functional form only, explicitly NOT_REPRODUCED_IN_DOUGLAS, for all five damping ratios."
+      },
+      "implementation_notes": [
+        "Supported damping must be exactly {0.005, 0.02, 0.07, 0.10, 0.20}; never substitute 5% coefficients for an unlisted ratio.",
+        "Preserve the source magnitude-distance binning and site restrictions."
+      ],
+      "reason_for_inclusion": "Explicit damping-ratio diversity.",
+      "equation": "log Sa = C1 + C2*M + C3*M^2 + C4*log[R + C5*exp(C6*M)]",
+      "log_base_note": "The reproduced form is written 'log' with no base stated, and the appendix gives no log_base. Still unresolved.",
+      "reproduction": {
+        "status": "ORIGINAL_TABLE_REQUIRED",
+        "branch": null,
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): M scale Mw (NGA Flatfile, Douglas (2011) BRGM/RP-59356-FR, section 4.153)",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code B ('both components' -- each horizontal used as a separate observation)",
+        "site.classes": "Douglas (2011) BRGM/RP-59356-FR, section 4.153: 'Use records from sites with Vs,30 >= 500 m/s'; Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): S = 1. Replaced the categorical placeholder with a fixed condition."
+      }
+    },
+    "beyer-bommer-2006": {
+      "benchmark_id": "09",
+      "kind": "benchmark",
+      "supplies_median": false,
+      "label": "Beyer & Bommer (2006) component-definition benchmark",
+      "douglas_refs": [
+        "2.220"
+      ],
+      "region": "USA/Taiwan/Turkey and other shallow crustal",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.3,
+        "max": 7.9,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "min_km": 6.0,
+        "max_km": 200.0,
+        "approximate": true
+      },
+      "site": {
+        "parameterization": "RESOLVE",
+        "fields": []
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "imts": [
+        "PGA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 77,
+          "t_min_s": 0.01,
+          "t_max_s": 5.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; the study publishes sigma ratios, not a coefficient table, and the exact period list was not verified. Still RESOLVE."
+        }
+      },
+      "component": "multiple - that is the point of the study",
+      "components_available": [
+        "principal_1",
+        "principal_2",
+        "arithmetic_mean",
+        "both_horizontal_components",
+        "random_component",
+        "GMRotD50",
+        "geometric_mean",
+        "GMRotI50",
+        "larger_component",
+        "fault_normal",
+        "fault_parallel",
+        "resolved_component"
+      ],
+      "log_base": "not_applicable",
+      "internal_units": "dimensionless",
+      "required": {
+        "rupture": [],
+        "distance": [],
+        "site": []
+      },
+      "coefficients": {
+        "status": "unavailable_by_nature",
+        "needed": "Douglas explicitly does not give the functional form or coefficients; the appendix confirms NOT_GIVEN_IN_DOUGLAS. The study reports sigma ratios between component definitions. The original article is required before it could become a median GMPE."
+      },
+      "implementation_notes": [
+        "Treat as a component-definition sensitivity benchmark, NOT a median GMPE.",
+        "Must refuse to return an absolute median until an authoritative baseline equation is provided.",
+        "If the original paper arrives, keep the baseline median GMPE separate from the component-conversion/variability layer."
+      ],
+      "reason_for_inclusion": "Component-definition sensitivity benchmark.",
+      "reproduction": {
+        "status": "NOT_A_STANDALONE_GMPE",
+        "branch": null,
+        "spectral_coefficients": "NOT_APPLICABLE",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.metric": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): r scale rhypo, 6*-200* km",
+        "distance.field": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): r scale rhypo",
+        "mechanism.classes": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): mechanism code 'A (U)' -- all mechanisms pooled, none modelled separately. Data population (Douglas (2011) BRGM/RP-59356-FR, section 2.220): 333 strike-slip, 36 normal, 329 reverse, 223 reverse-oblique, 25 normal-oblique, 3 undefined records.",
+        "components_available": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component codes 1, 2, A, B, C, D50, G, I50, L, N, P, R",
+        "log_base": "Douglas (2011) BRGM/RP-59356-FR, section 2.220: coefficients not given; the study reports ratios of sigma between component definitions. A ratio of standard deviations of log ground motion is the same in any log base, so no base attaches to the reported quantity.",
+        "internal_units": "Douglas (2011) BRGM/RP-59356-FR, section 2.220: only ratios (sigma_x / sigma_GM) are reported; ratios carry no units."
+      }
+    },
+    "ambraseys-2005a": {
+      "benchmark_id": "10",
+      "kind": "gmpe",
+      "label": "Ambraseys et al. (2005a)",
+      "douglas_refs": [
+        "2.207"
+      ],
+      "region": "Europe & Middle East",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 7.6,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rjb",
+        "field": "rjb_km",
+        "fallback": {
+          "metric": "Repi",
+          "field": "repi_km",
+          "when": "small events, per the paper"
+        },
+        "h_km": 7.6
+      },
+      "site": {
+        "parameterization": "categorical_from_vs30",
+        "fields": [
+          "site_class",
+          "vs30_mps"
+        ],
+        "classes": [
+          {
+            "name": "soft_soil",
+            "vs30_mps": "180 < Vs30 <= 360"
+          },
+          {
+            "name": "stiff_soil",
+            "vs30_mps": "360 < Vs30 <= 750"
+          },
+          {
+            "name": "rock",
+            "vs30_mps": "Vs30 > 750"
+          }
+        ],
+        "note": "A published Vs30 -> class mapping, so mapping is permitted here. Honour the boundary values exactly."
+      },
+      "mechanism": {
+        "classes": [
+          "normal",
+          "thrust",
+          "other"
+        ],
+        "anchor_note": "Confirmed by a8_normal / a9_thrust / a10_odd."
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.05,
+        "t_max_s": 2.5,
+        "approximate": true,
+        "grid": [
+          0.05,
+          0.055,
+          0.06,
+          0.065,
+          0.07,
+          0.075,
+          0.08,
+          0.085,
+          0.09,
+          0.095,
+          0.1,
+          0.11,
+          0.12,
+          0.13,
+          0.14,
+          0.15,
+          0.16,
+          0.17,
+          0.18,
+          0.19,
+          0.2,
+          0.22,
+          0.24,
+          0.26,
+          0.28,
+          0.3,
+          0.32,
+          0.34,
+          0.36,
+          0.38,
+          0.4,
+          0.42,
+          0.44,
+          0.46,
+          0.48,
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1.0,
+          1.1,
+          1.2,
+          1.3,
+          1.4,
+          1.5,
+          1.6,
+          1.7,
+          1.8,
+          1.9,
+          2.0,
+          2.1,
+          2.2,
+          2.3,
+          2.4,
+          2.5
+        ]
+      },
+      "component": "larger_component",
+      "log_base": "log10",
+      "internal_units": "m/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism"
+        ],
+        "distance": [
+          "rjb_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table. PGA coefficients a1-a10 and both magnitude-dependent sigma expressions are now available."
+      },
+      "implementation_notes": [
+        "Boundary tests at Vs30 = 360 and 750 m/s.",
+        "Douglas gives magnitude-dependent intra- and inter-event sigmas for PGA."
+      ],
+      "reason_for_inclusion": "Major European regional model.",
+      "aleatory": {
+        "published": true,
+        "phi_intra": "0.665 - 0.065*Mw",
+        "tau_inter": "0.222 - 0.022*Mw",
+        "note": "Magnitude-dependent, as expressions rather than constants."
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code L; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/ambraseys_2005.py declares IMC.GREATER_OF_TWO_HORIZONTAL",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/ambraseys_2005.py coefficient table; period count and range (61 periods, 0.05-2.5 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "akkar-bommer-2010": {
+      "benchmark_id": "11",
+      "kind": "gmpe",
+      "label": "Akkar & Bommer (2010)",
+      "douglas_refs": [
+        "2.277",
+        "4.176"
+      ],
+      "region": "Europe & Middle East",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 7.6,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rjb",
+        "field": "rjb_km",
+        "min_km": 0.0,
+        "max_km": 99.0
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "soft_soil",
+          "stiff_soil",
+          "rock"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "b7_soft_soil / b8_stiff_soil confirm rock as the reference class."
+      },
+      "mechanism": {
+        "classes": [
+          "normal",
+          "strike_slip",
+          "reverse"
+        ],
+        "anchor_note": "b9_normal / b10_reverse confirm strike-slip as the reference class."
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.05,
+        "t_max_s": 3.0,
+        "approximate": true,
+        "grid": [
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1.0,
+          1.05,
+          1.1,
+          1.15,
+          1.2,
+          1.25,
+          1.3,
+          1.35,
+          1.4,
+          1.45,
+          1.5,
+          1.55,
+          1.6,
+          1.65,
+          1.7,
+          1.75,
+          1.8,
+          1.85,
+          1.9,
+          1.95,
+          2.0,
+          2.05,
+          2.1,
+          2.15,
+          2.2,
+          2.25,
+          2.3,
+          2.35,
+          2.4,
+          2.45,
+          2.5,
+          2.55,
+          2.6,
+          2.65,
+          2.7,
+          2.75,
+          2.8,
+          2.85,
+          2.9,
+          2.95,
+          3.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "equation": "log y = b1 + b2*M + b3*M^2 + (b4 + b5*M)*log(sqrt(Rjb^2 + b6^2)) + site terms + mechanism terms",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism"
+        ],
+        "distance": [
+          "rjb_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for b1-b10. PGA coefficients and both sigma components are now available."
+      },
+      "implementation_notes": [
+        "The published form is written 'log y' without naming the base. RESOLVE before coding - this is exactly the silent error rule 1 warns about.",
+        "Magnitude-dependent distance attenuation through the (b4 + b5*M) term."
+      ],
+      "reason_for_inclusion": "Later European model with compact form.",
+      "log_base_note": "Resolved: the appendix states log_base 10, settling the ambiguity in the 'log y' form.",
+      "aleatory": {
+        "published": true,
+        "phi_intra": 0.261,
+        "tau_inter": 0.0994
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 0 km (rjb)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 99 km (rjb)",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/akkar_bommer_2010.py declares IMC.GEOMETRIC_MEAN (p. 196)",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/akkar_bommer_2010.py coefficient table; period count and range (60 periods, 0.05-3 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. The OpenQuake table also carries 0.01-0.04 s and 4.0 s rows (4.0 s is scaled by 1/0.8 in code); those are implementation extensions outside the published 0.05-3 s range and are excluded."
+      }
+    },
+    "berge-thierry-2003": {
+      "benchmark_id": "12",
+      "kind": "gmpe",
+      "label": "Berge-Thierry et al. (2003)",
+      "douglas_refs": [
+        "4.109"
+      ],
+      "region": "Europe/Middle East + western USA",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Ms",
+        "min": 4.0,
+        "max": 7.9,
+        "approximate": true,
+        "note": "Ms. The 163 W. USA records enter on Mw, treated by the authors as equivalent to Ms above Mw 6. Do not feed Mw."
+      },
+      "distance": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "min_km": 4.0,
+        "max_km": 330.0
+      },
+      "site": {
+        "parameterization": "categorical",
+        "fields": [
+          "site_class"
+        ],
+        "classes": [
+          {
+            "name": "rock",
+            "vs_mps": "Vs > 800"
+          },
+          {
+            "name": "alluvium",
+            "vs_mps": "300 < Vs < 800"
+          }
+        ],
+        "anchor_note": "c1(f) applies to rock (Vs30 > 800 m/s) and c2(f) to alluvium (300 < Vs30 < 800 m/s)."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "note": "No mechanism term in the form Douglas summarises."
+      },
+      "imts": [
+        "SA"
+      ],
+      "damping": [
+        0.05,
+        0.07,
+        0.1,
+        0.2
+      ],
+      "periods": {
+        "t_min_s": 0.03,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": [
+          0.029412,
+          0.03,
+          0.032258,
+          0.034,
+          0.035714,
+          0.04,
+          0.045455,
+          0.05,
+          0.053,
+          0.055556,
+          0.058824,
+          0.059999,
+          0.0625,
+          0.064998,
+          0.066667,
+          0.068966,
+          0.069999,
+          0.071429,
+          0.074074,
+          0.075002,
+          0.076923,
+          0.08,
+          0.083333,
+          0.084998,
+          0.086957,
+          0.090001,
+          0.090909,
+          0.095238,
+          0.1,
+          0.10526,
+          0.11,
+          0.11111,
+          0.11765,
+          0.12,
+          0.125,
+          0.12903,
+          0.13001,
+          0.13333,
+          0.13793,
+          0.14,
+          0.14286,
+          0.14815,
+          0.14999,
+          0.15385,
+          0.16,
+          0.16667,
+          0.17001,
+          0.17391,
+          0.17999,
+          0.18182,
+          0.19001,
+          0.19048,
+          0.2,
+          0.20833,
+          0.21739,
+          0.21978,
+          0.22727,
+          0.2381,
+          0.23998,
+          0.25,
+          0.25974,
+          0.26316,
+          0.27778,
+          0.28003,
+          0.29002,
+          0.30003,
+          0.30303,
+          0.31696,
+          0.32,
+          0.33333,
+          0.34002,
+          0.34483,
+          0.35714,
+          0.35997,
+          0.37037,
+          0.37994,
+          0.38462,
+          0.4,
+          0.41667,
+          0.41999,
+          0.43478,
+          0.43995,
+          0.45455,
+          0.45998,
+          0.47619,
+          0.48008,
+          0.5,
+          0.52002,
+          0.52632,
+          0.53996,
+          0.55556,
+          0.55991,
+          0.58005,
+          0.58824,
+          0.59988,
+          0.61996,
+          0.625,
+          0.6402,
+          0.66007,
+          0.66667,
+          0.67981,
+          0.69979,
+          0.71429,
+          0.75019,
+          0.76923,
+          0.8,
+          0.83333,
+          0.85034,
+          0.90009,
+          0.90909,
+          1.0,
+          1.1001,
+          1.1111,
+          1.2005,
+          1.25,
+          1.3004,
+          1.4006,
+          1.4286,
+          1.4993,
+          1.6,
+          1.6667,
+          1.7986,
+          2.0,
+          2.1978,
+          2.3981,
+          2.5,
+          2.5974,
+          2.8011,
+          3.003,
+          3.2051,
+          3.3333,
+          3.4014,
+          3.5971,
+          3.8023,
+          4.0,
+          4.5045,
+          5.0,
+          5.4945,
+          5.988,
+          6.993,
+          8.0,
+          9.009,
+          10.0
+        ]
+      },
+      "component": "both_horizontal_components",
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "equation": "log10 PSA(f) = a(f)*M + b(f)*d - log10(d) + c1(f) + c2(f)",
+      "required": {
+        "rupture": [
+          "mw"
+        ],
+        "distance": [
+          "rhypo_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "original_table_required",
+        "needed": "The frequency-dependent a(f), b(f), c1(f) and c2(f) for all four damping ratios. The appendix reproduces the functional form and site terms only, explicitly NOT_REPRODUCED_IN_DOUGLAS."
+      },
+      "implementation_notes": [
+        "Support only 5, 7, 10 and 20% damping unless the source gives an interpolation rule.",
+        "The log10 convention is explicit here - preserve it."
+      ],
+      "reason_for_inclusion": "Regional + damping diversity; rock/alluvium classes.",
+      "reproduction": {
+        "status": "ORIGINAL_TABLE_REQUIRED",
+        "branch": null,
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): 'Ms (Mw for W. USA)'; Douglas (2011) BRGM/RP-59356-FR, section 4.109: uniformly calculated Ms for the European data and Mw for the W. USA records, which the authors treat as equivalent to Ms for Mw > 6.",
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): rmin 4 km (rhypo)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): rmax 330 km (rhypo)",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code B (each horizontal as a separate observation); OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/berge_thierry_2003.py declares IMC.HORIZONTAL (p. 196)",
+        "internal_units": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/berge_thierry_2003.py: 'convert from log10 to ln, and from cm/s2 to g'. External implementation; Douglas does not state units.",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/berge_thierry_2003.py coefficient table; period count and range (143 periods, 0.03-10 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. Periods are reciprocals of the published frequencies, hence the odd values (0.029412 s = 34 Hz). Douglas footnote: 'On page 8 of paper it says 88 periods' -- the 143 count is the table's, check the paper before relying on either."
+      }
+    },
+    "danciu-tselentis-2007": {
+      "benchmark_id": "13",
+      "kind": "gmpe",
+      "label": "Danciu & Tselentis (2007)",
+      "douglas_refs": [
+        "2.242",
+        "4.145"
+      ],
+      "region": "Greece",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.5,
+        "max": 6.9,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Repi",
+        "field": "repi_km",
+        "min_km": 0.0,
+        "max_km": 136.0,
+        "approximate": true,
+        "h_km": 11.515
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          {
+            "name": "B",
+            "description": "rock",
+            "vs30_mps": "Vs30 > 800",
+            "S": 0
+          },
+          {
+            "name": "C",
+            "description": "stiff soil",
+            "vs30_mps": "360 <= Vs30 <= 665",
+            "S": 1
+          },
+          {
+            "name": "D",
+            "description": "soft soil",
+            "vs30_mps": "200 <= Vs30 <= 360",
+            "S": 2
+          }
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "note": "Use the paper's own categories. Do not translate them into NGA-style classes.",
+        "anchor_note": "RESOLVED: one coefficient e multiplies S, and S takes the values 0/1/2 -- an ordinal term, not a binary one. The earlier 'binary' reading from the anchor was wrong. Note the gap 665 < Vs30 <= 800 m/s is not covered by any class.",
+        "n_classes": 3
+      },
+      "mechanism": {
+        "classes": [
+          "normal",
+          "strike_slip",
+          "thrust"
+        ],
+        "anchor_note": "RESOLVED (Douglas section 2.242): thrust and strike-slip share F = 1, normal is F = 0.",
+        "flag_values": {
+          "thrust": 1,
+          "strike_slip": 1,
+          "normal": 0
+        }
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.1,
+        "t_max_s": 4.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 31,
+          "t_min_s": 0.1,
+          "t_max_s": 4.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the paper is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "arithmetic_mean",
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "mechanism"
+        ],
+        "distance": [
+          "repi_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table. PGA coefficients a, b, c, h, e_site, f_fault are now available."
+      },
+      "implementation_notes": [
+        "Range warnings for the Greek calibration envelope: Mw ~4.5-6.9, Repi to ~136 km."
+      ],
+      "reason_for_inclusion": "Mediterranean regional model using epicentral distance.",
+      "aleatory": {
+        "published": true,
+        "tau_intra_as_labelled": 0.109,
+        "sigma_inter_as_labelled": 0.27,
+        "warning": "The appendix labels these 'aleatory_as_labelled_by_douglas' - the intra/inter naming in the catalogue looks transposed. Do not assume the usual convention; check the paper before using either term."
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 0* km (repi)",
+        "site.classes": "Douglas (2011) BRGM/RP-59356-FR, section 2.242: three site classes B (S = 0), C (S = 1), D (S = 2) with the Vs30 bands shown",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code A (arithmetic mean of the two horizontals)"
+      }
+    },
+    "bindi-2010": {
+      "benchmark_id": "14",
+      "kind": "gmpe",
+      "label": "Bindi et al. (2010)",
+      "douglas_refs": [
+        "2.280",
+        "4.180"
+      ],
+      "region": "Italy",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.0,
+        "max": 6.9,
+        "approximate": true,
+        "mref": 4.5
+      },
+      "distance": {
+        "metric": "Rjb",
+        "field": "rjb_km",
+        "note": "RESOLVED: the appendix publishes SEPARATE coefficient sets for Rjb and for Repi, so this is a choice of coefficient set, not a fallback. Pick the set matching the distance you have; never convert between the two.",
+        "alternative": {
+          "metric": "Repi",
+          "field": "repi_km"
+        }
+      },
+      "site": {
+        "parameterization": "categorical",
+        "n_classes": 3,
+        "classes": [
+          "class_0",
+          "class_1",
+          "class_2"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "RESOLVED from Douglas (2011) section 2.280, following Sabetta & Pugliese (1987, 1996).",
+        "class_definitions": {
+          "class_0": "Rock; NEHRP A and B. Reference (C0 = 0).",
+          "class_1": "Shallow sediment: deposits > 5 m and <= 20 m thick, sediment Vs < 800 m/s.",
+          "class_2": "Deep sediment: deposits thicker than 20 m."
+        }
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "anchor_note": "The PGA anchor contains no mechanism term."
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.03,
+        "t_max_s": 2.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 21,
+          "t_min_s": 0.03,
+          "t_max_s": 2.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the paper is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "larger_component",
+      "components_available": [
+        "horizontal",
+        "vertical"
+      ],
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw"
+        ],
+        "distance": [
+          "rjb_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for each of the four branches. All four PGA branches (a, b1, b2, c1, c2, h, C0-C2 and the sigma decomposition) are now available."
+      },
+      "implementation_notes": [
+        "Both horizontal and vertical data sit in the underlying dataset; keep the sets separate.",
+        "Test the Rjb/Repi selection path explicitly."
+      ],
+      "reason_for_inclusion": "Italian regional model.",
+      "aleatory": {
+        "published": true,
+        "note": "Decomposed as event / station / total rather than inter / intra. A station term is not the same as phi; keep the published naming.",
+        "horizontal_rjb": {
+          "sigma_event": 0.2084,
+          "sigma_station": 0.2634,
+          "sigma_total": 0.3523
+        }
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA, four branches (horizontal/vertical x Rjb/Repi)",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code L"
+      }
+    },
+    "ghasemi-2009": {
+      "benchmark_id": "15",
+      "kind": "gmpe",
+      "label": "Ghasemi et al. (2009)",
+      "douglas_refs": [
+        "4.168"
+      ],
+      "region": "Iran + western Eurasia",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 7.4,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "fallback": {
+          "metric": "Rhypo",
+          "field": "rhypo_km",
+          "when": "small events, per the paper"
+        }
+      },
+      "site": {
+        "parameterization": "categorical_from_vs30",
+        "fields": [
+          "site_class",
+          "vs30_mps"
+        ],
+        "classes": [
+          {
+            "name": "rock",
+            "vs30_mps": "Vs30 >= 760"
+          },
+          {
+            "name": "soil",
+            "vs30_mps": "Vs30 < 760"
+          }
+        ],
+        "note": "Published boundary at exactly 760 m/s.",
+        "anchor_note": "Boundary confirmed at Vs30 = 760 m/s."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "note": "No mechanism term in the form Douglas summarises."
+      },
+      "imts": [
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.05,
+        "t_max_s": 3.0,
+        "approximate": true,
+        "grid": [
+          0.05,
+          0.06,
+          0.07,
+          0.08,
+          0.09,
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9,
+          1.0,
+          2.0,
+          3.0
+        ]
+      },
+      "component": "GMRotI50",
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "equation": "log10 Sa = a1 + a2*M + a3*log10(R + a4*10^(a5*M)) + a6*S1 + a7*S2",
+      "required": {
+        "rupture": [
+          "mw"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "original_table_required",
+        "needed": "a1, a2, a3, a4, a6 and a7 on the published period grid. The appendix fixes a5 = 0.42 and confirms the 760 m/s boundary, but the remaining coefficients are explicitly NOT_REPRODUCED_IN_DOUGLAS."
+      },
+      "implementation_notes": [
+        "Magnitude-distance saturation through the a4*10^(a5*M) term.",
+        "Warn when used outside the Iran/west-Eurasia calibration context."
+      ],
+      "reason_for_inclusion": "Iranian/west-Eurasian regional model.",
+      "equation_fixed_coefficients": {
+        "a5": 0.42
+      },
+      "reproduction": {
+        "status": "ORIGINAL_TABLE_REQUIRED",
+        "branch": null,
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code I50; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/ghasemi_2009.py declares IMC.GMRotI50",
+        "internal_units": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/ghasemi_2009.py: 'Original GMPE returns log10 acceleration in cm/s/s'. External implementation; Douglas does not state units.",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/ghasemi_2009.py coefficient table; period count and range (17 periods, 0.05-3 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "rupakhety-sigbjornsson-2009": {
+      "benchmark_id": "16",
+      "kind": "gmpe",
+      "label": "Rupakhety & Sigbjornsson (2009)",
+      "douglas_refs": [
+        "2.276",
+        "4.174"
+      ],
+      "region": "South Iceland + others",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 7.7,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rjb",
+        "field": "rjb_km",
+        "fallback": {
+          "metric": "Repi",
+          "field": "repi_km",
+          "when": "the paper's stated fallback for some events"
+        }
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          {
+            "name": "rock",
+            "ec8_class": "A",
+            "vs30_mps": "Vs30 > 800",
+            "S": 0
+          },
+          {
+            "name": "stiff_soil",
+            "ec8_class": "B or C",
+            "vs30_mps": "180 < Vs30 < 800",
+            "S": 1
+          }
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "RESOLVED from Douglas (2011) section 2.276."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "note": "Transform/strike-slip dominated dataset.",
+        "anchor_note": "The PGA anchor contains no mechanism term."
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.04,
+        "t_max_s": 2.5,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "n_published": 29,
+        "published_grid_summary": {
+          "n_published": 29,
+          "t_min_s": 0.04,
+          "t_max_s": 2.5,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; Douglas: analysed for 66 periods, coefficients reported for 29 only (graphs for the rest); no OpenQuake implementation. Still RESOLVE."
+        }
+      },
+      "component": "larger_component",
+      "log_base": "log10",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw"
+        ],
+        "distance": [
+          "rjb_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The authors' coefficients at the 29 published spectral periods. PGA coefficients b1-b5 and sigma are now available."
+      },
+      "implementation_notes": [
+        "Implement the elastic 5%-damped model first.",
+        "Optional constant-ductility inelastic spectra and behaviour factors belong in a SEPARATE method/module from the elastic GMPE."
+      ],
+      "reason_for_inclusion": "Icelandic/strike-slip end member; inelastic spectra also reported.",
+      "aleatory": {
+        "published": true,
+        "sigma_total": 0.287
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "site.classes": "Douglas (2011) BRGM/RP-59356-FR, section 2.276: rock = EC8 A (S = 0); stiff soil = EC8 B or C (S = 1)",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code L"
+      }
+    },
+    "youngs-1997": {
+      "benchmark_id": "17",
+      "kind": "gmpe",
+      "label": "Youngs et al. (1997)",
+      "douglas_refs": [
+        "2.137",
+        "4.81"
+      ],
+      "region": "Worldwide subduction",
+      "tectonic_types": [
+        "SUBDUCTION_INTERFACE",
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 8.2,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "fallback": {
+          "metric": "Rhypo",
+          "field": "rhypo_km",
+          "when": "per the paper"
+        }
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "rock",
+          "deep_soil"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "Resolved from the two reported constant sets."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "note": "Event type carries the source distinction, not a mechanism flag."
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "interface",
+          "intraslab"
+        ],
+        "note": "Must be supplied by the caller. Do NOT classify from depth unless the caller explicitly requests the paper's own depth-based fallback rule."
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.075,
+        "t_max_s": 3.0,
+        "approximate": true,
+        "grid": [
+          0.075,
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.75,
+          1.0,
+          1.5,
+          2.0,
+          3.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "ln",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw",
+          "event_type",
+          "depth_km"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "partial",
+        "needed": "INCOMPLETE even for PGA. The appendix reports rock (C1 0.2418, C2 1.414, C3 -2.552, C4 ln(1.7818), C8 0.3846, C9 0.00607) and deep-soil (C1 -0.6687, C2 1.438, C3 -2.329, C4 ln(1.097), C5 0.3643, C9 0.00648) constants, but states that other coefficients needed for more general site prediction are not given. The event-type (interface/intraslab) term is not among the reported values. Do not assume it."
+      },
+      "implementation_notes": [
+        "Test interface vs intraslab at identical Mw, distance and site - they must differ."
+      ],
+      "reason_for_inclusion": "Classic global subduction interface/intraslab anchor.",
+      "aleatory": {
+        "published": true,
+        "sigma_total": "1.45 - 0.1*M",
+        "note": "Magnitude-dependent, given as an expression."
+      },
+      "reproduction": {
+        "status": "PARTIAL",
+        "branch": "PGA, rock and deep-soil branches",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3",
+        "incomplete_note": "Partial: the reported constants do not cover the event-type term, so neither branch can be evaluated from the appendix alone."
+      },
+      "resolution_provenance": {
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/youngs_1997.py declares IMC.GEOMETRIC_MEAN (p. 59)",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/youngs_1997.py coefficient table; period count and range (11 periods, 0.075-3 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. The OpenQuake tables carry an extra 4.0 s row; Douglas counts 11 periods ending at 3 s, so 4.0 s is excluded pending the paper."
+      }
+    },
+    "atkinson-boore-2003": {
+      "benchmark_id": "18",
+      "kind": "gmpe",
+      "label": "Atkinson & Boore (2003)",
+      "douglas_refs": [
+        "2.185",
+        "4.108"
+      ],
+      "region": "Subduction zones, global",
+      "tectonic_types": [
+        "SUBDUCTION_INTERFACE",
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.5,
+        "max": 8.3,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "min_km": 11.0,
+        "max_km": 550.0,
+        "approximate": true
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "Resolved from the site terms c5 (class C), c6 (class D) and c7 (class E); class B / hard rock is the reference."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "interface",
+          "intraslab"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.04,
+        "t_max_s": 3.0,
+        "approximate": true,
+        "grid": [
+          0.04,
+          0.1,
+          0.2,
+          0.4,
+          1.0,
+          2.0,
+          3.0
+        ]
+      },
+      "component": "random_horizontal",
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "event_type",
+          "depth_km"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for both event types. PGA coefficients (c1-c4 per event type, c5-c7 site terms, geometric-spreading expressions, regional c1 revisions and both sigma components) are now available."
+      },
+      "implementation_notes": [
+        "Test both event types, near and far distances, and all site branches.",
+        "Region variables, if used by the original equation, must be exposed explicitly."
+      ],
+      "reason_for_inclusion": "Global subduction alternative.",
+      "geometric_spreading": {
+        "interface": "g = 10^(1.2 - 0.18*M)",
+        "intraslab": "g = 10^(0.301 - 0.01*M)"
+      },
+      "regional_variants": {
+        "note": "The appendix gives revised c1 values by region.",
+        "interface_cascadia": 2.79,
+        "interface_japan": 3.14,
+        "intraslab_cascadia": -0.25,
+        "intraslab_japan": 0.1
+      },
+      "aleatory": {
+        "published": true,
+        "interface": {
+          "phi_intra": 0.2,
+          "tau_inter": 0.11
+        },
+        "intraslab": {
+          "phi_intra": 0.23,
+          "tau_inter": 0.14
+        }
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA, interface and intraslab",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 11* km (rrup)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 550* km (rrup)",
+        "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): values starred",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code C (randomly chosen component); OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/atkinson_boore_2003.py declares IMC.RANDOM_HORIZONTAL (p. 1706)",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/atkinson_boore_2003.py (SSLAB) coefficient table; period count and range (7 periods, 0.04-3 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. The OpenQuake interface table adds a 4.0 s row that the code rescales by 1/0.550; it is an implementation extension and is excluded."
+      }
+    },
+    "zhao-2006-family": {
+      "benchmark_id": "19",
+      "kind": "gmpe",
+      "label": "Takahashi et al. (2005) / Zhao et al. (2006) / Fukushima et al. (2006)",
+      "douglas_refs": [
+        "2.217"
+      ],
+      "region": "Japan + overseas",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST",
+        "SUBDUCTION_INTERFACE",
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 8.3,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "min_km": 0.0,
+        "max_km": 300.0,
+        "approximate": true
+      },
+      "site": {
+        "parameterization": "categorical",
+        "n_classes": 5,
+        "classes": [
+          "hard_rock",
+          "site_class_1",
+          "site_class_2",
+          "site_class_3",
+          "site_class_4"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "Five classes confirmed, named after the published coefficients CH (hard rock) and C1-C4; the physical definitions are not given in the appendix.",
+        "class_definitions": {
+          "hard_rock": "NEHRP A, Vs30 > 1100 m/s (CH)",
+          "site_class_1": "SC I rock, NEHRP A+B, 600 < Vs30 <= 1100 m/s, T < 0.2 s (C1)",
+          "site_class_2": "SC II hard soil, NEHRP C, 300 < Vs30 <= 600 m/s, 0.2 <= T < 0.4 s (C2)",
+          "site_class_3": "SC III medium soil, NEHRP D, 200 < Vs30 <= 300 m/s, 0.4 <= T < 0.6 s (C3)",
+          "site_class_4": "SC IV soft soil, NEHRP E+F, Vs30 <= 200 m/s, T >= 0.6 s (C4)"
+        }
+      },
+      "mechanism": {
+        "classes": [
+          "reverse"
+        ],
+        "anchor_note": "SR = 0.251 is a reverse-faulting flag applied to crustal events. The reference (non-reverse) class is not named."
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "crustal",
+          "interface",
+          "intraslab"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.05,
+        "t_max_s": 5.0,
+        "approximate": true,
+        "grid": [
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.4,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9,
+          1.0,
+          1.25,
+          1.5,
+          2.0,
+          2.5,
+          3.0,
+          4.0,
+          5.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "ln",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "event_type",
+          "depth_km",
+          "mechanism"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for ONE named version of this family. PGA coefficients (a, b, c, d, e, SR/SI/SS/SSL, CH, C1-C4, hc) and both sigma components are now available, but the version they belong to must be confirmed."
+      },
+      "implementation_notes": [
+        "Three branches (crustal/interface/intraslab) in one family - cross-branch tests at identical inputs.",
+        "The focal-depth effect and the published depth threshold are part of the form.",
+        "The easiest model in the set to corrupt by mixing coefficient sets across versions."
+      ],
+      "reason_for_inclusion": "Crustal + interface + intraslab in one family.",
+      "depth_branch": {
+        "hc_km": 15.0,
+        "note": "RESOLVED: the published depth threshold hc is 15 km. This is the focal-depth term in the source/path function."
+      },
+      "source_type_terms": {
+        "SR_reverse_crustal": 0.251,
+        "SI_interface": 0.0,
+        "SS_slab": 2.607,
+        "SSL_slab_log_distance": -0.528
+      },
+      "version_note": "The anchor block's coefficient naming (SR / SI / SS / SSL / CH / C1-C4, hc = 15 km) matches the Zhao et al. (2006) formulation rather than Takahashi (2005) or Fukushima (2006). Treat that as probable, not settled, and confirm against the paper before recording a version.",
+      "aleatory": {
+        "published": true,
+        "phi_intra": 0.604,
+        "tau_inter": 0.398
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 0* km (rrup)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 300* km (rrup)",
+        "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): values starred",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/zhao_2006.py declares IMC.GEOMETRIC_MEAN",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/zhao_2006.py coefficient table; period count and range (20 periods, 0.05-5 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. This is the Zhao et al. (2006) grid; the family's version question is unchanged."
+      }
+    },
+    "kanno-2006": {
+      "benchmark_id": "20",
+      "kind": "gmpe",
+      "label": "Kanno et al. (2006)",
+      "douglas_refs": [
+        "2.226"
+      ],
+      "region": "Japan + foreign",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST",
+        "SUBDUCTION_INTERFACE",
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 8.2,
+        "approximate": true,
+        "note": "Shallow branch ~5.0-8.2; deep branch to ~8.0."
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "fallback": {
+          "metric": "Rhypo",
+          "field": "rhypo_km",
+          "when": "per the paper"
+        }
+      },
+      "site": {
+        "parameterization": "vs30_continuous",
+        "nonlinear": false,
+        "fields": [
+          "vs30_mps"
+        ],
+        "correction": "log(obs/pre) = p*log(Vs30) + q, applied AFTER the reference prediction",
+        "correction_coefficients_pga": {
+          "p": -0.55,
+          "q": 1.35
+        },
+        "anchor_note": "The Vs30 correction G = p*log(Vs30) + q is published for PGA as p = -0.55, q = 1.35."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "anchor_note": "Neither depth branch carries a mechanism term in the anchor."
+      },
+      "depth_branch": {
+        "field": "depth_km",
+        "threshold_km": 30.0,
+        "rule": "One published equation for D <= 30 km, another for D > 30 km.",
+        "warning": "This is a DEPTH branch, not a tectonic-type branch. Do not infer tectonic type from it."
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.05,
+        "t_max_s": 5.0,
+        "approximate": true,
+        "grid": [
+          0.05,
+          0.06,
+          0.07,
+          0.08,
+          0.09,
+          0.1,
+          0.11,
+          0.12,
+          0.13,
+          0.15,
+          0.17,
+          0.2,
+          0.22,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9,
+          1.0,
+          1.1,
+          1.2,
+          1.3,
+          1.5,
+          1.7,
+          2.0,
+          2.2,
+          2.5,
+          3.0,
+          3.5,
+          4.0,
+          4.5,
+          5.0
+        ]
+      },
+      "component": "peak_srss_horizontal",
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "depth_km"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "vs30_mps"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period tables for both depth branches and the period-dependent p/q. PGA values for D<=30 km (a1 0.56, b1 -0.0031, c1 0.26, d1 0.0055) and D>30 km (a2 0.41, b2 -0.0039, c2 1.56) plus PGA p/q are now available."
+      },
+      "implementation_notes": [
+        "Do not smooth the 30 km depth transition unless the original source does.",
+        "Test immediately below, at, and above 30 km."
+      ],
+      "reason_for_inclusion": "Explicit shallow/deep formulation and Vs30 correction.",
+      "aleatory": {
+        "published": true,
+        "sigma_shallow": 0.37,
+        "sigma_deep": 0.4,
+        "note": "A single total sigma per depth branch; no tau/phi split in the anchor."
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA, both depth branches",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "component": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/kanno_2006.py quotes the paper (p. 880): 'The peak value is the peak square root of the sum of squares of two orthogonal horizontal components in the time domain' (IMC.PEAK_SRSS_HORIZONTAL). Consistent with Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) component code R.",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/kanno_2006.py coefficient table; period count and range (37 periods, 0.05-5 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "mcverry-2006": {
+      "benchmark_id": "21",
+      "kind": "gmpe",
+      "label": "McVerry et al. (2006)",
+      "douglas_refs": [
+        "2.230"
+      ],
+      "region": "New Zealand + foreign",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST",
+        "SUBDUCTION_INTERFACE",
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.1,
+        "max": 7.2,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rc",
+        "field": "rc_km",
+        "fallback": {
+          "metric": "Rrup",
+          "field": "rrup_km",
+          "when": "per the paper"
+        }
+      },
+      "site": {
+        "parameterization": "categorical",
+        "scheme": "New Zealand site classes",
+        "classes": [
+          "A_B",
+          "C",
+          "D"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "note": "Use the NZ classes. A and B are combined as the reference; class E is outside the model. Do not translate them to a generic Vs30 model."
+      },
+      "mechanism": {
+        "classes": [
+          "strike_slip",
+          "normal",
+          "oblique_reverse",
+          "reverse"
+        ],
+        "flag_values": {
+          "strike_slip": {
+            "CN": 0,
+            "CR": 0
+          },
+          "normal": {
+            "CN": -1,
+            "CR": 0
+          },
+          "oblique_reverse": {
+            "CN": 0,
+            "CR": 0.5
+          },
+          "reverse": {
+            "CN": 0,
+            "CR": 1
+          }
+        },
+        "applies_to": "crustal events only"
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "crustal",
+          "interface",
+          "intraslab"
+        ]
+      },
+      "path": {
+        "volcanic_zone": {
+          "required": true,
+          "field": "volcanic_path_km",
+          "note": "Volcanic-zone path length/effect is part of the published path term."
+        }
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.075,
+        "t_max_s": 3.0,
+        "approximate": true,
+        "grid": [
+          0.075,
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.75,
+          1.0,
+          1.5,
+          2.0,
+          3.0
+        ]
+      },
+      "component": "larger component",
+      "log_base": "ln",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw",
+          "event_type",
+          "mechanism",
+          "depth_km"
+        ],
+        "distance": [
+          "rc_km"
+        ],
+        "site": [
+          "site_class"
+        ],
+        "path": [
+          "volcanic_path_km"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for each tectonic branch. Both PGA and PGA0 coefficient sets and the magnitude-dependent sigma rule are now available. The NZ site classes and the volcanic-zone path variable are still not enumerated by the appendix."
+      },
+      "implementation_notes": [
+        "Branches share only the terms the original model shares - do not factor them together further.",
+        "Test presence and absence of the volcanic-zone path contribution."
+      ],
+      "reason_for_inclusion": "Crustal + interface + intraslab; NZ path/site treatment.",
+      "component_note": "RESOLVED: the appendix states the anchor branches are for the larger horizontal component.",
+      "branches": {
+        "PGA": "primary",
+        "PGA0": "second published coefficient set in the appendix"
+      },
+      "aleatory": {
+        "published": true,
+        "rule": "sigma = sigma_M6 + sigma_slope*(Mw-6) for 5<Mw<7; sigma = sigma_M6 - sigma_slope for Mw<5; sigma = sigma_M6 + sigma_slope for Mw>7",
+        "PGA": {
+          "sigma_m6": 0.4865,
+          "sigma_slope": -0.1261,
+          "tau_inter": 0.2687
+        },
+        "PGA0": {
+          "sigma_m6": 0.5035,
+          "sigma_slope": -0.0635,
+          "tau_inter": 0.2598
+        }
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA and PGA0, larger component",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "site.classes": "Douglas (2011) BRGM/RP-59356-FR, section 2.230: NZ classes A (strong rock) and B (rock) combined as the reference; C shallow soil (delta_C = 1); D deep or soft soil (delta_D = 1); class E data not used",
+        "mechanism.classes": "Douglas (2011) BRGM/RP-59356-FR, section 2.230: crustal events only -- strike-slip (CN = 0, CR = 0), normal (CN = -1), oblique-reverse (CR = 0.5), reverse (CR = 1); mechanism found not significant for subduction events",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/mcverry_2006.py coefficient table; period count and range (11 periods, 0.075-3 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "cotton-2008": {
+      "benchmark_id": "22",
+      "kind": "gmpe",
+      "label": "Cotton et al. (2008)",
+      "douglas_refs": [
+        "2.256",
+        "4.156"
+      ],
+      "region": "Japan",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.0,
+        "max": 7.3,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "fallback": {
+          "metric": "Rhypo",
+          "field": "rhypo_km",
+          "when": "small events, per the paper"
+        }
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "RESOLVED for the surface branch from the SB/SC/SD coefficients, with A as reference. The borehole branch instead carries a single S_200m term."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "anchor_note": "Neither branch carries a mechanism term in the anchor."
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.01,
+        "t_max_s": 3.33,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 23,
+          "t_min_s": 0.01,
+          "t_max_s": 3.33,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the paper is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "geometric_mean",
+      "log_base": "log10",
+      "internal_units": "m/s2",
+      "required": {
+        "rupture": [
+          "mw"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for both branches. PGA coefficients for surface (a, b, c, d, e, SB, SC, SD) and borehole (a, b, c, d, e, S_200m) with their sigmas are now available."
+      },
+      "implementation_notes": [
+        "Preserve surface/borehole distinctions if present in the version coded.",
+        "Implement the paper's own small-event distance handling rather than converting distances generically."
+      ],
+      "reason_for_inclusion": "Large Japanese database, distinct from the global NGA models.",
+      "branches": {
+        "surface": "SB/SC/SD site terms",
+        "borehole": "single S_200m term"
+      },
+      "aleatory": {
+        "published": true,
+        "sigma_surface": 0.35325,
+        "sigma_borehole": 0.32257
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA, surface and borehole",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G"
+      }
+    },
+    "lin-lee-2008": {
+      "benchmark_id": "23",
+      "kind": "gmpe",
+      "label": "Lin & Lee (2008)",
+      "douglas_refs": [
+        "2.259",
+        "4.159"
+      ],
+      "region": "NE Taiwan + foreign",
+      "tectonic_types": [
+        "SUBDUCTION_INTERFACE",
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 4.1,
+        "max": 7.3,
+        "approximate": true,
+        "note": "Foreign supplementary data extend to ~8.1. Do not assume that extends every coefficient branch."
+      },
+      "distance": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "min_km": 15.0,
+        "max_km": 630.0
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "rock",
+          "soil"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "Resolved from the two reported coefficient sets."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ],
+        "anchor_note": "No mechanism term; C7 is the event-type flag, not a fault-style flag."
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "interface",
+          "intraslab"
+        ],
+        "note": "Douglas notes subduction-related event types; enumerate them from the paper.",
+        "anchor_note": "RESOLVED from C7_intraslab_flag: intraslab is flagged against an interface reference."
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.01,
+        "t_max_s": 5.0,
+        "approximate": true,
+        "grid": [
+          0.01,
+          0.02,
+          0.03,
+          0.04,
+          0.05,
+          0.06,
+          0.09,
+          0.1,
+          0.12,
+          0.15,
+          0.17,
+          0.2,
+          0.24,
+          0.3,
+          0.36,
+          0.4,
+          0.46,
+          0.5,
+          0.6,
+          0.75,
+          0.85,
+          1.0,
+          1.5,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "ln",
+      "internal_units": "g",
+      "required": {
+        "rupture": [
+          "mw",
+          "event_type"
+        ],
+        "distance": [
+          "rhypo_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for both site branches. PGA coefficients C1-C7 and sigma for rock and soil are now available."
+      },
+      "implementation_notes": [
+        "Test the Taiwan-only magnitude range and the foreign-supplemented high-magnitude end separately."
+      ],
+      "reason_for_inclusion": "Taiwan, long distances, subduction-related data.",
+      "aleatory": {
+        "published": true,
+        "sigma_rock": 0.5268,
+        "sigma_soil": 0.6277,
+        "note": "A single total sigma per site branch; no tau/phi split in the anchor."
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA, rock and soil",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin 15 km (rhypo)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax 630 km (rhypo)",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/lin_lee_2008.py coefficient table; period count and range (27 periods, 0.01-5 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "garcia-2005": {
+      "benchmark_id": "24",
+      "kind": "gmpe",
+      "label": "Garcia et al. (2005)",
+      "douglas_refs": [
+        "2.212",
+        "4.124"
+      ],
+      "region": "Central Mexico",
+      "tectonic_types": [
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.2,
+        "max": 7.4,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "fallback": {
+          "metric": "Rhypo",
+          "field": "rhypo_km",
+          "when": "per the original formulation and data availability"
+        }
+      },
+      "site": {
+        "parameterization": "fixed_condition",
+        "condition": "firm/rock site",
+        "fields": [],
+        "note": "A single calibration site condition. Do NOT add a generic site-amplification model on top."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "intraslab"
+        ],
+        "note": "Intraslab only. Warn if asked for an interface or shallow-crustal event."
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.04,
+        "t_max_s": 5.0,
+        "approximate": true,
+        "grid": [
+          0.04,
+          0.05,
+          0.07,
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.75,
+          1.0,
+          1.5,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "depth_km"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": []
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for both components. PGA coefficients c1-c5 for horizontal and vertical, the saturation term and both sigma components are now available."
+      },
+      "implementation_notes": [
+        "Return a warning if the caller asks for an interface or shallow-crustal event.",
+        "Test at the distance-convention transition if the source defines one explicitly."
+      ],
+      "reason_for_inclusion": "Mexican intraslab model.",
+      "components_available": [
+        "horizontal",
+        "vertical"
+      ],
+      "source_saturation": "Delta = 0.00750 * 10^(0.507*Mw)",
+      "aleatory": {
+        "published": true,
+        "horizontal": {
+          "phi_intra": 0.27,
+          "tau_inter": 0.1
+        },
+        "vertical": {
+          "phi_intra": 0.25,
+          "tau_inter": 0.11
+        }
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA, horizontal and vertical",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G (the paper calls it 'quadratic mean', which Douglas takes to be geometric); OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/garcia_2005.py declares IMC.GEOMETRIC_MEAN (p. 2274)",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/garcia_2005.py coefficient table; period count and range (15 periods, 0.04-5 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      }
+    },
+    "arroyo-2010": {
+      "benchmark_id": "25",
+      "kind": "gmpe",
+      "label": "Arroyo et al. (2010)",
+      "douglas_refs": [
+        "2.279",
+        "4.179"
+      ],
+      "region": "Pacific coast of Mexico",
+      "tectonic_types": [
+        "SUBDUCTION_INTERFACE"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 8.0,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "fallback": {
+          "metric": "Rhypo",
+          "field": "rhypo_km",
+          "when": "smaller events, per the paper"
+        }
+      },
+      "site": {
+        "parameterization": "fixed_condition",
+        "fields": [],
+        "note": "Resolve the calibration site condition from the paper.",
+        "condition": "rock (NEHRP B)",
+        "anchor_note": "The PGA anchor carries no site term, so the anchor branch is a single site condition. Which condition is not stated - read it off the paper before using the model."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "interface"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.04,
+        "t_max_s": 5.0,
+        "approximate": true,
+        "grid": [
+          0.04,
+          0.045,
+          0.05,
+          0.055,
+          0.06,
+          0.065,
+          0.07,
+          0.075,
+          0.08,
+          0.085,
+          0.09,
+          0.095,
+          0.1,
+          0.12,
+          0.14,
+          0.16,
+          0.18,
+          0.2,
+          0.22,
+          0.24,
+          0.26,
+          0.28,
+          0.3,
+          0.32,
+          0.34,
+          0.36,
+          0.38,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1.0,
+          1.1,
+          1.2,
+          1.3,
+          1.4,
+          1.5,
+          1.6,
+          1.7,
+          1.8,
+          1.9,
+          2.0,
+          2.5,
+          3.0,
+          3.5,
+          4.0,
+          4.5,
+          5.0
+        ]
+      },
+      "component": "geometric_mean",
+      "log_base": "ln",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": []
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL alpha(T) table. PGA/headline coefficients (alpha1-alpha4, b), the finite-source radius and the full aleatory decomposition are now available."
+      },
+      "implementation_notes": [
+        "Attenuation uses exponential-integral terms - use a numerically stable special-function implementation (scipy.special).",
+        "Numerical tests at very small and very large arguments, to catch cancellation and overflow."
+      ],
+      "reason_for_inclusion": "Mexican interface model with physically motivated attenuation form.",
+      "finite_source_radius": "r0^2 = 1.4447e-5 * exp(2.3026*Mw)",
+      "aleatory": {
+        "published": true,
+        "sigma_total": 0.75,
+        "tau_inter": 0.4654,
+        "phi_intra": 0.5882
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA / headline branch",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "component": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/arroyo_2010.py: 'geometric average of the maximum component of the two horizontal' (IMC.GEOMETRIC_MEAN). Douglas codes the component U (unknown), so this rests on the external implementation alone.",
+        "site.condition": "Douglas (2011) BRGM/RP-59356-FR, section 2.279: all data from rock (NEHRP B) sites, verified with H/V ratios",
+        "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/arroyo_2010.py coefficient table; period count and range (56 periods, 0.04-5 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+      },
+      "component_warning": "Douglas (2011) lists the component as unknown; 'geometric_mean' comes from OpenQuake's reading of the paper. Confirm before comparing against other models."
+    },
+    "hong-2009b": {
+      "benchmark_id": "26",
+      "kind": "gmpe",
+      "label": "Hong et al. (2009b)",
+      "douglas_refs": [
+        "2.270",
+        "4.169"
+      ],
+      "region": "Mexico",
+      "tectonic_types": [
+        "SUBDUCTION_INTERFACE",
+        "SUBDUCTION_INTRASLAB"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 5.0,
+        "max": 8.0,
+        "approximate": true,
+        "note": "Interface ~5.0-8.0; intraslab ~5.2-7.4."
+      },
+      "distance": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "note": "RESOLVED: Rrup (closest distance to rupture), Rhypo for small events. The source states this for the model as a whole, not separately per event-type branch.",
+        "fallback": {
+          "metric": "Rhypo",
+          "field": "rhypo_km",
+          "when": "small events, per Douglas (2011) Illustration 1"
+        }
+      },
+      "site": {
+        "parameterization": "fixed_condition",
+        "condition": "firm soil / NEHRP B",
+        "fields": [],
+        "note": "Do NOT add a generic Vs30 correction."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "event_type": {
+        "required": true,
+        "classes": [
+          "interface",
+          "intraslab"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.1,
+        "t_max_s": 3.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 27,
+          "t_min_s": 0.1,
+          "t_max_s": 3.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the paper is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "multiple - orientation-dependent; must be requested explicitly",
+      "components_available": [
+        "geometric_mean",
+        "maximum_response"
+      ],
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "required": {
+        "rupture": [
+          "mw",
+          "event_type"
+        ],
+        "distance": [
+          "rrup_km"
+        ],
+        "site": [],
+        "other": [
+          "component"
+        ]
+      },
+      "coefficients": {
+        "status": "partial",
+        "needed": "INCOMPLETE. The intraslab equation contains c4*log10(R) and the appendix does NOT report a numerical c4 - it says explicitly not to assume one, so the intraslab branches cannot be evaluated. Interface branches have c1, c2, c3, c5, c6, c7 reported. The SPECTRAL table is required for all branches."
+      },
+      "implementation_notes": [
+        "Expose the requested component/orientation in the API; never silently return one convention.",
+        "Compare maximum-response and geometric-mean variants where both are published."
+      ],
+      "reason_for_inclusion": "Explicit interface/intraslab and orientation treatment.",
+      "aleatory": {
+        "published": true,
+        "note": "The geometric-mean branches add a sigma_orientation term that the maximum-response branches do not have.",
+        "interface_geometric_mean": {
+          "tau_inter": 0.2,
+          "phi_intra": 0.27,
+          "sigma_orientation": 0.1,
+          "sigma_total": 0.35
+        },
+        "intraslab_geometric_mean": {
+          "tau_inter": 0.1,
+          "phi_intra": 0.28,
+          "sigma_orientation": 0.07,
+          "sigma_total": 0.3
+        }
+      },
+      "reproduction": {
+        "status": "PARTIAL",
+        "branch": "PGA, interface and intraslab, two component definitions each",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3",
+        "incomplete_note": "Partial: intraslab c4 is missing, so only the interface branches are numerically complete. The distance metric is now resolved (Rrup; Rhypo for small events)."
+      },
+      "resolution_provenance": {
+        "distance.metric": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): r scale 'rrup (rhypo for small)'; Douglas (2011) BRGM/RP-59356-FR, section 2.270: the intraslab form uses R = sqrt(Rcld^2 + ...), Rcld being closest distance to rupture",
+        "distance.field": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): r scale rrup",
+        "required.distance": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): r scale rrup"
+      }
+    },
+    "epri-1993a-ena": {
+      "benchmark_id": "27",
+      "kind": "gmpe",
+      "label": "EPRI (1993a), Eastern North America",
+      "douglas_refs": [
+        "4.55"
+      ],
+      "region": "Eastern North America",
+      "tectonic_types": [
+        "STABLE_CONTINENTAL"
+      ],
+      "magnitude": {
+        "scale": "Mw | mLg",
+        "min": 4.0,
+        "max": 6.8,
+        "approximate": true,
+        "note": "Two separate regressions, one on Mw and one on mLg. A coefficient file must say which one it carries; they are not interchangeable."
+      },
+      "distance": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "fallback": {
+          "metric": "Rrup",
+          "field": "rrup_km",
+          "when": "the largest event(s), per the source"
+        }
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "shallow_soil",
+          "intermediate_soil",
+          "deep_soil"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "note": "Site-DEPTH categories. Do not replace them with Vs30 except through an explicitly separate, documented conversion layer.",
+        "class_definitions": {
+          "shallow_soil": "depth to rock < 20 m",
+          "intermediate_soil": "depth to rock 20-100 m",
+          "deep_soil": "depth to rock > 100 m"
+        },
+        "anchor_note": "RESOLVED: the appendix gives the depth-to-rock definition of each class, via the ZSS / ZIS / ZDS indicators."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "imts": [
+        "SA",
+        "PGA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.03,
+        "t_max_s": 1.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 10,
+          "t_min_s": 0.03,
+          "t_max_s": 1.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; Douglas: coefficients are published as graphs only. Still RESOLVE."
+        }
+      },
+      "component": "geometric_mean",
+      "log_base": "ln",
+      "internal_units": "RESOLVE",
+      "equation_shape": "ln y = quadratic in magnitude + log-distance term + linear-distance term + site-depth indicators",
+      "required": {
+        "rupture": [
+          "magnitude"
+        ],
+        "distance": [
+          "rhypo_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "original_table_required",
+        "needed": "C1-C8 on the published period grid. The appendix gives the exact functional form and the site-class depth definitions but states the coefficient table is NOT_REPRODUCED_IN_DOUGLAS - the original EPRI table is required."
+      },
+      "implementation_notes": [
+        "Test all three site classes and long-distance attenuation."
+      ],
+      "reason_for_inclusion": "Stable-continental / ENA anchor.",
+      "equation": "ln y(f) = C1 + C2*(M-6) + C3*(M-6)^2 + C4*ln(R) + C5*R + C6*ZSS + C7*ZIS + C8*ZDS",
+      "reproduction": {
+        "status": "ORIGINAL_TABLE_REQUIRED",
+        "branch": null,
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): M scale 'Mw, mLg'; Douglas (2011) BRGM/RP-59356-FR, section 4.55: the analysis is run on both scales ('smaller inter-event standard deviations when using mLg than when using Mw')",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, section 4.55: 'Use geometric mean'; Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G"
+      }
+    },
+    "free-1998-scr": {
+      "benchmark_id": "28",
+      "kind": "gmpe",
+      "label": "Free (1996) / Free et al. (1998)",
+      "douglas_refs": [
+        "2.124",
+        "4.72"
+      ],
+      "region": "Stable continental regions",
+      "tectonic_types": [
+        "STABLE_CONTINENTAL"
+      ],
+      "magnitude": {
+        "scale": "Mw",
+        "min": 1.5,
+        "max": 6.8,
+        "approximate": true
+      },
+      "distance": {
+        "metric": "Rjb",
+        "field": "rjb_km",
+        "fallback": {
+          "metric": "Repi",
+          "field": "repi_km",
+          "when": "mixed usage per the source"
+        }
+      },
+      "site": {
+        "parameterization": "categorical",
+        "classes": [
+          "rock",
+          "soil"
+        ],
+        "fields": [
+          "site_class"
+        ],
+        "anchor_note": "C6_soil confirms rock as the reference class."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "SA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.04,
+        "t_max_s": 2.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 52,
+          "t_min_s": 0.04,
+          "t_max_s": 2.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the thesis/paper is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "larger_component",
+      "components_available": [
+        "horizontal",
+        "vertical"
+      ],
+      "log_base": "log10",
+      "internal_units": "g",
+      "equation_shape": "log y = linear + quadratic magnitude terms + geometric-spreading/log-distance term + linear distance attenuation + site flag + magnitude-dependent pseudo-depth term",
+      "required": {
+        "rupture": [
+          "magnitude"
+        ],
+        "distance": [
+          "rjb_km"
+        ],
+        "site": [
+          "site_class"
+        ],
+        "other": [
+          "component"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The SPECTRAL period table for both components. PGA coefficients C1-C6, h0 and sigma for horizontal and vertical are now available. The magnitude scale is still not stated."
+      },
+      "implementation_notes": [
+        "Keep horizontal and vertical sets separate; test both.",
+        "Warn for active-crustal or subduction use.",
+        "The magnitude range reaches down to ~1.5 - unusually low. Preserve it rather than clipping to a modern floor."
+      ],
+      "reason_for_inclusion": "Broad stable-continental magnitude/distance coverage.",
+      "geometric_spreading_fixed": {
+        "C4": -1.0
+      },
+      "pseudo_depth": {
+        "h0_km_horizontal": 2.9,
+        "h0_km_vertical": 2.7
+      },
+      "aleatory": {
+        "published": true,
+        "sigma_horizontal": 0.432,
+        "sigma_vertical": 0.415
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA, horizontal and vertical",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): M scale Mw",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code L"
+      }
+    },
+    "musson-1994-uk": {
+      "benchmark_id": "29",
+      "kind": "gmpe",
+      "label": "Musson et al. (1994)",
+      "douglas_refs": [
+        "2.108",
+        "4.64"
+      ],
+      "region": "United Kingdom + foreign",
+      "tectonic_types": [
+        "STABLE_CONTINENTAL"
+      ],
+      "magnitude": {
+        "scale": "ML",
+        "min": 3.0,
+        "max": 6.4,
+        "approximate": true,
+        "note": "Low-magnitude UK data; foreign supplementary records reach ~6.4. ML, NOT Mw - converting silently changes the model."
+      },
+      "distance": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "min_km": 1.3,
+        "max_km": 477.4,
+        "approximate": true,
+        "uk_data_km": [
+          70.0,
+          477.4
+        ],
+        "note": "UK records start at about 70 km; everything closer comes from the Canadian and Belgian supplementary data."
+      },
+      "site": {
+        "parameterization": "none",
+        "fields": [],
+        "anchor_note": "Neither PGA model carries a site term in the appendix."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSV"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.1,
+        "t_max_s": 1.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "note": "The spectral model is 5%-damped PSEUDO-VELOCITY, not acceleration.",
+        "published_grid_summary": {
+          "n_published": 4,
+          "t_min_s": 0.1,
+          "t_max_s": 1.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the report is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "RESOLVE",
+      "log_base": "ln",
+      "internal_units": "cm/s2",
+      "variants": {
+        "pga": "RESOLVED into two named variants: model_1 and model_2.",
+        "model_1": "Complete in the appendix: a = 2.11, b = 1.23, d = -0.014.",
+        "model_2": "INCOMPLETE: c4 = -0.0148 is given, but c1 and c2 are taken from Dahle et al. (1990b) and are not reproduced. Recommended sigma 0.65."
+      },
+      "required": {
+        "rupture": [
+          "magnitude"
+        ],
+        "distance": [
+          "rhypo_km"
+        ],
+        "site": [],
+        "other": [
+          "variant"
+        ]
+      },
+      "coefficients": {
+        "status": "partial",
+        "needed": "For model_2, c1 and c2 from Dahle et al. (1990b) - a SECOND source, not just the original paper. For the spectral branch, the 5%-damped pseudo-velocity table. Model 1's PGA coefficients are complete and available."
+      },
+      "implementation_notes": [
+        "Foreign supplemental records do not change the UK regional applicability label.",
+        "Distinguish low-magnitude UK tests from the larger foreign-supported range, keeping extrapolation warnings separate."
+      ],
+      "reason_for_inclusion": "Low-seismicity UK benchmark.",
+      "reproduction": {
+        "status": "PARTIAL",
+        "branch": "PGA model 1",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3",
+        "incomplete_note": "Partial: PGA model 1 is reproducible; model 2 depends on coefficients from Dahle et al. (1990b) that the appendix does not reproduce."
+      },
+      "resolution_provenance": {
+        "magnitude.min": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): Mmin 3 ML (UK data; 3.7 for the foreign supplementary records)",
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin '70* (>1.3)' -- UK data from ~70 km, foreign records from > 1.3 km",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax '>477.4 (200*)' -- UK data beyond 477.4 km, foreign records to ~200 km",
+        "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): values starred / bounded"
+      },
+      "component_note": "Still RESOLVE. Douglas (2011) codes the component U (unknown); its footnote records only that Free (1996) 'believes it is largest horizontal component'. That is a third party's belief, not the authors' statement."
+    },
+    "lussou-2001": {
+      "benchmark_id": "30",
+      "kind": "gmpe",
+      "label": "Lussou et al. (2001)",
+      "douglas_refs": [
+        "2.170",
+        "4.100"
+      ],
+      "region": "Japan (K-Net)",
+      "tectonic_types": [
+        "ACTIVE_SHALLOW_CRUST"
+      ],
+      "magnitude": {
+        "scale": "MJMA",
+        "min": 3.7,
+        "max": 6.3,
+        "approximate": true,
+        "note": "JMA magnitude, not Mw. Converting silently changes the model."
+      },
+      "distance": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "min_km": 10.0,
+        "max_km": 200.0
+      },
+      "site": {
+        "parameterization": "categorical_from_vs30",
+        "fields": [
+          "site_class",
+          "vs30_mps"
+        ],
+        "classes": [
+          {
+            "name": "A",
+            "vs30_mps": "Vs30 > 800"
+          },
+          {
+            "name": "B",
+            "vs30_mps": "400 < Vs30 <= 800"
+          },
+          {
+            "name": "C",
+            "vs30_mps": "200 < Vs30 <= 400"
+          },
+          {
+            "name": "D",
+            "vs30_mps": "100 < Vs30 <= 200"
+          }
+        ],
+        "note": "Derived from measured/extrapolated Vs30, so the mapping is published. Honour the boundaries exactly.",
+        "anchor_note": "All four classes carry published PGA coefficients: A 0.617, B 0.721, C 0.845, D 0.891."
+      },
+      "mechanism": {
+        "classes": [
+          "none"
+        ]
+      },
+      "imts": [
+        "PGA",
+        "PSA"
+      ],
+      "damping": [
+        0.05
+      ],
+      "periods": {
+        "t_min_s": 0.02,
+        "t_max_s": 10.0,
+        "approximate": true,
+        "grid": "RESOLVE",
+        "published_grid_summary": {
+          "n_published": 63,
+          "t_min_s": 0.02,
+          "t_max_s": 10.0,
+          "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the paper is not openly available. Still RESOLVE."
+        }
+      },
+      "component": "both_horizontal_components",
+      "components_available": [
+        "horizontal",
+        "vertical"
+      ],
+      "log_base": "log10",
+      "internal_units": "cm/s2",
+      "equation": "log PSA(f) = a(f)*M + b(f)*R - log(R) + c(site_class, f)",
+      "required": {
+        "rupture": [
+          "magnitude"
+        ],
+        "distance": [
+          "rhypo_km"
+        ],
+        "site": [
+          "site_class"
+        ]
+      },
+      "coefficients": {
+        "status": "anchor_only",
+        "needed": "The frequency-dependent a(f), b(f) and per-class c(f) table. PGA coefficients (a 0.371, b -0.00254, c per class A-D, sigma 0.313) are now available. The magnitude scale is still not stated."
+      },
+      "implementation_notes": [
+        "The published equation is written 'log' without a stated base. RESOLVE whether log10 or ln before coding.",
+        "Test at every Vs30 class boundary and at both magnitude and distance extremes."
+      ],
+      "reason_for_inclusion": "Smaller-event Japanese model with measured site velocities.",
+      "log_base_note": "Resolved: the appendix states log_base 10, settling the ambiguity in the 'log PSA(f)' form.",
+      "aleatory": {
+        "published": true,
+        "sigma_total": 0.313
+      },
+      "reproduction": {
+        "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+        "branch": "PGA / headline branch",
+        "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+        "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+        "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+      },
+      "resolution_provenance": {
+        "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): M scale MJMA; Douglas (2011) BRGM/RP-59356-FR, section 2.170: 'Homogeneous determination of JMA magnitude'",
+        "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, section 2.170: 'equation valid for 3.5 <= MJMA <= 6.3 and 10 <= rhypo <= 200 km' (data span 4*-600* km, Illustration 1)",
+        "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, section 2.170: authors' stated validity, as above",
+        "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code B (each horizontal as a separate observation)"
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "mode": "forward_only",
+  "allowed": [
+    "connectivity",
+    "population_accessibility"
+  ],
+  "disallowed": [
+    "critical_components",
+    "diagnosis",
+    "backward_inference",
+    "queries_with_evidence"
+  ],
+  "reason": "The first pilot validates automated assembly and scenario-to-consequence inference."
+}

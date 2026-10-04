@@ -1,0 +1,4 @@
+{
+  "threshold": 0.5,
+  "_comment": "AssetFunctionality at or above this counts as a usable link. On the shared 0-1 capacity scale."
+}

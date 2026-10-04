@@ -1,0 +1,21 @@
+@prefix cap: <https://example.org/dra/cap#> .
+@prefix ex: <https://example.org/dra/assets#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:hazus-roadway a cap:Asset ;
+    rdfs:label "Hazus 6.1 roadway earthquake ground-failure fragility"@en ;
+    cap:assetId "fragility/hazus-roadway" ;
+    cap:version "0.1.0" ;
+    cap:implementedBy "model.py:HazusRoadway" ;
+    cap:targetVariable "AssetDamageState" ;
+    cap:givenVariable "LocalIntensity" ;
+    cap:stateValues '["none", "slight", "moderate", "extensive_complete"]' ;
+    cap:inputEncoding "hazus61-roadway-pgd-v1" ;
+    cap:deterministic false ;
+    cap:support cap:Discrete ;
+    cap:units "categorical damage; parent PGD normalised to inches" ;
+    cap:drawKind cap:Marginal ;
+    cap:batchable true ;
+    cap:reproducible true ;
+    cap:hasCapability cap:SampleForward, cap:EvaluateDensity, cap:EvaluateLikelihood ;
+    cap:validityScope "HRD1/HRD2 earthquake PGD fragility, reproduced from user-supplied Hazus 6.1 specification. One asset per call; no joint dependence between assets, deterioration/AssetHealth dependence, PGD generation, separate Extensive/Complete states, or capacity mapping. Explicit units required." .

@@ -1,0 +1,36 @@
+{
+  "package_id": "ema-highway",
+  "title": "Eastern Massachusetts highway network",
+  "created_utc": "2026-10-04T16:18:33.741897+00:00",
+  "schema_version": "0.1.0",
+  "inference_scope": "forward_only",
+  "network": {
+    "nodes": 74,
+    "edges": 129,
+    "directed": false
+  },
+  "source_files": [
+    {
+      "path": "C:\\Users\\bjieu\\git\\network-datasets\\datasets\\ema_highway\\v1\\data\\nodes.json",
+      "sha256": "99398abddfae2909b29c0cb390456aa328a02330c4f684a796fc4cc8bec7a2da"
+    },
+    {
+      "path": "C:\\Users\\bjieu\\git\\network-datasets\\datasets\\ema_highway\\v1\\data\\edges.json",
+      "sha256": "2a5b95cc880dc1c585706377930f47a7cb025599b32e5a449d7d7c8f505e77a9"
+    }
+  ],
+  "assumptions": {
+    "bridge_representation": "Each network edge or arc is represented by one highway bridge.",
+    "bridge_class": "Use each edge's fragility_type; use HWB11 only if absent.",
+    "coordinates": "Schematic planar coordinates interpreted as kilometres by the source scenario script.",
+    "functionality": "A bridge is unusable when damage reaches Extensive or Complete.",
+    "dependence": "Bridge states are sampled independently conditional on the hazard scenario."
+  },
+  "files": {
+    "network": "network.json",
+    "bn_spec": "bn_spec.json",
+    "query_scope": "query_scope.json",
+    "example_query": "example_query.json",
+    "example_result": "example_result.json"
+  }
+}

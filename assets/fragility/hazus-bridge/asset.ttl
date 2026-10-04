@@ -1,0 +1,21 @@
+@prefix cap: <https://example.org/dra/cap#> .
+@prefix ex: <https://example.org/dra/assets#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:hazus-bridge a cap:Asset ;
+    rdfs:label "Hazus 6.1 highway-bridge earthquake fragility"@en ;
+    cap:assetId "fragility/hazus-bridge" ;
+    cap:version "0.1.0" ;
+    cap:implementedBy "model.py:HazusBridge" ;
+    cap:targetVariable "AssetDamageState" ;
+    cap:givenVariable "LocalIntensity" ;
+    cap:stateValues '["none", "slight", "moderate", "extensive", "complete"]' ;
+    cap:inputEncoding "hazus61-bridge-v1" ;
+    cap:deterministic false ;
+    cap:support cap:Discrete ;
+    cap:units "categorical damage; parent Sa(1.0 s) in g or PGD in inches" ;
+    cap:drawKind cap:Marginal ;
+    cap:batchable true ;
+    cap:reproducible true ;
+    cap:hasCapability cap:SampleForward, cap:EvaluateDensity, cap:EvaluateLikelihood ;
+    cap:validityScope "HWB1-HWB28 base earthquake fragilities from the user-supplied Hazus 6.1 specification. Source modifier singularities and missing HWB28 shaking modifiers are errors. PGD requires an explicit interpretation policy. US/NBI classification or a named project mapping. No deterioration/AssetHealth dependence, multi-asset joint draws, restoration, or damage-to-capacity mapping. Base curves require explicit opt-in when modifiers are incomplete." .

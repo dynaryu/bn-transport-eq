@@ -1,0 +1,69 @@
+@prefix cap:  <https://example.org/dra/cap#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+<https://example.org/dra/cap> a owl:Ontology ;
+    owl:versionInfo "0.1.0" ;
+    rdfs:comment "Computational and numerical character of a knowledge asset. An inference operator is admissible only where the asset offers the operations that operator needs, so this vocabulary is what lets operator choice be derived rather than hand-assigned."@en .
+
+#### Asset ###################################################################
+
+cap:Asset a owl:Class ;
+    rdfs:label "Knowledge asset"@en ;
+    rdfs:comment "A probabilistic model, lookup or simulator supplying one factor."@en .
+
+cap:assetId        a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
+cap:version        a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
+cap:implementedBy  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string ;
+    rdfs:comment "Wrapper location relative to the asset folder, as \"file.py:ClassName\""@en .
+cap:targetVariable a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
+cap:givenVariable  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
+cap:validityScope  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
+cap:serviceMetric a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string ;
+    rdfs:comment "Service semantics used to select a system asset, e.g. travel-time. Sharing a target variable alone does not make simulators interchangeable."@en .
+cap:inputEncoding a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
+cap:stateValues a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string ;
+    rdfs:comment "JSON array of target states, in CPD column order."@en .
+
+#### Operations the asset can perform #########################################
+
+cap:Capability a owl:Class ;
+    rdfs:comment "Declare only what the wrapper ACTUALLY implements. A claimed-but-absent operation is worse than a declared gap: the compiler will select an operator that cannot run, and the failure shows up as a bad posterior rather than an error."@en .
+
+cap:hasCapability a owl:ObjectProperty ; rdfs:domain cap:Asset ; rdfs:range cap:Capability .
+
+cap:EvaluateDensity     a cap:Capability ; rdfs:label "evaluate density"@en ;
+    rdfs:comment "p(target | given) pointwise. Required by density-based MCMC."@en .
+cap:SampleForward       a cap:Capability ; rdfs:label "sample forward"@en ;
+    rdfs:comment "Draw target given parent values. Required by forward simulation and IS proposals."@en .
+cap:EvaluateLikelihood  a cap:Capability ; rdfs:label "evaluate likelihood"@en ;
+    rdfs:comment "L(given) = p(target = t | given) as a function of the parents. Required for backward messages."@en .
+cap:BatchClassify       a cap:Capability ; rdfs:label "batch classify"@en ;
+    rdfs:comment "Classify many parent-state samples at once, e.g. a reference-state system reliability backend."@en .
+cap:Gradient            a cap:Capability ; rdfs:label "gradient"@en .
+cap:NormalisingConstant a cap:Capability ; rdfs:label "normalising constant"@en ;
+    rdfs:comment "Can return Z. Needed where evidence probabilities are required; a sampler alone does not supply this."@en .
+
+#### Numerical character ######################################################
+
+cap:deterministic a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:boolean ;
+    rdfs:comment "True for a degenerate kernel. Do not represent such a factor as a near-degenerate table."@en .
+
+cap:Support a owl:Class .
+cap:Discrete a cap:Support . cap:Continuous a cap:Support . cap:Mixed a cap:Support .
+cap:support a owl:ObjectProperty ; rdfs:domain cap:Asset ; rdfs:range cap:Support .
+cap:units   a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
+
+cap:DrawKind a owl:Class .
+cap:Joint a cap:DrawKind ;
+    rdfs:comment "Returns joint draws across its output coordinates, preserving dependence."@en .
+cap:Marginal a cap:DrawKind ;
+    rdfs:comment "Per-coordinate marginals only. Using this where a joint is needed silently imposes independence."@en .
+cap:drawKind a owl:ObjectProperty ; rdfs:domain cap:Asset ; rdfs:range cap:DrawKind .
+
+cap:batchable     a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:boolean .
+cap:costPerEval   a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string ;
+    rdfs:comment "Order of magnitude, e.g. \"1e-6 s\", \"10 s\". Used to prefer among admissible operators."@en .
+cap:reproducible  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:boolean ;
+    rdfs:comment "Same output given the same seed."@en .

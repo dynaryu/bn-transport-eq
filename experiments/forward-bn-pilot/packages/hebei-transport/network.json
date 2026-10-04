@@ -1,0 +1,593 @@
+{
+  "case_id": "hebei-transport",
+  "title": "Hebei directed transport network",
+  "description": "Earthquake connectivity through directed arcs to n22 (Handan).",
+  "directed": true,
+  "nodes": {
+    "n1": {
+      "x": 50.069,
+      "y": 73.651,
+      "label": "CD",
+      "city": "Chengde",
+      "role": "source"
+    },
+    "n2": {
+      "x": 15.444,
+      "y": 71.962,
+      "label": "ZJK",
+      "city": "Zhangjiakou"
+    },
+    "n3": {
+      "x": 32.189,
+      "y": 58.788,
+      "label": "BJ",
+      "city": "Beijing"
+    },
+    "n4": {
+      "x": 68.364,
+      "y": 61.971,
+      "label": "QHD",
+      "city": "Qinhuangdao"
+    },
+    "n5": {
+      "x": 53.446,
+      "y": 57.93,
+      "label": "TS",
+      "city": "Tangshan"
+    },
+    "n6": {
+      "x": 59.369,
+      "y": 50.318,
+      "label": null,
+      "city": null
+    },
+    "n7": {
+      "x": 45.945,
+      "y": 46.582,
+      "label": "TJ",
+      "city": "Tianjin"
+    },
+    "n8": {
+      "x": 28.785,
+      "y": 46.526,
+      "label": "BZ",
+      "city": "Bazhou"
+    },
+    "n9": {
+      "x": 8.58,
+      "y": 44.229,
+      "label": null,
+      "city": null
+    },
+    "n10": {
+      "x": 20.703,
+      "y": 42.569,
+      "label": "BD",
+      "city": "Baoding"
+    },
+    "n11": {
+      "x": 46.305,
+      "y": 34.487,
+      "label": "HH",
+      "city": "Huanghua"
+    },
+    "n12": {
+      "x": 37.088,
+      "y": 34.487,
+      "label": "CZ",
+      "city": "Cangzhou"
+    },
+    "n13": {
+      "x": 28.231,
+      "y": 37.863,
+      "label": null,
+      "city": null
+    },
+    "n14": {
+      "x": 25.408,
+      "y": 26.377,
+      "label": "HS",
+      "city": "Hengshui"
+    },
+    "n15": {
+      "x": 14.669,
+      "y": 29.975,
+      "label": "SJZ",
+      "city": "Shijiazhuang"
+    },
+    "n16": {
+      "x": 5.397,
+      "y": 34.404,
+      "label": null,
+      "city": null
+    },
+    "n17": {
+      "x": 5.093,
+      "y": 18.489,
+      "label": null,
+      "city": null
+    },
+    "n18": {
+      "x": 13.728,
+      "y": 19.624,
+      "label": "XT",
+      "city": "Xingtai"
+    },
+    "n19": {
+      "x": 21.644,
+      "y": 17.908,
+      "label": null,
+      "city": null
+    },
+    "n20": {
+      "x": 3.211,
+      "y": 10.379,
+      "label": null,
+      "city": null
+    },
+    "n21": {
+      "x": 18.406,
+      "y": 7.279,
+      "label": null,
+      "city": null
+    },
+    "n22": {
+      "x": 10.739,
+      "y": 7.556,
+      "label": "HD",
+      "city": "Handan",
+      "role": "sink"
+    }
+  },
+  "edges": {
+    "e01": {
+      "from": "n1",
+      "to": "n2",
+      "directed": true,
+      "label": "a1",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e02": {
+      "from": "n1",
+      "to": "n3",
+      "directed": true,
+      "label": "a2",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e03": {
+      "from": "n1",
+      "to": "n4",
+      "directed": true,
+      "label": "a3",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e04": {
+      "from": "n1",
+      "to": "n5",
+      "directed": true,
+      "label": "a4",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e05": {
+      "from": "n2",
+      "to": "n3",
+      "directed": true,
+      "label": "a5",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e06": {
+      "from": "n2",
+      "to": "n9",
+      "directed": true,
+      "label": "a6",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e07": {
+      "from": "n3",
+      "to": "n7",
+      "directed": true,
+      "label": "a7",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e08": {
+      "from": "n3",
+      "to": "n8",
+      "directed": true,
+      "label": "a8",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e09": {
+      "from": "n3",
+      "to": "n10",
+      "directed": true,
+      "label": "a9",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e10": {
+      "from": "n4",
+      "to": "n6",
+      "directed": true,
+      "label": "a10",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e11": {
+      "from": "n5",
+      "to": "n6",
+      "directed": true,
+      "label": "a11",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e12": {
+      "from": "n6",
+      "to": "n11",
+      "directed": true,
+      "label": "a12",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e13": {
+      "from": "n7",
+      "to": "n8",
+      "directed": true,
+      "label": "a13",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e14": {
+      "from": "n7",
+      "to": "n12",
+      "directed": true,
+      "label": "a14",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e15": {
+      "from": "n8",
+      "to": "n13",
+      "directed": true,
+      "label": "a15",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e16": {
+      "from": "n9",
+      "to": "n10",
+      "directed": true,
+      "label": "a16",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e17": {
+      "from": "n9",
+      "to": "n16",
+      "directed": true,
+      "label": "a17",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e18": {
+      "from": "n10",
+      "to": "n13",
+      "directed": true,
+      "label": "a18",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e19": {
+      "from": "n10",
+      "to": "n15",
+      "directed": true,
+      "label": "a19",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e20": {
+      "from": "n11",
+      "to": "n12",
+      "directed": true,
+      "label": "a20",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e21": {
+      "from": "n12",
+      "to": "n14",
+      "directed": true,
+      "label": "a21",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e22": {
+      "from": "n13",
+      "to": "n14",
+      "directed": true,
+      "label": "a22",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e23": {
+      "from": "n14",
+      "to": "n15",
+      "directed": true,
+      "label": "a23",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e24": {
+      "from": "n14",
+      "to": "n19",
+      "directed": true,
+      "label": "a24",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e25": {
+      "from": "n15",
+      "to": "n18",
+      "directed": true,
+      "label": "a25",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e26": {
+      "from": "n15",
+      "to": "n17",
+      "directed": true,
+      "label": "a26",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e27": {
+      "from": "n16",
+      "to": "n17",
+      "directed": true,
+      "label": "a27",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e28": {
+      "from": "n17",
+      "to": "n20",
+      "directed": true,
+      "label": "a28",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e29": {
+      "from": "n17",
+      "to": "n22",
+      "directed": true,
+      "label": "a29",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e30": {
+      "from": "n18",
+      "to": "n22",
+      "directed": true,
+      "label": "a30",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e31": {
+      "from": "n19",
+      "to": "n21",
+      "directed": true,
+      "label": "a31",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e32": {
+      "from": "n20",
+      "to": "n22",
+      "directed": true,
+      "label": "a32",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    },
+    "e33": {
+      "from": "n21",
+      "to": "n22",
+      "directed": true,
+      "label": "a33",
+      "n_states": 3,
+      "capacities": [
+        0,
+        1,
+        2
+      ],
+      "bridge_class": "HWB11"
+    }
+  },
+  "destinations": [
+    "n22"
+  ],
+  "default_origins": [
+    "n1"
+  ],
+  "hazard_models": [
+    "uniform_sa1"
+  ],
+  "default_hazard": {
+    "model": "uniform_sa1",
+    "sa1_g": 0.7
+  },
+  "assumptions": {
+    "bridge_representation": "Each network edge or arc is represented by one highway bridge.",
+    "bridge_class": "Pilot assumption: each arc is one ordinary HWB11 bridge.",
+    "coordinates": "Digitised figure coordinates are unitless; no spatial GMPE is applied.",
+    "functionality": "A bridge is unusable when damage reaches Extensive or Complete.",
+    "dependence": "Bridge states are sampled independently conditional on the hazard scenario."
+  }
+}

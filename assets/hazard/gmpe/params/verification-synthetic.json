@@ -1,0 +1,28 @@
+{
+  "model_id": "_verification",
+  "label": "SYNTHETIC verification kernel - NOT a ground-motion prediction equation",
+  "WARNING": "These numbers are invented. They are not taken from any publication and do not approximate any published GMPE. They exist so the framework in model.py - log-base handling, unit conversion, period and damping grids, required-field validation, extrapolation policy, and the lognormal kernel - can be tested WITHOUT fabricating coefficients for any of the 30 benchmark models. Never use this for hazard assessment. Every prediction it produces carries a SYNTHETIC warning, and asset.ttl excludes it from cap:validityScope.",
+  "functional_form": "log10 Y = a(T)*M + b(T)*R - log10(R) + c(T, site_class)",
+  "form_note": "A generic attenuation shape chosen because it exercises log10 and cm/s2 together. It is deliberately NOT any specific model's form.",
+
+  "log_base": "log10",
+  "units": "cm/s2",
+  "component": "SYNTHETIC - no component definition",
+
+  "imts": ["PGA", "PSA"],
+  "damping": [0.05],
+  "site_classes": ["rock", "soil"],
+  "magnitude": {"scale": "SYNTHETIC", "min": 4.0, "max": 7.5},
+  "distance": {"metric": "Rhypo", "field": "rhypo_km", "min_km": 1.0, "max_km": 200.0},
+
+  "coefficients": {
+    "PGA": {"a": 0.50, "b": -0.0030, "c": {"rock": 0.20, "soil": 0.50}, "tau": 0.15, "phi": 0.25},
+    "0.2": {"a": 0.55, "b": -0.0025, "c": {"rock": 0.30, "soil": 0.65}, "tau": 0.16, "phi": 0.27},
+    "1.0": {"a": 0.60, "b": -0.0020, "c": {"rock": 0.10, "soil": 0.45}, "tau": 0.18, "phi": 0.30}
+  },
+  "provenance": {
+    "origin": "Invented for this repository, 2026-10-04.",
+    "citation": "None. There is nothing to cite.",
+    "tau_phi_note": "tau and phi are in log10 units, consistent with log_base. sigma_total is derived as sqrt(tau^2 + phi^2); the wrapper records that it was derived rather than published."
+  }
+}

@@ -1,0 +1,19 @@
+name: dra
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - numpy
+  - scipy
+  - networkx
+  - pytest
+  - pip
+  - pip:
+      - rdflib>=7.0
+      - pyshacl>=0.26
+      # Optional: only the forward pilot's natural-language panel needs this.
+      # Without it (or without a credential) the pilot runs unchanged.
+      - anthropic>=1.0
+      # The forward pilot's Bayesian network. torch is a large dependency, so the
+      # pilot keeps a closed-form fallback and runs without either.
+      - torch>=2.0
+      - tbnpy>=0.2.0
