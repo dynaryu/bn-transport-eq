@@ -65,9 +65,14 @@ Two consequences worth knowing:
   not in the prompt, so no phrasing reaches a diagnostic answer. Asking "which
   bridge is most critical given the outage?" produces a refusal from the engine,
   which Claude then explains.
-- **Every answer shows the query that produced it**, and the page redraws from
-  that same run - so the map, the table and the prose are one result, and the
-  translation from question to parameters can be checked rather than trusted.
+- **Every answer shows the query that produced it, before the answer.** The
+  query is written out as a probability statement in the model's variables
+  (`P(S::o = 1 | Mw = 7, epicentre = (1, 10))`, `P(X::e = 0 | …)`,
+  `E[PopFraction | …]`) and sent to the page before the engine is called; the
+  computed values follow, then the prose. The statement is built from the query
+  alone, so it cannot be fitted to the result. The page redraws from that same
+  run - so the map, the table and the prose are one result, and the translation
+  from question to parameters can be checked rather than trusted.
 
 Credentials stay server-side; the browser only talks to the local pilot. A
 question is a tool round-trip, so it spends two or three Anthropic API calls on

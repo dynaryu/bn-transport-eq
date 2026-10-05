@@ -86,6 +86,14 @@ scenario parameters, `run_forward_query` runs exactly as it does for the form
 controls, and the reply reports the numbers that came back under the query that
 produced them. Claude is never asked to estimate a probability.
 
+The reply is built in the order the work is done. First the query, written as a
+probability statement in the model's own variables — `P(S::o = 1 | Mw = 7,
+epicentre = (1, 10))` for each origin, `P(X::e = 0 | …)` for each bridge,
+`E[PopFraction | …]` — and shown before the engine is called. Then the values
+the engine computed for it. Then the prose. `/api/ask` streams these as one JSON
+object per line (`query`, `computed` or `not_computed`, `answer`) so the page can
+show each as it happens.
+
 The panel stays hidden until the **server process** holds a credential.
 `chat.available()` decides, `/api/chat-status` reports the reason, and the page
 asks once on load — so set the credential first, start the server, then reload

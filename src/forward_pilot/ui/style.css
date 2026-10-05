@@ -98,7 +98,7 @@ h2 { margin: 0; font: 500 18px Georgia, serif; }
 /* ── ask in words ─────────────────────────────────────────────────────────── */
 .chat-card[hidden] { display: none; }
 .chat-card { padding: 17px; }
-.chat-log { display: flex; flex-direction: column; gap: 9px; max-height: 330px; overflow-y: auto; margin-top: 12px; }
+.chat-log { display: flex; flex-direction: column; gap: 9px; max-height: 480px; overflow-y: auto; margin-top: 12px; }
 .chat-log:empty { display: none; }
 .bubble { padding: 10px 13px; border-radius: 9px; font-size: 12.5px; line-height: 1.55; max-width: 86%; }
 .bubble.user { align-self: flex-end; background: var(--teal); color: #fff; border-bottom-right-radius: 2px; }
@@ -106,11 +106,23 @@ h2 { margin: 0; font: 500 18px Georgia, serif; }
 .bubble.assistant.error { background: #fff0e9; border-color: #f3d2c2; color: #963c1a; }
 .bubble .thinking { color: var(--muted); font-style: italic; }
 .bubble .answer { white-space: normal; }
-/* The queries are part of the answer, not a footnote: they are how a reader
-   checks that the question was translated into the parameters they expected. */
-.ran { margin-top: 9px; border-top: 1px solid #dde5e2; padding-top: 7px; }
-.ran summary { font-size: 10.5px; font-weight: 750; color: var(--muted); cursor: pointer; }
-.ran ul { margin: 6px 0 0; padding-left: 16px; font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bubble .answer[hidden] { display: none; }
+/* The query sits above the answer, not under it as a footnote: it is stated
+   before the engine runs, and it is how a reader checks that the question was
+   translated into the parameters they expected. */
+.pq { margin-bottom: 9px; padding: 9px 11px; background: #fff; border: 1px solid #dde5e2; border-left: 3px solid var(--bn-model); border-radius: 5px; }
+.pq.is-running { border-left-color: var(--bn-future); }
+.pq.is-refused { border-left-color: var(--bn-blocked); }
+.pq-head { display: flex; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--teal); }
+.pq-state { font-weight: 650; letter-spacing: .3px; text-transform: none; color: var(--muted); }
+.pq.is-running .pq-state { font-style: italic; }
+.pq.is-refused .pq-state { color: var(--bn-blocked); }
+.pq ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.pq code { font: 500 11.5px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--ink); overflow-wrap: anywhere; }
+.pq-value { margin-left: 6px; font-weight: 750; color: var(--teal-dark); font-variant-numeric: tabular-nums; }
+.pq-value small { font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.pq-meaning { display: block; font-size: 10.5px; line-height: 1.45; color: var(--muted); }
+.pq-reason { margin: 7px 0 0; font-size: 11px; color: #963c1a; }
 .chat-form { display: flex; gap: 8px; margin-top: 12px; }
 .chat-form input { flex: 1; border: 1px solid #c8d0ce; border-radius: 5px; padding: 11px 12px; font: inherit; font-size: 13px; background: #fff; color: var(--ink); }
 .chat-form button { width: auto; margin: 0; padding: 11px 20px; border-radius: 5px; display: inline-block; }

@@ -19,6 +19,12 @@ Two properties follow from routing through the real engine rather than around it
 * Every answer carries the query that produced it, so a reader can check the
   translation from question to parameters instead of trusting it.
 
+The order is part of that second property. Each query is written out as a
+probability statement in the model's own variables and reported *before* the
+engine is called, then the values, then the prose. A reader sees what is about
+to be computed while it can still be read as a claim to check, rather than as a
+footnote to an answer they have already accepted.
+
 This module is optional. With no credentials configured the rest of the pilot
 works exactly as before; ``available()`` reports why, and the UI hides the panel.
 """
@@ -28,7 +34,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .engine import ForwardQueryError, run_forward_query
 
@@ -183,12 +189,110 @@ def system_prompt(network: Mapping[str, Any]) -> str:
         "refuse them. Explain why rather than estimating an answer: the network is built "
         "for forward simulation, and a criticality ranking needs inference running the "
         "other way, which this pilot does not do.",
-        "5. Keep replies short -- a few sentences. The numbers are also shown on screen.",
+        "5. Keep replies short -- a few sentences. Each query, written out as a "
+        "probability statement, and its headline values are already on screen above "
+        "your reply.",
         "6. Say when a result rests on an assumption the package makes, if it matters to "
         "the question. Bridge states are sampled independently given the scenario, so "
         "correlated ground motion is not represented.",
     ]
     return "\n".join(lines)
+
+
+# ---- the query, stated before it is computed ------------------------------
+
+
+def _node_name(network: Mapping[str, Any], node_id: str) -> str:
+    node = network["nodes"].get(node_id) or {}
+    name = node.get("city") or node.get("label")
+    return f"{name} ({node_id})" if name else str(node_id)
+
+
+def _num(value: Any) -> str:
+    # Not every hazard field is guaranteed to be a number here: a model the
+    # package does not carry has no defaults, and the engine has not refused yet.
+    return f"{value:g}" if isinstance(value, (int, float)) else str(value)
+
+
+def query_statement(network: Mapping[str, Any], query: Mapping[str, Any]) -> dict[str, Any]:
+    """The probabilistic query a run asks for, in the model's own variables.
+
+    Built from the query alone, never from a result, so it can be shown before
+    the engine is called. It lists every quantity a run produces -- not just the
+    one the question was about -- because that is what is computed, and the
+    names are the ones ``tbn.model.build`` gives the variables (``S::<origin>``,
+    ``X::<edge>``, ``PopFraction``), so the statement can be read against the
+    diagram.
+
+    The scenario is written after the bar as what is given. It is an input, not
+    a variable, but it is what every quantity here is conditional on.
+    """
+    hazard = query["hazard"]
+    if hazard.get("model") == "uniform_sa1":
+        given = f"SA1 = {_num(hazard.get('sa1_g'))} g at every bridge"
+    else:
+        given = (
+            f"Mw = {_num(hazard.get('magnitude'))}, epicentre = "
+            f"({_num(hazard.get('epicentre_x'))}, {_num(hazard.get('epicentre_y'))})"
+        )
+
+    origins = list(query["origins"])
+    reach = " or ".join(_node_name(network, d) for d in query["destinations"])
+    sampled = f"estimated from {int(query['samples']):,} forward samples"
+
+    if len(origins) == 1:
+        service = {
+            "expr": f"P(S::{origins[0]} = 1 | {given})",
+            "over": None,
+            "meaning": f"{_node_name(network, origins[0])} still reaches {reach}",
+        }
+    else:
+        service = {
+            "expr": f"P(S::o = 1 | {given})",
+            "over": f"each of {len(origins)} origins o",
+            "meaning": f"origin o still reaches {reach}",
+        }
+    targets = [
+        {**service, "how": sampled},
+        {
+            "expr": f"P(X::e = 0 | {given})",
+            "over": f"each of {len(network['edges'])} bridges e",
+            "meaning": "bridge e is unusable",
+            # Both backends report this marginal exactly rather than sampling it.
+            "how": "closed form",
+        },
+    ]
+    # Mirrors model.build: no weights, no PopFraction node, so no such query.
+    if sum(float((network["nodes"].get(o) or {}).get("population", 0.0)) for o in origins) > 0:
+        targets.append({
+            "expr": f"E[PopFraction | {given}]",
+            "over": None,
+            "meaning": "expected share of the population that still has access",
+            "how": sampled,
+        })
+    return {"given": given, "targets": targets}
+
+
+def _computed_values(network: Mapping[str, Any], result: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """One headline value per target of ``query_statement``, in the same order."""
+    service = result["origin_service"]          # sorted, least reliable first
+    worst = service[0]
+    if len(service) == 1:
+        low, high = worst["ci95"]
+        note = f"95% interval {low:.1%}–{high:.1%}"
+    else:
+        note = f"lowest, at {_node_name(network, worst['origin'])}"
+    riskiest = result["components"][0]          # sorted, most likely to fail first
+    values = [
+        {"value": worst["probability"], "note": note},
+        {"value": riskiest["p_unusable"],
+         "note": f"highest, at {riskiest['edge_id']} ({riskiest['from']} → {riskiest['to']})"},
+    ]
+    if "population_accessibility" in result:
+        pa = result["population_accessibility"]
+        values.append({"value": pa["expected_fraction"],
+                       "note": f"of {round(pa['population_in_scope']):,} people in scope"})
+    return values
 
 
 # ---- the tool ------------------------------------------------------------
@@ -198,6 +302,7 @@ def run_query_for_chat(
     network: Mapping[str, Any],
     runs: list[dict[str, Any]],
     *,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
     hazard_model: str | None = None,
     magnitude: float | None = None,
     epicentre_x: float | None = None,
@@ -215,7 +320,13 @@ def run_query_for_chat(
     The summary returned to Claude is deliberately small: the full result holds
     129 components and 72 origins, which would cost tokens without helping it
     answer. The complete result goes to ``runs`` for the UI to draw.
+
+    ``on_event`` is told what is happening as it happens: a ``query`` event with
+    the probability statement before the engine is called, then ``computed``
+    with the headline values, or ``not_computed`` with the reason. One call
+    emits exactly one such pair, in that order.
     """
+    emit = on_event or (lambda event: None)
     hazard: dict[str, Any] = {"model": hazard_model or network["default_hazard"]["model"]}
     if hazard["model"] == "uniform_sa1":
         hazard["sa1_g"] = network["default_hazard"].get("sa1_g", 0.3) if sa1_g is None else sa1_g
@@ -234,16 +345,23 @@ def run_query_for_chat(
         "hazard": hazard,
     }
 
+    # Stated before the engine runs, not reconstructed from what it returned: a
+    # statement written afterwards could only ever agree with the answer.
+    emit({"type": "query", "query": query, "statement": query_statement(network, query)})
+
     try:
         result = run_forward_query(network, query)
     except ForwardQueryError as exc:
         # Hand the refusal back as a tool result so it can be explained. The
         # boundary is enforced here, in the engine, not by the prompt.
+        emit({"type": "not_computed", "reason": str(exc)})
         return json.dumps({"refused": True, "reason": str(exc)})
     except (ValueError, KeyError) as exc:
+        emit({"type": "not_computed", "reason": f"{type(exc).__name__}: {exc}"})
         return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
 
     runs.append({"query": query, "result": result})
+    emit({"type": "computed", "values": _computed_values(network, result)})
 
     worst = result["origin_service"][:5]
     riskiest = result["components"][:5]
@@ -285,12 +403,17 @@ def ask(
     *,
     client: Any = None,
     model: str = MODEL,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Answer one question by letting Claude drive the engine.
 
     ``client`` is injectable so tests can run the loop without a network call.
     Returns the reply, every query that was run, and the full result of the last
     one so the page can redraw itself to match the answer.
+
+    ``on_event`` receives the events ``run_query_for_chat`` emits, while the
+    loop is still running, so a caller can show each query before its values
+    and both before the reply. The return value is unchanged without it.
     """
     question = (question or "").strip()
     if not question:
@@ -337,7 +460,7 @@ def ask(
             samples: Monte Carlo samples, 100 to 20000. More samples narrow the interval.
         """
         return run_query_for_chat(
-            network, runs,
+            network, runs, on_event=on_event,
             hazard_model=hazard_model, magnitude=magnitude,
             epicentre_x=epicentre_x, epicentre_y=epicentre_y, sa1_g=sa1_g,
             origins=origins, destinations=destinations, samples=samples,

@@ -892,7 +892,10 @@ function resetMetrics() {
  *
  * Claude never supplies a number here. It picks the scenario, the engine runs,
  * and the server returns both the answer and the full result - which is why the
- * reply can redraw the map: the page is showing the same run Claude described. */
+ * reply can redraw the map: the page is showing the same run Claude described.
+ *
+ * The reply is a stream, so each step shows as it happens: the probabilistic
+ * query first, then the values the engine computed for it, then the answer. */
 const chat = { history: [], busy: false };
 
 const EXAMPLES = {
@@ -939,13 +942,33 @@ function chatBubble(role, html, cls = '') {
   return el;
 }
 
-function describeQuery(q) {
-  const h = q.hazard || {};
-  const scenario = h.model === 'uniform_sa1'
-    ? `uniform SA(1 s) ${h.sa1_g} g`
-    : `Mw ${h.magnitude} at (${h.epicentre_x}, ${h.epicentre_y})`;
-  return `${esc(scenario)} · ${q.origins.length} origin${q.origins.length === 1 ? '' : 's'}`
-    + ` → ${esc(q.destinations.join(' or '))} · ${q.samples.toLocaleString()} samples`;
+/* One probabilistic query, as the server stated it before running the engine.
+ * The value slots are left empty on purpose: they are filled by the `computed`
+ * event, so what the reader sees first is the question put to the model. */
+function queryBlock(n, statement) {
+  const el = document.createElement('div');
+  el.className = 'pq is-running';
+  el.innerHTML = `<p class="pq-head">Probabilistic query ${n}<span class="pq-state">calculating…</span></p>`
+    + '<ul>' + statement.targets.map((t) => `<li>
+        <code>${esc(t.expr)}</code><span class="pq-value"></span>
+        <span class="pq-meaning">${esc([t.over && `for ${t.over}`, t.meaning, t.how].filter(Boolean).join(' · '))}</span>
+      </li>`).join('') + '</ul>';
+  return el;
+}
+
+/* The reply arrives as one JSON object per line, in the order things happen. */
+async function readEvents(response, onEvent) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const lines = buffer.split('\n');
+    buffer = done ? '' : lines.pop();
+    for (const line of lines) if (line.trim()) onEvent(JSON.parse(line));
+    if (done) return;
+  }
 }
 
 async function askQuestion() {
@@ -958,35 +981,84 @@ async function askQuestion() {
   input.value = '';
   $('chat-send').disabled = true;
   chatBubble('user', esc(question));
-  const pending = chatBubble('assistant', '<span class="thinking">Choosing a scenario and running the network…</span>');
+  const pending = chatBubble('assistant',
+    '<div class="steps"></div><div class="answer" hidden></div><span class="thinking"></span>');
+  const steps = pending.querySelector('.steps');
+  const stage = (text) => {
+    pending.querySelector('.thinking').textContent = text;
+    $('chat-log').scrollTop = $('chat-log').scrollHeight;
+  };
+  stage('Translating the question into a probabilistic query…');
+
+  let block = null;       // the query currently being calculated
+  let answered = false;
+
+  // The bubble fills top to bottom in the order the work is done: the query,
+  // then its values, then the prose. The query comes first so the translation
+  // from question to parameters is read before the answer, not after it.
+  const onEvent = (evt) => {
+    if (evt.type === 'query') {
+      block = queryBlock(steps.children.length + 1, evt.statement);
+      steps.append(block);
+      stage(`Calculating · ${evt.query.samples.toLocaleString()} forward samples through the network…`);
+    } else if (evt.type === 'computed') {
+      block.className = 'pq';
+      block.querySelector('.pq-state').textContent = 'computed';
+      block.querySelectorAll('.pq-value').forEach((slot, i) => {
+        const v = evt.values[i];
+        if (v) slot.innerHTML = `= ${pct(v.value)} <small>${esc(v.note)}</small>`;
+      });
+      stage('Writing the answer from these values…');
+    } else if (evt.type === 'not_computed') {
+      block.className = 'pq is-refused';
+      block.querySelector('.pq-state').textContent = 'not computed';
+      block.insertAdjacentHTML('beforeend', `<p class="pq-reason">${esc(evt.reason)}</p>`);
+      stage('Writing the answer…');
+    } else if (evt.type === 'answer') {
+      answered = true;
+      pending.querySelector('.thinking').remove();
+      const answer = pending.querySelector('.answer');
+      answer.innerHTML = esc(evt.answer).replace(/\n/g, '<br>');
+      answer.hidden = false;
+      $('chat-log').scrollTop = $('chat-log').scrollHeight;
+
+      chat.history.push({ role: 'user', content: question });
+      chat.history.push({ role: 'assistant', content: evt.answer });
+
+      // Redraw the page from the same run the answer describes.
+      if (evt.result) {
+        lastResult = evt.result;
+        showResult(evt.result);
+        $('status').textContent = 'Showing the scenario from the answer above. '
+          + $('status').textContent;
+      }
+    } else if (evt.type === 'error') {
+      throw new Error(evt.error);
+    }
+  };
 
   try {
     const response = await fetch('./api/ask', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ package_id: current.network.case_id, question, history: chat.history }),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'The request failed.');
-
-    // The queries are shown, not just the prose, so the translation from question
-    // to parameters can be checked rather than taken on trust.
-    const queries = (data.runs || []).map((q) => `<li>${describeQuery(q)}</li>`).join('');
-    pending.innerHTML = `<div class="answer">${esc(data.answer).replace(/\n/g, '<br>')}</div>`
-      + (queries ? `<details class="ran" open><summary>Ran ${data.runs.length} quer${data.runs.length === 1 ? 'y' : 'ies'}</summary><ul>${queries}</ul></details>` : '');
-
-    chat.history.push({ role: 'user', content: question });
-    chat.history.push({ role: 'assistant', content: data.answer });
-
-    // Redraw the page from the same run the answer describes.
-    if (data.result) {
-      lastResult = data.result;
-      showResult(data.result);
-      $('status').textContent = 'Showing the scenario from the answer above. '
-        + $('status').textContent;
-    }
+    // A failure before the stream starts is an ordinary JSON error with a status.
+    if (!response.ok) throw new Error((await response.json()).error || 'The request failed.');
+    await readEvents(response, onEvent);
+    if (!answered) throw new Error('The connection closed before an answer arrived.');
   } catch (error) {
-    pending.className = 'bubble assistant error';
-    pending.textContent = error.message;
+    if (steps.children.length) {
+      // Keep the queries that were stated and run; only the reply is missing.
+      pending.querySelector('.thinking')?.remove();
+      steps.querySelectorAll('.is-running').forEach((el) => {
+        el.className = 'pq is-refused';
+        el.querySelector('.pq-state').textContent = 'interrupted';
+      });
+      pending.insertAdjacentHTML('beforeend', `<p class="pq-reason">${esc(error.message)}</p>`);
+    } else {
+      pending.className = 'bubble assistant error';
+      pending.textContent = error.message;
+    }
   } finally {
     chat.busy = false;
     $('chat-send').disabled = false;

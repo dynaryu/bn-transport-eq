@@ -152,25 +152,66 @@ class PilotHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/ask":
-            try:
-                request = self._read_request()
-                network = self._network_for(request.get("package_id"))
-                self._json(chat.ask(
-                    network,
-                    request.get("question", ""),
-                    request.get("history") or [],
-                ))
-            except KeyError as exc:
-                self._json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
-            except chat.ChatUnavailable as exc:
-                self._json({"error": str(exc)}, HTTPStatus.SERVICE_UNAVAILABLE)
-            except json.JSONDecodeError as exc:
-                self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
-            except Exception as exc:  # an API failure should not take the server down
-                self._json({"error": _readable_api_error(exc)}, HTTPStatus.BAD_GATEWAY)
-            return
+            return self._ask()
 
         self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
+
+    def _ask(self) -> None:
+        """Answer a question as a stream of events, one JSON object per line.
+
+        The page has to show the probabilistic query before the value exists, so
+        the reply cannot be one body written at the end: ``query`` goes out when
+        Claude picks the scenario, ``computed`` when the engine returns, and
+        ``answer`` last. The response has no Content-Length and ends when the
+        connection closes, which HTTP/1.0 -- this handler's default -- allows.
+
+        Headers are held back until the first event. A request that fails before
+        then (unknown package, no credential, a rejected key) still gets a real
+        status code and the usual JSON error; only a failure after the stream has
+        started has to travel inside it, as an ``error`` event.
+        """
+        started = False
+
+        def send(event: dict[str, Any]) -> None:
+            nonlocal started
+            try:
+                if not started:
+                    started = True
+                    self.send_response(HTTPStatus.OK)
+                    self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                self.wfile.write((json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8"))
+                self.wfile.flush()
+            except OSError:
+                # The reader went away. This runs inside the tool call, so letting
+                # it raise would be reported to Claude as the query having failed.
+                pass
+
+        def fail(message: str, status: int) -> None:
+            if started:
+                send({"type": "error", "error": message})
+            else:
+                self._json({"error": message}, status)
+
+        try:
+            request = self._read_request()
+            network = self._network_for(request.get("package_id"))
+            reply = chat.ask(
+                network,
+                request.get("question", ""),
+                request.get("history") or [],
+                on_event=send,
+            )
+            send({"type": "answer", **reply})
+        except KeyError as exc:
+            fail(str(exc), HTTPStatus.NOT_FOUND)
+        except chat.ChatUnavailable as exc:
+            fail(str(exc), HTTPStatus.SERVICE_UNAVAILABLE)
+        except json.JSONDecodeError as exc:
+            fail(str(exc), HTTPStatus.BAD_REQUEST)
+        except Exception as exc:  # an API failure should not take the server down
+            fail(_readable_api_error(exc), HTTPStatus.BAD_GATEWAY)
 
     def log_message(self, format: str, *args: Any) -> None:
         print(f"[forward-pilot] {self.address_string()} {format % args}")
