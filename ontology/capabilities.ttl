@@ -1,10 +1,11 @@
 @prefix cap:  <https://example.org/dra/cap#> .
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
 <https://example.org/dra/cap> a owl:Ontology ;
-    owl:versionInfo "0.1.0" ;
+    owl:versionInfo "0.2.0" ;
     rdfs:comment "Computational and numerical character of a knowledge asset. An inference operator is admissible only where the asset offers the operations that operator needs, so this vocabulary is what lets operator choice be derived rather than hand-assigned."@en .
 
 #### Asset ###################################################################
@@ -16,15 +17,19 @@ cap:Asset a owl:Class ;
 cap:assetId        a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
 cap:version        a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
 cap:implementedBy  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string ;
-    rdfs:comment "Wrapper location relative to the asset folder, as \"file.py:ClassName\""@en .
+    rdfs:comment "Wrapper location relative to the folder holding the declaration, as \"file.py:ClassName\""@en .
 cap:targetVariable a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
 cap:givenVariable  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
 cap:validityScope  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
 cap:serviceMetric a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string ;
     rdfs:comment "Service semantics used to select a system asset, e.g. travel-time. Sharing a target variable alone does not make simulators interchangeable."@en .
 cap:inputEncoding a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string .
-cap:stateValues a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:string ;
-    rdfs:comment "JSON array of target states, in CPD column order."@en .
+cap:stateValues a owl:ObjectProperty ; rdfs:domain cap:Asset ; rdfs:range rdf:List ;
+    rdfs:comment "Target states, in CPD column order. A list rather than repeated values, because the order is the content."@en .
+cap:source a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range rdf:JSON ;
+    rdfs:comment "Provenance of the numbers: citation, table, retrieval date, verification level. A folder asset keeps this in the SOURCE.md beside its asset.ttl; a single-file asset carries it here."@en .
+cap:parameters a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range rdf:JSON ;
+    rdfs:comment "The numbers themselves, in whatever structure the wrapper named by cap:implementedBy reads. This vocabulary fixes the contract around them, not their shape."@en .
 
 #### Operations the asset can perform #########################################
 
@@ -67,3 +72,41 @@ cap:costPerEval   a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xs
     rdfs:comment "Order of magnitude, e.g. \"1e-6 s\", \"10 s\". Used to prefer among admissible operators."@en .
 cap:reproducible  a owl:DatatypeProperty ; rdfs:domain cap:Asset ; rdfs:range xsd:boolean ;
     rdfs:comment "Same output given the same seed."@en .
+
+#### Record shape ##############################################################
+#
+# How many values of each property one asset carries. OWL reads a restriction as
+# an inference rule, not as a constraint, so nothing in this file rejects a
+# malformed asset. src/conformance/schema.py derives the closed-world JSON Schema
+# from it -- ontology/asset.schema.json -- and that is what every single-file
+# asset (<name>.asset.json) is validated against. Edit here, then regenerate:
+#
+#     python -m src.conformance.schema
+#
+#   owl:cardinality 1      required, one value
+#   owl:maxCardinality 1   optional, one value
+#   (no restriction)       optional, any number of values
+
+cap:Asset rdfs:subClassOf
+    [ a owl:Restriction ; owl:onProperty rdfs:label ;         owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:assetId ;        owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:version ;        owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:implementedBy ;  owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:targetVariable ; owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:deterministic ;  owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:support ;        owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:units ;          owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:drawKind ;       owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:batchable ;      owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:reproducible ;   owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:validityScope ;  owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:source ;         owl:cardinality    "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:parameters ;     owl:maxCardinality "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:stateValues ;    owl:maxCardinality "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:inputEncoding ;  owl:maxCardinality "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:serviceMetric ;  owl:maxCardinality "1"^^xsd:nonNegativeInteger ] ,
+    [ a owl:Restriction ; owl:onProperty cap:costPerEval ;    owl:maxCardinality "1"^^xsd:nonNegativeInteger ] .
+
+# cap:givenVariable and cap:hasCapability stay unrestricted on purpose. A root
+# factor has no parents, and an asset whose numbers are not yet in hand declares
+# no capability at all -- which is the honest contract, not an incomplete one.

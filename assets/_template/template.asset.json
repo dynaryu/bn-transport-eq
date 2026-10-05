@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "«category»/«collection»/«name: this file's name without .asset.json»",
+  "label": "«human readable name»",
+  "version": "0.1.0",
+  "implementedBy": "model.py:«ClassName of the wrapper in this folder»",
+  "targetVariable": "«Variable this supplies»",
+  "givenVariable": [
+    "«parent»"
+  ],
+  "stateValues": [
+    "«target state, in CPD column order; drop this key for a continuous target»"
+  ],
+  "deterministic": false,
+  "support": "Discrete",
+  "units": "«units of the target»",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "costPerEval": "«order of magnitude, e.g. 1e-4 s»",
+  "reproducible": true,
+  "hasCapability": [
+    "SampleForward"
+  ],
+  "validityScope": "«conditions under which this asset may legitimately be used»",
+  "source": {
+    "citation": "«full reference, DOI or URL»",
+    "table": "«which table or supplement the numbers were taken from»",
+    "retrieved": "«YYYY-MM-DD»",
+    "licence": "«whether these numbers may be redistributed here»",
+    "verification": "«what the numbers were checked against»"
+  },
+  "parameters": {
+    "«whatever the wrapper reads»": "«the numbers»"
+  }
+}

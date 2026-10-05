@@ -74,3 +74,12 @@ def test_no_health_adjustment_or_road_shaking():
         HazusRoadway().evaluate(request)
     with pytest.raises(ValueError, match="hazard_mode"):
         HazusRoadway(hazard_mode="ground_shaking")
+
+
+def test_one_file_answers_for_one_class():
+    bound = HazusRoadway.from_asset_file(Path(__file__).resolve().parents[1] / "HRD2.asset.json")
+    assert bound.asset_id == "fragility/hazus-roadway/HRD2"
+    np.testing.assert_allclose(bound.distribution({"LocalIntensity": {"pgd_in": 12}}),
+                               HazusRoadway().distribution(given("HRD2")))
+    with pytest.raises(ValueError, match="HRD2 only"):
+        bound.evaluate(given("HRD1"))

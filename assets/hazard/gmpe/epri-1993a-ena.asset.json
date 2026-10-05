@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "hazard/gmpe/epri-1993a-ena",
+  "label": "EPRI (1993a), Eastern North America",
+  "version": "0.1.0",
+  "implementedBy": "model.py:Gmpe",
+  "targetVariable": "LocalIntensity",
+  "givenVariable": [
+    "HazardEvent"
+  ],
+  "deterministic": false,
+  "support": "Continuous",
+  "units": "SA, PGA in g at the API boundary; the model's own units and log base are kept under parameters",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [],
+  "validityScope": "Single-site intensity only; no spatial correlation, so never use it to draw a correlated field across multiple assets. Valid only inside its own published magnitude, distance, period and damping envelope, recorded under parameters; outside it the wrapper refuses unless the caller sets allow_extrapolation. Not usable at version 0.1.0: coefficients are original_table_required - the catalogue gives the equation and metadata only, with no numerical coefficients - so construction raises CoefficientsUnavailable and no capability is declared. What is missing is named under parameters.coefficients.needed.",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate.",
+    "written": "2026-10-04"
+  },
+  "parameters": {
+    "benchmark_id": "27",
+    "kind": "gmpe",
+    "label": "EPRI (1993a), Eastern North America",
+    "douglas_refs": [
+      "4.55"
+    ],
+    "region": "Eastern North America",
+    "tectonic_types": [
+      "STABLE_CONTINENTAL"
+    ],
+    "magnitude": {
+      "scale": "Mw | mLg",
+      "min": 4.0,
+      "max": 6.8,
+      "approximate": true,
+      "note": "Two separate regressions, one on Mw and one on mLg. A coefficient file must say which one it carries; they are not interchangeable."
+    },
+    "distance": {
+      "metric": "Rhypo",
+      "field": "rhypo_km",
+      "fallback": {
+        "metric": "Rrup",
+        "field": "rrup_km",
+        "when": "the largest event(s), per the source"
+      }
+    },
+    "site": {
+      "parameterization": "categorical",
+      "classes": [
+        "shallow_soil",
+        "intermediate_soil",
+        "deep_soil"
+      ],
+      "fields": [
+        "site_class"
+      ],
+      "note": "Site-DEPTH categories. Do not replace them with Vs30 except through an explicitly separate, documented conversion layer.",
+      "class_definitions": {
+        "shallow_soil": "depth to rock < 20 m",
+        "intermediate_soil": "depth to rock 20-100 m",
+        "deep_soil": "depth to rock > 100 m"
+      },
+      "anchor_note": "RESOLVED: the appendix gives the depth-to-rock definition of each class, via the ZSS / ZIS / ZDS indicators."
+    },
+    "mechanism": {
+      "classes": [
+        "none"
+      ]
+    },
+    "imts": [
+      "SA",
+      "PGA"
+    ],
+    "damping": [
+      0.05
+    ],
+    "periods": {
+      "t_min_s": 0.03,
+      "t_max_s": 1.0,
+      "approximate": true,
+      "grid": "RESOLVE",
+      "published_grid_summary": {
+        "n_published": 10,
+        "t_min_s": 0.03,
+        "t_max_s": 1.0,
+        "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; Douglas: coefficients are published as graphs only. Still RESOLVE."
+      }
+    },
+    "component": "geometric_mean",
+    "log_base": "ln",
+    "internal_units": "RESOLVE",
+    "equation_shape": "ln y = quadratic in magnitude + log-distance term + linear-distance term + site-depth indicators",
+    "required": {
+      "rupture": [
+        "magnitude"
+      ],
+      "distance": [
+        "rhypo_km"
+      ],
+      "site": [
+        "site_class"
+      ]
+    },
+    "coefficients": {
+      "status": "original_table_required",
+      "needed": "C1-C8 on the published period grid. The appendix gives the exact functional form and the site-class depth definitions but states the coefficient table is NOT_REPRODUCED_IN_DOUGLAS - the original EPRI table is required."
+    },
+    "implementation_notes": [
+      "Test all three site classes and long-distance attenuation."
+    ],
+    "reason_for_inclusion": "Stable-continental / ENA anchor.",
+    "equation": "ln y(f) = C1 + C2*(M-6) + C3*(M-6)^2 + C4*ln(R) + C5*R + C6*ZSS + C7*ZIS + C8*ZDS",
+    "reproduction": {
+      "status": "ORIGINAL_TABLE_REQUIRED",
+      "branch": null,
+      "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+      "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+      "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+    },
+    "resolution_provenance": {
+      "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): M scale 'Mw, mLg'; Douglas (2011) BRGM/RP-59356-FR, section 4.55: the analysis is run on both scales ('smaller inter-event standard deviations when using mLg than when using Mw')",
+      "component": "Douglas (2011) BRGM/RP-59356-FR, section 4.55: 'Use geometric mean'; Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G"
+    }
+  }
+}

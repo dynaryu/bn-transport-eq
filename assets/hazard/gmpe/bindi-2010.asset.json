@@ -1,0 +1,144 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "hazard/gmpe/bindi-2010",
+  "label": "Bindi et al. (2010)",
+  "version": "0.1.0",
+  "implementedBy": "model.py:Gmpe",
+  "targetVariable": "LocalIntensity",
+  "givenVariable": [
+    "HazardEvent"
+  ],
+  "deterministic": false,
+  "support": "Continuous",
+  "units": "PGA, SA in g at the API boundary; the model's own units and log base are kept under parameters",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [],
+  "validityScope": "Single-site intensity only; no spatial correlation, so never use it to draw a correlated field across multiple assets. Valid only inside its own published magnitude, distance, period and damping envelope, recorded under parameters; outside it the wrapper refuses unless the caller sets allow_extrapolation. Not usable at version 0.1.0: coefficients are anchor_only - one anchor branch (PGA, four branches (horizontal/vertical x Rjb/Repi)) is reproducible from the specification appendix, but the spectral table and a median kernel are not in the repository - so construction raises CoefficientsUnavailable and no capability is declared. What is missing is named under parameters.coefficients.needed.",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate.",
+    "written": "2026-10-04"
+  },
+  "parameters": {
+    "benchmark_id": "14",
+    "kind": "gmpe",
+    "label": "Bindi et al. (2010)",
+    "douglas_refs": [
+      "2.280",
+      "4.180"
+    ],
+    "region": "Italy",
+    "tectonic_types": [
+      "ACTIVE_SHALLOW_CRUST"
+    ],
+    "magnitude": {
+      "scale": "Mw",
+      "min": 4.0,
+      "max": 6.9,
+      "approximate": true,
+      "mref": 4.5
+    },
+    "distance": {
+      "metric": "Rjb",
+      "field": "rjb_km",
+      "note": "RESOLVED: the appendix publishes SEPARATE coefficient sets for Rjb and for Repi, so this is a choice of coefficient set, not a fallback. Pick the set matching the distance you have; never convert between the two.",
+      "alternative": {
+        "metric": "Repi",
+        "field": "repi_km"
+      }
+    },
+    "site": {
+      "parameterization": "categorical",
+      "n_classes": 3,
+      "classes": [
+        "class_0",
+        "class_1",
+        "class_2"
+      ],
+      "fields": [
+        "site_class"
+      ],
+      "anchor_note": "RESOLVED from Douglas (2011) section 2.280, following Sabetta & Pugliese (1987, 1996).",
+      "class_definitions": {
+        "class_0": "Rock; NEHRP A and B. Reference (C0 = 0).",
+        "class_1": "Shallow sediment: deposits > 5 m and <= 20 m thick, sediment Vs < 800 m/s.",
+        "class_2": "Deep sediment: deposits thicker than 20 m."
+      }
+    },
+    "mechanism": {
+      "classes": [
+        "none"
+      ],
+      "anchor_note": "The PGA anchor contains no mechanism term."
+    },
+    "imts": [
+      "PGA",
+      "SA"
+    ],
+    "damping": [
+      0.05
+    ],
+    "periods": {
+      "t_min_s": 0.03,
+      "t_max_s": 2.0,
+      "approximate": true,
+      "grid": "RESOLVE",
+      "published_grid_summary": {
+        "n_published": 21,
+        "t_min_s": 0.03,
+        "t_max_s": 2.0,
+        "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the paper is not openly available. Still RESOLVE."
+      }
+    },
+    "component": "larger_component",
+    "components_available": [
+      "horizontal",
+      "vertical"
+    ],
+    "log_base": "log10",
+    "internal_units": "cm/s2",
+    "required": {
+      "rupture": [
+        "mw"
+      ],
+      "distance": [
+        "rjb_km"
+      ],
+      "site": [
+        "site_class"
+      ]
+    },
+    "coefficients": {
+      "status": "anchor_only",
+      "needed": "The SPECTRAL period table for each of the four branches. All four PGA branches (a, b1, b2, c1, c2, h, C0-C2 and the sigma decomposition) are now available."
+    },
+    "implementation_notes": [
+      "Both horizontal and vertical data sit in the underlying dataset; keep the sets separate.",
+      "Test the Rjb/Repi selection path explicitly."
+    ],
+    "reason_for_inclusion": "Italian regional model.",
+    "aleatory": {
+      "published": true,
+      "note": "Decomposed as event / station / total rather than inter / intra. A station term is not the same as phi; keep the published naming.",
+      "horizontal_rjb": {
+        "sigma_event": 0.2084,
+        "sigma_station": 0.2634,
+        "sigma_total": 0.3523
+      }
+    },
+    "reproduction": {
+      "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+      "branch": "PGA, four branches (horizontal/vertical x Rjb/Repi)",
+      "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+      "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+      "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+    },
+    "resolution_provenance": {
+      "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code L"
+    }
+  }
+}

@@ -10,8 +10,8 @@ asset declares follows from that one form, and all of the modelling content sits
 
 What is implemented here is the *framework*: the contexts, the validation rules,
 log-base and unit discipline, the period/damping grid policy, the extrapolation
-policy, the lognormal kernel, and a registry of the 30 benchmark model families from
-``params/registry.json``.
+policy, the lognormal kernel, and a registry of the 30 benchmark model families, each
+declared by its own asset file, ``<model_id>.asset.json``, in this folder.
 
 What is **not** implemented is any published median function. No authoritative
 coefficient table for any of the 30 is present in this repository, so constructing
@@ -37,10 +37,11 @@ from typing import Any, Mapping, Optional, Sequence
 
 import numpy as np
 
-from src.wrappers.base import Asset
+from src.wrappers.base import Asset, DataUnavailable
+from src.wrappers.record import asset_files, asset_name, read_asset_file
 
 _HERE = Path(__file__).parent
-_REGISTRY_PATH = _HERE / "params" / "registry.json"
+_MODELS_DIR = _HERE
 _COEFFS_DIR = _HERE / "params" / "coeffs"
 _VERIFICATION_PATH = _HERE / "params" / "verification-synthetic.json"
 
@@ -55,7 +56,7 @@ VERIFICATION_ID = "_verification"
 # actions: go and find a document, fix the call, or decide to extrapolate.
 
 
-class CoefficientsUnavailable(RuntimeError):
+class CoefficientsUnavailable(DataUnavailable):
     """The model is registered but no authoritative coefficient table is present."""
 
 
@@ -213,8 +214,8 @@ def _coerce(kind: str, value: Any):
 
 @dataclass(frozen=True)
 class ModelSpec:
-    """One registry entry. ``raw`` is the registry dict; the properties are the parts
-    the framework validates against."""
+    """One model family. ``raw`` is the ``parameters`` block of its asset file; the
+    properties are the parts the framework validates against."""
 
     model_id: str
     raw: Mapping[str, Any]
@@ -293,9 +294,16 @@ class ModelSpec:
         return sorted(found)
 
 
-def load_registry(path: Path | str = _REGISTRY_PATH) -> dict[str, ModelSpec]:
-    doc = json.loads(Path(path).read_text(encoding="utf-8"))
-    return {k: ModelSpec(k, v) for k, v in doc["models"].items()}
+def load_registry(path: Path | str = _MODELS_DIR) -> dict[str, ModelSpec]:
+    """Every model family declared in ``path``, one ``<model_id>.asset.json`` each.
+
+    The registry is whatever files are in the folder: a family is added by adding
+    its file and withdrawn by removing it, with no index to keep in step.
+    """
+    return {
+        asset_name(file): ModelSpec(asset_name(file), read_asset_file(file)["parameters"])
+        for file in asset_files(path)
+    }
 
 
 def registry() -> dict[str, ModelSpec]:
@@ -445,7 +453,8 @@ class _VerificationKernel(MedianKernel):
 
 
 # No published median function is registered. Each of the 30 enters here only once an
-# authoritative coefficient table exists in params/coeffs/ with recorded provenance.
+# authoritative coefficient table exists in params/coeffs/ with recorded provenance --
+# and only then may its asset file declare a capability.
 _KERNELS: dict[str, type[MedianKernel]] = {}
 
 
@@ -466,7 +475,7 @@ class Gmpe(Asset):
         model_id: str = VERIFICATION_ID,
         *,
         allow_extrapolation: bool = False,
-        registry_path: Path | str = _REGISTRY_PATH,
+        registry_path: Path | str = _MODELS_DIR,
     ) -> None:
         self.model_id = model_id
         self.allow_extrapolation = allow_extrapolation
@@ -483,9 +492,20 @@ class Gmpe(Asset):
             )
 
         self.spec = self._registry[model_id]
+        self.asset_id = f"{type(self).asset_id}/{model_id}"
         if self.spec.coefficient_status != "present" or model_id not in _KERNELS:
             raise CoefficientsUnavailable(self._gap_report(self.spec))
         self._kernel = _KERNELS[model_id]()
+
+    @classmethod
+    def from_asset_file(cls, path: Path | str, **options: Any) -> "Gmpe":
+        """The one model family ``<model_id>.asset.json`` declares.
+
+        Raises :class:`CoefficientsUnavailable` for every family at this version,
+        which is why none of those files declares a capability.
+        """
+        path = Path(path)
+        return cls(asset_name(path), registry_path=path.parent, **options)
 
     # ---- construction helpers -------------------------------------------
 
@@ -549,7 +569,8 @@ class Gmpe(Asset):
         lines += [
             "",
             "Supply params/coeffs/<model_id>.json with recorded provenance, register a "
-            "MedianKernel, and set coefficients.status to 'present'. Coefficients must "
+            "MedianKernel, and set coefficients.status to 'present' in the model's asset "
+            "file, declaring there the capabilities it then has. Coefficients must "
             "never be reconstructed from figures or recalled from memory.",
         ]
         return "\n".join(lines)
@@ -798,9 +819,9 @@ class Gmpe(Asset):
         """Draw ``n`` intensities for ONE site.
 
         Draws are independent. This asset carries no spatial correlation model, which
-        is why asset.ttl declares cap:Marginal -- see README.md. Calling it per site
-        and stacking the results imposes independence across sites and will understate
-        the probability of widespread damage.
+        is why every asset file declares drawKind Marginal -- see README.md. Calling
+        it per site and stacking the results imposes independence across sites and
+        will understate the probability of widespread damage.
         """
         out = self._from_given(given)
         sigma = self._sigma_or_raise(out)

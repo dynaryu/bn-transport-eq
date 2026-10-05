@@ -1,7 +1,7 @@
 {
   "model_id": "_verification",
   "label": "SYNTHETIC verification kernel - NOT a ground-motion prediction equation",
-  "WARNING": "These numbers are invented. They are not taken from any publication and do not approximate any published GMPE. They exist so the framework in model.py - log-base handling, unit conversion, period and damping grids, required-field validation, extrapolation policy, and the lognormal kernel - can be tested WITHOUT fabricating coefficients for any of the 30 benchmark models. Never use this for hazard assessment. Every prediction it produces carries a SYNTHETIC warning, and asset.ttl excludes it from cap:validityScope.",
+  "WARNING": "These numbers are invented. They are not taken from any publication and do not approximate any published GMPE. They exist so the framework in model.py - log-base handling, unit conversion, period and damping grids, required-field validation, extrapolation policy, and the lognormal kernel - can be tested WITHOUT fabricating coefficients for any of the 30 benchmark models. Never use this for hazard assessment. Every prediction it produces carries a SYNTHETIC warning, and it is deliberately not offered as an asset file.",
   "functional_form": "log10 Y = a(T)*M + b(T)*R - log10(R) + c(T, site_class)",
   "form_note": "A generic attenuation shape chosen because it exercises log10 and cm/s2 together. It is deliberately NOT any specific model's form.",
 

@@ -1,0 +1,25 @@
+{
+  "written": "2026-10-04",
+  "applies_to": "the parameters block of every <model_id>.asset.json in assets/hazard/gmpe/",
+  "conventions": {
+    "RESOLVE": "Not stated in the catalogue summary this registry was built from. Must be read off the original paper. Deliberately NOT guessed - a wrong log base, component definition or magnitude scale is a silent factor-of-two class of error.",
+    "approximate": "true where Douglas qualifies the range. Indicative, not a boundary you can defend.",
+    "coefficients.status": {
+      "anchor_only": "The spec appendix supplies a reproducible anchor branch (normally PGA). The spectral table still requires the original paper. No kernel is implemented yet, so the wrapper still refuses.",
+      "partial": "Some values are given but not enough to evaluate even the anchor branch. The gap is named in coefficients.needed.",
+      "original_table_required": "Equation and metadata only; no numerical coefficients in the catalogue.",
+      "unavailable_by_nature": "The catalogue states the coefficients are not given at all.",
+      "present": "params/coeffs/<model_id>.json exists with recorded provenance AND a MedianKernel is registered."
+    },
+    "tectonic_types": [
+      "ACTIVE_SHALLOW_CRUST",
+      "SUBDUCTION_INTERFACE",
+      "SUBDUCTION_INTRASLAB",
+      "STABLE_CONTINENTAL"
+    ],
+    "spatial_correlation": "None of the 30 supplies one. Every entry is a single-site marginal - see README.md.",
+    "reproduction": "Per-model completeness, from the spec appendix section 11.2. ANCHOR_BRANCH_REPRODUCIBLE does NOT mean the full spectral GMPE is reproducible: unless a period table is supplied, off-anchor periods must be refused, never interpolated from the anchor.",
+    "anchor_note": "What a coefficient block implies without stating it - an unnamed site coefficient, an unnamed reference class, a horizontal branch whose component definition is not given. Recorded so the inference is visible; the field itself stays RESOLVE where the appendix is silent.",
+    "aleatory": "Published variability, in the model's OWN log base. Naming follows each source: some give tau/phi, some a single total sigma, Bindi gives event/station, Hong adds an orientation term. Do not normalise these onto one vocabulary."
+  }
+}

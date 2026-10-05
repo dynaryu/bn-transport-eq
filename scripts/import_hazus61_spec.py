@@ -1,6 +1,12 @@
-"""Reproduce JSON tables from the user-supplied Hazus 6.1 specification.
+"""Reproduce the Hazus 6.1 asset files from the user-supplied specification.
 
 Run from the repository root; no YAML dependency or embedded prompt execution.
+
+One file is written per Hazus class -- ``assets/fragility/hazus-bridge/HWB17.asset.json``
+and so on -- each a complete asset on its own: the contract in the ``cap:``
+vocabulary, the provenance, and that class's rows of every source table. The
+contract fields are fixed here rather than read from the specification, which
+supplies numbers and not capabilities.
 """
 from __future__ import annotations
 
@@ -11,6 +17,29 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT = ROOT / "docs/sources/hazus61_roadway_bridge_fragility_prompt.md"
+ASSETS = ROOT / "assets/fragility"
+SCHEMA_REF = "../../../ontology/asset.schema.json"
+
+CONTRACT = {
+    "version": "0.1.0",
+    "targetVariable": "AssetDamageState",
+    "givenVariable": ["LocalIntensity"],
+    "deterministic": False,
+    "support": "Discrete",
+    "drawKind": "Marginal",
+    "batchable": True,
+    "reproducible": True,
+    "hasCapability": ["SampleForward", "EvaluateDensity", "EvaluateLikelihood"],
+}
+NOT_MODELLED = ("No deterioration/AssetHealth dependence, multi-asset joint draws, "
+                "restoration, or damage-to-capacity mapping.")
+# Classes whose modified shaking curve the source cannot supply. Their assets say so
+# and offer the tabulated curves, instead of declaring a capability that would raise.
+BASE_ONLY = {
+    "HWB3": "the Table 7-2 K3D equation divides by N - 1, which is zero for a single-span bridge",
+    "HWB4": "the Table 7-2 K3D equation divides by N - 1, which is zero for a single-span bridge",
+    "HWB28": "Table 7-1 defines no K3D equation or Ishape for it",
+}
 
 
 def table(text, heading):
@@ -72,14 +101,102 @@ def curve(cls, state, mode, median, beta, table_id, source):
     }
 
 
+HOISTED = ("model_family", "asset_family", "asset_class")
+
+
+def _class_parameters(tables, code, **stated):
+    """One class's share of the tables. What every curve repeats is stated once.
+
+    ``src/fragility/hazus61/data.py`` puts it back, so the engine still sees the
+    full record per curve that ``extract`` returns.
+    """
+    curves = [c for c in tables["curves"] if c["asset_class"] == code]
+    common = {key: curves[0][key] for key in HOISTED}
+    slim = [{**{k: v for k, v in c.items() if k not in HOISTED}, "source": {"table": c["source"]["table"]}}
+            for c in curves]
+    return {**common, **stated, "curves": slim}
+
+
+def _record(folder, code, label, contract, scope, source, parameters):
+    return {
+        "$schema": SCHEMA_REF,
+        "assetId": f"fragility/{folder}/{code}",
+        "label": label,
+        **{k: contract[k] for k in ("version", "implementedBy", "targetVariable", "givenVariable",
+                                    "stateValues", "inputEncoding", "deterministic", "support", "units",
+                                    "drawKind", "batchable", "reproducible", "hasCapability")},
+        "validityScope": scope,
+        "source": source,
+        "parameters": parameters,
+    }
+
+
+def records(path=DEFAULT):
+    """Every Hazus asset file, as ``{path: content}``."""
+    road, bridge = extract(path)
+    out = {}
+
+    contract = {**CONTRACT, "implementedBy": "model.py:HazusRoadway",
+                "stateValues": ["none", "slight", "moderate", "extensive_complete"],
+                "inputEncoding": "hazus61-roadway-pgd-v1",
+                "units": "categorical damage; parent PGD normalised to inches"}
+    names = {cls.split("(")[1].split(")")[0]: cls.split("(")[0].strip()
+             for cls, *_ in table(Path(path).read_bytes().decode("utf-8-sig"), "## 6.")}
+    for code, name in names.items():
+        scope = (f"Hazus 6.1 class {code} ({name}) only. Earthquake PGD fragility, reproduced from the "
+                 "user-supplied Hazus 6.1 specification (Table 7-5). No ground-shaking curve, PGD "
+                 f"generation, or separate Extensive/Complete states. {NOT_MODELLED} Explicit units required.")
+        out[ASSETS / "hazus-roadway" / f"{code}.asset.json"] = _record(
+            "hazus-roadway", code, f"Hazus 6.1 roadway ground-failure fragility, {code}: {name}",
+            contract, scope, road["source"], _class_parameters(road, code))
+
+    contract = {**CONTRACT, "implementedBy": "model.py:HazusBridge",
+                "stateValues": ["none", "slight", "moderate", "extensive", "complete"],
+                "inputEncoding": "hazus61-bridge-v1",
+                "units": "categorical damage; parent Sa(1.0 s) in g or PGD in inches"}
+    for code in bridge["pgd_modifiers"]:
+        rules = [r for r in bridge["classification_rules"] if r["asset_class"] == code]
+        equations = {r["k3d"] for r in rules}
+        assert len(equations) == 1, f"{code} rows disagree on the K3D equation"
+        equation = equations.pop()
+        description, design = rules[0]["description"], rules[0]["design"]
+        label = f"Hazus 6.1 highway-bridge fragility, {code}: {description}"
+        if design != "-":
+            label += f" ({design.lower()} design)"
+        scope = (f"Hazus 6.1 class {code} only; the Table 7-1 rows that select it are under "
+                 "parameters.classification_rules. Earthquake fragility for Sa(1.0 s) or PGD, reproduced "
+                 "from the user-supplied Hazus 6.1 specification (Tables 7-1, 7-2, 7-6, 7-7). ")
+        if code in BASE_ONLY:
+            scope += (f"Supplies BASE shaking curves only: {BASE_ONLY[code]}, so the modified curve "
+                      "is refused rather than repaired. ")
+            parameters = _class_parameters(bridge, code, application="base", application_note=BASE_ONLY[code])
+        else:
+            shapes = {r["ishape"] for r in rules}
+            assert len(shapes) == 1, f"{code} rows disagree on Ishape"
+            scope += ("Shaking curves are modified for skew and span count"
+                      + (", and the slight state for spectral shape" if shapes == {"1"} else "")
+                      + "; a missing modifier input is an error, not a fallback to the base curve. ")
+            parameters = _class_parameters(bridge, code, application="modified")
+        scope += ("Crossed thresholds and source formula singularities are errors. PGD requires an "
+                  "explicit interpretation policy. US/NBI classification or a named project mapping. "
+                  + NOT_MODELLED)
+        parameters.update(
+            classification_rules=rules,
+            k3d={"equation": equation, **bridge["k3d"][equation]} if equation in bridge["k3d"] else None,
+            pgd_modifiers=bridge["pgd_modifiers"][code],
+        )
+        out[ASSETS / "hazus-bridge" / f"{code}.asset.json"] = _record(
+            "hazus-bridge", code, label, contract, scope, bridge["source"], parameters)
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, nargs="?", default=DEFAULT)
     args = parser.parse_args()
-    for slug, data in zip(["hazus-roadway", "hazus-bridge"], extract(args.source)):
-        target = ROOT / "assets/fragility" / slug / "params/database.json"
+    for target, data in records(args.source).items():
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        target.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

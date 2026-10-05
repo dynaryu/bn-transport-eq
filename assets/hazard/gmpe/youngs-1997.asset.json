@@ -1,0 +1,146 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "hazard/gmpe/youngs-1997",
+  "label": "Youngs et al. (1997)",
+  "version": "0.1.0",
+  "implementedBy": "model.py:Gmpe",
+  "targetVariable": "LocalIntensity",
+  "givenVariable": [
+    "HazardEvent"
+  ],
+  "deterministic": false,
+  "support": "Continuous",
+  "units": "PGA, SA in g at the API boundary; the model's own units and log base are kept under parameters",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [],
+  "validityScope": "Single-site intensity only; no spatial correlation, so never use it to draw a correlated field across multiple assets. Valid only inside its own published magnitude, distance, period and damping envelope, recorded under parameters; outside it the wrapper refuses unless the caller sets allow_extrapolation. Not usable at version 0.1.0: coefficients are partial - not even the anchor branch is complete - so construction raises CoefficientsUnavailable and no capability is declared. What is missing is named under parameters.coefficients.needed.",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate.",
+    "written": "2026-10-04"
+  },
+  "parameters": {
+    "benchmark_id": "17",
+    "kind": "gmpe",
+    "label": "Youngs et al. (1997)",
+    "douglas_refs": [
+      "2.137",
+      "4.81"
+    ],
+    "region": "Worldwide subduction",
+    "tectonic_types": [
+      "SUBDUCTION_INTERFACE",
+      "SUBDUCTION_INTRASLAB"
+    ],
+    "magnitude": {
+      "scale": "Mw",
+      "min": 5.0,
+      "max": 8.2,
+      "approximate": true
+    },
+    "distance": {
+      "metric": "Rrup",
+      "field": "rrup_km",
+      "fallback": {
+        "metric": "Rhypo",
+        "field": "rhypo_km",
+        "when": "per the paper"
+      }
+    },
+    "site": {
+      "parameterization": "categorical",
+      "classes": [
+        "rock",
+        "deep_soil"
+      ],
+      "fields": [
+        "site_class"
+      ],
+      "anchor_note": "Resolved from the two reported constant sets."
+    },
+    "mechanism": {
+      "classes": [
+        "none"
+      ],
+      "note": "Event type carries the source distinction, not a mechanism flag."
+    },
+    "event_type": {
+      "required": true,
+      "classes": [
+        "interface",
+        "intraslab"
+      ],
+      "note": "Must be supplied by the caller. Do NOT classify from depth unless the caller explicitly requests the paper's own depth-based fallback rule."
+    },
+    "imts": [
+      "PGA",
+      "SA"
+    ],
+    "damping": [
+      0.05
+    ],
+    "periods": {
+      "t_min_s": 0.075,
+      "t_max_s": 3.0,
+      "approximate": true,
+      "grid": [
+        0.075,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.75,
+        1.0,
+        1.5,
+        2.0,
+        3.0
+      ]
+    },
+    "component": "geometric_mean",
+    "log_base": "ln",
+    "internal_units": "g",
+    "required": {
+      "rupture": [
+        "mw",
+        "event_type",
+        "depth_km"
+      ],
+      "distance": [
+        "rrup_km"
+      ],
+      "site": [
+        "site_class"
+      ]
+    },
+    "coefficients": {
+      "status": "partial",
+      "needed": "INCOMPLETE even for PGA. The appendix reports rock (C1 0.2418, C2 1.414, C3 -2.552, C4 ln(1.7818), C8 0.3846, C9 0.00607) and deep-soil (C1 -0.6687, C2 1.438, C3 -2.329, C4 ln(1.097), C5 0.3643, C9 0.00648) constants, but states that other coefficients needed for more general site prediction are not given. The event-type (interface/intraslab) term is not among the reported values. Do not assume it."
+    },
+    "implementation_notes": [
+      "Test interface vs intraslab at identical Mw, distance and site - they must differ."
+    ],
+    "reason_for_inclusion": "Classic global subduction interface/intraslab anchor.",
+    "aleatory": {
+      "published": true,
+      "sigma_total": "1.45 - 0.1*M",
+      "note": "Magnitude-dependent, given as an expression."
+    },
+    "reproduction": {
+      "status": "PARTIAL",
+      "branch": "PGA, rock and deep-soil branches",
+      "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+      "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+      "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3",
+      "incomplete_note": "Partial: the reported constants do not cover the event-type term, so neither branch can be evaluated from the appendix alone."
+    },
+    "resolution_provenance": {
+      "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code G; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/youngs_1997.py declares IMC.GEOMETRIC_MEAN (p. 59)",
+      "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/youngs_1997.py coefficient table; period count and range (11 periods, 0.075-3 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. The OpenQuake tables carry an extra 4.0 s row; Douglas counts 11 periods ending at 3 s, so 4.0 s is excluded pending the paper."
+    }
+  }
+}

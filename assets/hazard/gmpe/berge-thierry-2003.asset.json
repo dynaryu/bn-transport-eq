@@ -1,0 +1,272 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "hazard/gmpe/berge-thierry-2003",
+  "label": "Berge-Thierry et al. (2003)",
+  "version": "0.1.0",
+  "implementedBy": "model.py:Gmpe",
+  "targetVariable": "LocalIntensity",
+  "givenVariable": [
+    "HazardEvent"
+  ],
+  "deterministic": false,
+  "support": "Continuous",
+  "units": "SA in g at the API boundary; the model's own units and log base are kept under parameters",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [],
+  "validityScope": "Single-site intensity only; no spatial correlation, so never use it to draw a correlated field across multiple assets. Valid only inside its own published magnitude, distance, period and damping envelope, recorded under parameters; outside it the wrapper refuses unless the caller sets allow_extrapolation. Not usable at version 0.1.0: coefficients are original_table_required - the catalogue gives the equation and metadata only, with no numerical coefficients - so construction raises CoefficientsUnavailable and no capability is declared. What is missing is named under parameters.coefficients.needed.",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate.",
+    "written": "2026-10-04"
+  },
+  "parameters": {
+    "benchmark_id": "12",
+    "kind": "gmpe",
+    "label": "Berge-Thierry et al. (2003)",
+    "douglas_refs": [
+      "4.109"
+    ],
+    "region": "Europe/Middle East + western USA",
+    "tectonic_types": [
+      "ACTIVE_SHALLOW_CRUST"
+    ],
+    "magnitude": {
+      "scale": "Ms",
+      "min": 4.0,
+      "max": 7.9,
+      "approximate": true,
+      "note": "Ms. The 163 W. USA records enter on Mw, treated by the authors as equivalent to Ms above Mw 6. Do not feed Mw."
+    },
+    "distance": {
+      "metric": "Rhypo",
+      "field": "rhypo_km",
+      "min_km": 4.0,
+      "max_km": 330.0
+    },
+    "site": {
+      "parameterization": "categorical",
+      "fields": [
+        "site_class"
+      ],
+      "classes": [
+        {
+          "name": "rock",
+          "vs_mps": "Vs > 800"
+        },
+        {
+          "name": "alluvium",
+          "vs_mps": "300 < Vs < 800"
+        }
+      ],
+      "anchor_note": "c1(f) applies to rock (Vs30 > 800 m/s) and c2(f) to alluvium (300 < Vs30 < 800 m/s)."
+    },
+    "mechanism": {
+      "classes": [
+        "none"
+      ],
+      "note": "No mechanism term in the form Douglas summarises."
+    },
+    "imts": [
+      "SA"
+    ],
+    "damping": [
+      0.05,
+      0.07,
+      0.1,
+      0.2
+    ],
+    "periods": {
+      "t_min_s": 0.03,
+      "t_max_s": 10.0,
+      "approximate": true,
+      "grid": [
+        0.029412,
+        0.03,
+        0.032258,
+        0.034,
+        0.035714,
+        0.04,
+        0.045455,
+        0.05,
+        0.053,
+        0.055556,
+        0.058824,
+        0.059999,
+        0.0625,
+        0.064998,
+        0.066667,
+        0.068966,
+        0.069999,
+        0.071429,
+        0.074074,
+        0.075002,
+        0.076923,
+        0.08,
+        0.083333,
+        0.084998,
+        0.086957,
+        0.090001,
+        0.090909,
+        0.095238,
+        0.1,
+        0.10526,
+        0.11,
+        0.11111,
+        0.11765,
+        0.12,
+        0.125,
+        0.12903,
+        0.13001,
+        0.13333,
+        0.13793,
+        0.14,
+        0.14286,
+        0.14815,
+        0.14999,
+        0.15385,
+        0.16,
+        0.16667,
+        0.17001,
+        0.17391,
+        0.17999,
+        0.18182,
+        0.19001,
+        0.19048,
+        0.2,
+        0.20833,
+        0.21739,
+        0.21978,
+        0.22727,
+        0.2381,
+        0.23998,
+        0.25,
+        0.25974,
+        0.26316,
+        0.27778,
+        0.28003,
+        0.29002,
+        0.30003,
+        0.30303,
+        0.31696,
+        0.32,
+        0.33333,
+        0.34002,
+        0.34483,
+        0.35714,
+        0.35997,
+        0.37037,
+        0.37994,
+        0.38462,
+        0.4,
+        0.41667,
+        0.41999,
+        0.43478,
+        0.43995,
+        0.45455,
+        0.45998,
+        0.47619,
+        0.48008,
+        0.5,
+        0.52002,
+        0.52632,
+        0.53996,
+        0.55556,
+        0.55991,
+        0.58005,
+        0.58824,
+        0.59988,
+        0.61996,
+        0.625,
+        0.6402,
+        0.66007,
+        0.66667,
+        0.67981,
+        0.69979,
+        0.71429,
+        0.75019,
+        0.76923,
+        0.8,
+        0.83333,
+        0.85034,
+        0.90009,
+        0.90909,
+        1.0,
+        1.1001,
+        1.1111,
+        1.2005,
+        1.25,
+        1.3004,
+        1.4006,
+        1.4286,
+        1.4993,
+        1.6,
+        1.6667,
+        1.7986,
+        2.0,
+        2.1978,
+        2.3981,
+        2.5,
+        2.5974,
+        2.8011,
+        3.003,
+        3.2051,
+        3.3333,
+        3.4014,
+        3.5971,
+        3.8023,
+        4.0,
+        4.5045,
+        5.0,
+        5.4945,
+        5.988,
+        6.993,
+        8.0,
+        9.009,
+        10.0
+      ]
+    },
+    "component": "both_horizontal_components",
+    "log_base": "log10",
+    "internal_units": "cm/s2",
+    "equation": "log10 PSA(f) = a(f)*M + b(f)*d - log10(d) + c1(f) + c2(f)",
+    "required": {
+      "rupture": [
+        "mw"
+      ],
+      "distance": [
+        "rhypo_km"
+      ],
+      "site": [
+        "site_class"
+      ]
+    },
+    "coefficients": {
+      "status": "original_table_required",
+      "needed": "The frequency-dependent a(f), b(f), c1(f) and c2(f) for all four damping ratios. The appendix reproduces the functional form and site terms only, explicitly NOT_REPRODUCED_IN_DOUGLAS."
+    },
+    "implementation_notes": [
+      "Support only 5, 7, 10 and 20% damping unless the source gives an interpolation rule.",
+      "The log10 convention is explicit here - preserve it."
+    ],
+    "reason_for_inclusion": "Regional + damping diversity; rock/alluvium classes.",
+    "reproduction": {
+      "status": "ORIGINAL_TABLE_REQUIRED",
+      "branch": null,
+      "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+      "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+      "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+    },
+    "resolution_provenance": {
+      "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): 'Ms (Mw for W. USA)'; Douglas (2011) BRGM/RP-59356-FR, section 4.109: uniformly calculated Ms for the European data and Mw for the W. USA records, which the authors treat as equivalent to Ms for Mw > 6.",
+      "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): rmin 4 km (rhypo)",
+      "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): rmax 330 km (rhypo)",
+      "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code B (each horizontal as a separate observation); OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/berge_thierry_2003.py declares IMC.HORIZONTAL (p. 196)",
+      "internal_units": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/berge_thierry_2003.py: 'convert from log10 to ln, and from cm/s2 to g'. External implementation; Douglas does not state units.",
+      "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/berge_thierry_2003.py coefficient table; period count and range (143 periods, 0.03-10 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked. Periods are reciprocals of the published frequencies, hence the odd values (0.029412 s = 34 Hz). Douglas footnote: 'On page 8 of paper it says 88 periods' -- the 143 count is the table's, check the paper before relying on either."
+    }
+  }
+}

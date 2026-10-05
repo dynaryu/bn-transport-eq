@@ -2,7 +2,7 @@
 
 - Supplied reference: `hazus61_roadway_bridge_fragility_prompt.md`, from the user's
   Downloads folder; retained in `docs/sources/` on 2026-10-04 with a SHA-256 in
-  every parameter record.
+  the `source` block of every asset file.
 - Cited primary source: FEMA, *Hazus Earthquake Model Technical Manual*, Hazus 6.1,
   July 2024, Section 7.1. [Official PDF](https://www.fema.gov/sites/default/files/documents/fema_hazus-earthquake-model-technical-manual-6-1.pdf).
 - Numerical source: Table 7-5; roadway descriptions and damage semantics in the supplied sections 4–6.

@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/dra/cap/asset.schema.json",
+  "title": "Knowledge asset",
+  "description": "One knowledge asset as a single file. GENERATED from ontology/capabilities.ttl (version 0.2.0) by `python -m src.conformance.schema`. Edit the ontology, not this file.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Path or URL of this schema, for editors.",
+      "type": "string"
+    },
+    "assetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "batchable": {
+      "type": "boolean"
+    },
+    "costPerEval": {
+      "description": "Order of magnitude, e.g. \"1e-6 s\", \"10 s\". Used to prefer among admissible operators.",
+      "type": "string",
+      "minLength": 1
+    },
+    "deterministic": {
+      "description": "True for a degenerate kernel. Do not represent such a factor as a near-degenerate table.",
+      "type": "boolean"
+    },
+    "drawKind": {
+      "enum": [
+        "Joint",
+        "Marginal"
+      ],
+      "description": "Joint: Returns joint draws across its output coordinates, preserving dependence. | Marginal: Per-coordinate marginals only. Using this where a joint is needed silently imposes independence."
+    },
+    "givenVariable": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "hasCapability": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "BatchClassify",
+          "EvaluateDensity",
+          "EvaluateLikelihood",
+          "Gradient",
+          "NormalisingConstant",
+          "SampleForward"
+        ],
+        "description": "BatchClassify: Classify many parent-state samples at once, e.g. a reference-state system reliability backend. | EvaluateDensity: p(target | given) pointwise. Required by density-based MCMC. | EvaluateLikelihood: L(given) = p(target = t | given) as a function of the parents. Required for backward messages. | NormalisingConstant: Can return Z. Needed where evidence probabilities are required; a sampler alone does not supply this. | SampleForward: Draw target given parent values. Required by forward simulation and IS proposals."
+      },
+      "uniqueItems": true
+    },
+    "implementedBy": {
+      "description": "Wrapper location relative to the folder holding the declaration, as \"file.py:ClassName\"",
+      "type": "string",
+      "minLength": 1
+    },
+    "inputEncoding": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parameters": {
+      "description": "The numbers themselves, in whatever structure the wrapper named by cap:implementedBy reads. This vocabulary fixes the contract around them, not their shape.",
+      "type": "object"
+    },
+    "reproducible": {
+      "description": "Same output given the same seed.",
+      "type": "boolean"
+    },
+    "serviceMetric": {
+      "description": "Service semantics used to select a system asset, e.g. travel-time. Sharing a target variable alone does not make simulators interchangeable.",
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "description": "Provenance of the numbers: citation, table, retrieval date, verification level. A folder asset keeps this in the SOURCE.md beside its asset.ttl; a single-file asset carries it here.",
+      "type": "object"
+    },
+    "stateValues": {
+      "description": "Target states, in CPD column order. A list rather than repeated values, because the order is the content.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "support": {
+      "enum": [
+        "Continuous",
+        "Discrete",
+        "Mixed"
+      ]
+    },
+    "targetVariable": {
+      "type": "string",
+      "minLength": 1
+    },
+    "units": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validityScope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "assetId",
+    "batchable",
+    "deterministic",
+    "drawKind",
+    "implementedBy",
+    "label",
+    "reproducible",
+    "source",
+    "support",
+    "targetVariable",
+    "units",
+    "validityScope",
+    "version"
+  ],
+  "additionalProperties": false
+}

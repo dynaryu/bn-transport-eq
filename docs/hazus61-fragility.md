@@ -1,19 +1,25 @@
 # Hazus 6.1 roadway and bridge assets
 
-Two registry assets reproduce the supplied specification's earthquake fragility
-tables. The numeric data are complete for these tables; that does not resolve the
-source ambiguities or supply a deterioration model.
+Thirty registry assets, one per Hazus class, reproduce the supplied specification's
+earthquake fragility tables. The numeric data are complete for these tables; that
+does not resolve the source ambiguities or supply a deterioration model.
 
-| Asset | Classes | Hazard modes | Damage states |
+| Collection | Assets | Hazard modes | Damage states |
 |---|---|---|---|
-| `fragility/hazus-roadway` | HRD1, HRD2 | PGD | none, slight, moderate, extensive_complete |
-| `fragility/hazus-bridge` | HWB1–HWB28 | Sa(1.0 s); PGD under an explicit policy | none, slight, moderate, extensive, complete |
+| `fragility/hazus-roadway/` | `HRD1`, `HRD2` | PGD | none, slight, moderate, extensive_complete |
+| `fragility/hazus-bridge/` | `HWB1` … `HWB28` | Sa(1.0 s); PGD under an explicit policy | none, slight, moderate, extensive, complete |
+
+Each class is a single file, `<class>.asset.json`, with `cap:assetId`
+`fragility/<collection>/<class>`. It carries the contract, the source record and
+that class's share of every table, and observes the schema derived from the
+ontology — see [single-file assets](../assets/README.md#single-file-assets).
 
 There are 230 individual curve records: 6 roadway PGD records and 224 bridge
-records (28 classes × 4 damage thresholds × 2 hazard modes). Classifier rules,
-K3D coefficients and PGD modifier expressions are separate from the curves.
-Parameters live in each asset's `params/database.json`; shared code is in
-`src/fragility/hazus61/`.
+records (28 classes × 4 damage thresholds × 2 hazard modes). A bridge file also
+holds the class's Table 7-1 classifier rows, its K3D equation and its PGD modifier
+expressions. Shared code is in `src/fragility/hazus61/`, which reassembles the
+whole tables from the files: classification has to walk every Table 7-1 row in
+source order, so that order is carried in each row's `priority`.
 
 ## Load and evaluate
 
@@ -37,6 +43,22 @@ mass = model.evaluate_density({"AssetDamageState": "extensive"}, given)
 modifier factors, canonical intensity and units, exceedances, discrete
 probabilities, assumptions, source warnings, and source/database hashes.
 `distribution()` returns only the probability matrix and refuses unresolved matches.
+
+`Bridge()` above is the family: it classifies among all 28. To use one class as the
+asset it is declared to be, bind the wrapper to its file:
+
+```python
+hwb17 = Bridge.from_asset_file("assets/fragility/hazus-bridge/HWB17.asset.json")
+result = hwb17.evaluate({
+    "asset": {"num_spans": 3, "skew_angle_deg": 20},   # no class: the file supplies it
+    "LocalIntensity": {"sa_1p0_g": 0.43},
+})
+```
+
+A bound wrapper refuses metadata naming another class, and refuses
+`class_probabilities`, which is a statement about the family. Constructor options
+(`hazard_mode`, `application`, `bridge_pgd_policy`, `vintage_policy`) pass through
+`from_asset_file` unchanged.
 
 `SampleForward`, `EvaluateDensity` (categorical probability mass) and
 `EvaluateLikelihood` are declared. Likelihood is not normalised over the intensity
@@ -104,6 +126,12 @@ when the shape formula also gives a zero slight median; no log(0/0) is evaluated
 `application="base"` to evaluate tabulated curves intentionally; output is labelled
 `base_curve_only`. No automatic fallback to unmodified curves occurs.
 
+Three asset files state `"application": "base"` themselves — HWB3, HWB4 and HWB28 —
+because the source cannot supply their modified shaking curve at all (see the errors
+below). That is a declaration in the file, visible in its `validityScope`, and not a
+fallback: the result is still labelled `base_curve_only`, an explicit
+`application="modified"` still raises, and the family wrapper is unchanged.
+
 For bridge PGD instantiate with `hazard_mode="ground_failure"` and explicitly select:
 
 - `bridge_pgd_policy="literal_table_and_steps"`: retain Slight; multiply Moderate
@@ -138,14 +166,19 @@ otherwise latent-class dependence would be lost.
 ## Source reproduction and remaining integration
 
 The input document is retained byte-for-byte in
-`docs/sources/hazus61_roadway_bridge_fragility_prompt.md`. Regenerate JSON with:
+`docs/sources/hazus61_roadway_bridge_fragility_prompt.md`. Regenerate the 30 asset
+files with:
 
 ```powershell
 python scripts/import_hazus61_spec.py
 ```
 
 The importer reads Markdown data tables. It does not execute the coding prompt
-embedded in that file. Tests cover all curve medians/betas, each classifier row,
+embedded in that file. The contract fields of each file are fixed in the importer,
+since the specification supplies numbers and not capabilities. A test holds every
+file on disk to what the importer produces and fails on a file it does not, because
+any `*.asset.json` in these two folders is read into the tables.
+Tests cover all curve medians/betas, each classifier row,
 all K3D/PGD rows, probability identities, conversions and refusal cases. This
 verifies reproduction of the supplied transcription, not agreement with Hazus
 software. The [FEMA source PDF](https://www.fema.gov/sites/default/files/documents/fema_hazus-earthquake-model-technical-manual-6-1.pdf)

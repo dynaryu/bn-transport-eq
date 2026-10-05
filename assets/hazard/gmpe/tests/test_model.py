@@ -20,7 +20,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 
+from src.conformance.check import check_asset  # noqa: E402
+from src.conformance.schema import validation_errors  # noqa: E402
 from src.wrappers.loader import load_asset_module  # noqa: E402
+from src.wrappers.record import asset_files, asset_name, read_asset_file  # noqa: E402
 
 # Loaded by path, not as `model`: every asset's wrapper is called model.py, so a bare
 # `from model import ...` picks up whichever asset pytest collected first.
@@ -30,6 +33,7 @@ LN10 = _m.LN10
 CoefficientsUnavailable = _m.CoefficientsUnavailable
 DistanceContext = _m.DistanceContext
 Gmpe = _m.Gmpe
+VERIFICATION_ID = _m.VERIFICATION_ID
 LogBase = _m.LogBase
 OutOfScope = _m.OutOfScope
 RuptureContext = _m.RuptureContext
@@ -574,3 +578,32 @@ def _ctx(mw=6.0, rhypo=20.0, site_class="rock"):
         "distance": DistanceContext(rhypo_km=rhypo),
         "site": SiteContext(site_class=site_class),
     }
+
+
+# ---- one asset file per family ---------------------------------------------
+
+
+def test_each_family_is_its_own_asset_file_and_claims_nothing_it_cannot_do():
+    """Thirty declarations, each honest about a wrapper that refuses to construct.
+
+    The day a kernel lands, that family's file gains its capabilities and leaves this
+    test, in the same change that narrows `test_no_published_model_can_predict_yet`.
+    """
+    files = asset_files(Path(__file__).resolve().parents[1])
+    assert [asset_name(f) for f in files] == sorted(load_registry())
+    for f in files:
+        record = read_asset_file(f)
+        assert validation_errors(record) == [], f.name
+        assert record["assetId"] == f"hazard/gmpe/{asset_name(f)}"
+        assert record["hasCapability"] == []
+        with pytest.raises(CoefficientsUnavailable):
+            Gmpe.from_asset_file(f)
+        result = check_asset(f)
+        assert result.ok and not result.underclaimed
+        assert "cannot predict" in result.unavailable
+
+
+def test_the_synthetic_kernel_is_not_offered_as_an_asset():
+    """It is a test fixture. A file for it would put invented coefficients in the registry."""
+    assert VERIFICATION_ID not in load_registry()
+    assert Gmpe().model_id == VERIFICATION_ID

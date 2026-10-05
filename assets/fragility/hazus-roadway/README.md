@@ -4,8 +4,12 @@
 HRD1/HRD2. The four states are `none`, `slight`, `moderate`, `extensive_complete`.
 The source provides no partition of Extensive from Complete for roads.
 
-All six Table 7-5 curves are in `params/database.json`. This asset implements
-forward sampling, probability mass and likelihood. It does not implement
+Each class is its own asset file, `HRD1.asset.json` and `HRD2.asset.json`, holding
+the contract, the source record and that class's three Table 7-5 curves, and
+observing the [schema derived from the ontology](../../README.md#single-file-assets).
+`HazusRoadway()` reads both; `HazusRoadway.from_asset_file("HRD1.asset.json")`
+answers for one. They implement
+forward sampling, probability mass and likelihood. They do not implement
 deterioration, restoration, ground shaking, PGD generation, or capacity mapping.
 
 See the [API and examples](../../../docs/hazus61-fragility.md),

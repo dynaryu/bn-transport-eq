@@ -29,7 +29,7 @@ python -m pytest -q                # 210 tests
 |---|---|---|
 | 1 | Design the ontology from a domain brief | `prompts/bn-ontology-design-brief.md` |
 | 2 | Declare what a model asset *can compute* | `ontology/capabilities.ttl` |
-| 3 | Make each asset sign that contract | `assets/*/*/asset.ttl` + `model.py` |
+| 3 | Make each asset sign that contract | `assets/*/*/*.asset.json` or `asset.ttl`, + `model.py` |
 | 4 | Check the contract is true, not just claimed | `src/conformance/check.py` |
 | 5 | State a decision problem in plain language | `prompts/forward-pilot/` |
 | 6 | Assemble a portable BN package for it | `src/forward_pilot/package.py` |
@@ -38,18 +38,27 @@ python -m pytest -q                # 210 tests
 
 ## The three ideas worth arguing about
 
-**An asset declares what it can do, and the claim is tested.** `asset.ttl` says
+**An asset declares what it can do, and the claim is tested.** Its declaration says
 whether a model can evaluate a density, sample forward, return a likelihood.
 `conformance/check.py` calls every declared capability and reports *overclaim*
 separately from *underclaim*, because a capability claimed but absent makes the
 compiler pick an operator that cannot run — which surfaces as a wrong posterior
 rather than an error.
 
+The declarations are many small files, as a registry filled by a community would
+be: each bridge class, roadway class and ground-motion family is one
+`<name>.asset.json` carrying its own contract, provenance and numbers — 60 of them.
+They all observe one schema, and it is not written by hand:
+`src/conformance/schema.py` derives `ontology/asset.schema.json` from the ontology,
+so a contributed file is checked against the vocabulary the compiler actually
+reads. See [the asset registry](assets/README.md).
+
 **An asset may refuse to answer.** `assets/hazard/gmpe/` registers 30 published
 ground-motion models and **cannot predict with any of them**: no authoritative
 coefficient table is in the repository, so construction raises and reports what
-source material is missing. Inventing plausible coefficients would produce
-confident numbers that no downstream test could catch.
+source material is missing, and each of the 30 files declares no capability.
+Inventing plausible coefficients would produce confident numbers that no
+downstream test could catch.
 
 **The query boundary is enforced in code, not in prose.** The pilot answers
 forward questions only. "Which bridge is most critical given the outage?" needs

@@ -1,0 +1,200 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "hazard/gmpe/ambraseys-2005a",
+  "label": "Ambraseys et al. (2005a)",
+  "version": "0.1.0",
+  "implementedBy": "model.py:Gmpe",
+  "targetVariable": "LocalIntensity",
+  "givenVariable": [
+    "HazardEvent"
+  ],
+  "deterministic": false,
+  "support": "Continuous",
+  "units": "PGA, SA in g at the API boundary; the model's own units and log base are kept under parameters",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [],
+  "validityScope": "Single-site intensity only; no spatial correlation, so never use it to draw a correlated field across multiple assets. Valid only inside its own published magnitude, distance, period and damping envelope, recorded under parameters; outside it the wrapper refuses unless the caller sets allow_extrapolation. Not usable at version 0.1.0: coefficients are anchor_only - one anchor branch (PGA) is reproducible from the specification appendix, but the spectral table and a median kernel are not in the repository - so construction raises CoefficientsUnavailable and no capability is declared. What is missing is named under parameters.coefficients.needed.",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate.",
+    "written": "2026-10-04"
+  },
+  "parameters": {
+    "benchmark_id": "10",
+    "kind": "gmpe",
+    "label": "Ambraseys et al. (2005a)",
+    "douglas_refs": [
+      "2.207"
+    ],
+    "region": "Europe & Middle East",
+    "tectonic_types": [
+      "ACTIVE_SHALLOW_CRUST"
+    ],
+    "magnitude": {
+      "scale": "Mw",
+      "min": 5.0,
+      "max": 7.6,
+      "approximate": true
+    },
+    "distance": {
+      "metric": "Rjb",
+      "field": "rjb_km",
+      "fallback": {
+        "metric": "Repi",
+        "field": "repi_km",
+        "when": "small events, per the paper"
+      },
+      "h_km": 7.6
+    },
+    "site": {
+      "parameterization": "categorical_from_vs30",
+      "fields": [
+        "site_class",
+        "vs30_mps"
+      ],
+      "classes": [
+        {
+          "name": "soft_soil",
+          "vs30_mps": "180 < Vs30 <= 360"
+        },
+        {
+          "name": "stiff_soil",
+          "vs30_mps": "360 < Vs30 <= 750"
+        },
+        {
+          "name": "rock",
+          "vs30_mps": "Vs30 > 750"
+        }
+      ],
+      "note": "A published Vs30 -> class mapping, so mapping is permitted here. Honour the boundary values exactly."
+    },
+    "mechanism": {
+      "classes": [
+        "normal",
+        "thrust",
+        "other"
+      ],
+      "anchor_note": "Confirmed by a8_normal / a9_thrust / a10_odd."
+    },
+    "imts": [
+      "PGA",
+      "SA"
+    ],
+    "damping": [
+      0.05
+    ],
+    "periods": {
+      "t_min_s": 0.05,
+      "t_max_s": 2.5,
+      "approximate": true,
+      "grid": [
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.11,
+        0.12,
+        0.13,
+        0.14,
+        0.15,
+        0.16,
+        0.17,
+        0.18,
+        0.19,
+        0.2,
+        0.22,
+        0.24,
+        0.26,
+        0.28,
+        0.3,
+        0.32,
+        0.34,
+        0.36,
+        0.38,
+        0.4,
+        0.42,
+        0.44,
+        0.46,
+        0.48,
+        0.5,
+        0.55,
+        0.6,
+        0.65,
+        0.7,
+        0.75,
+        0.8,
+        0.85,
+        0.9,
+        0.95,
+        1.0,
+        1.1,
+        1.2,
+        1.3,
+        1.4,
+        1.5,
+        1.6,
+        1.7,
+        1.8,
+        1.9,
+        2.0,
+        2.1,
+        2.2,
+        2.3,
+        2.4,
+        2.5
+      ]
+    },
+    "component": "larger_component",
+    "log_base": "log10",
+    "internal_units": "m/s2",
+    "required": {
+      "rupture": [
+        "mw",
+        "mechanism"
+      ],
+      "distance": [
+        "rjb_km"
+      ],
+      "site": [
+        "site_class"
+      ]
+    },
+    "coefficients": {
+      "status": "anchor_only",
+      "needed": "The SPECTRAL period table. PGA coefficients a1-a10 and both magnitude-dependent sigma expressions are now available."
+    },
+    "implementation_notes": [
+      "Boundary tests at Vs30 = 360 and 750 m/s.",
+      "Douglas gives magnitude-dependent intra- and inter-event sigmas for PGA."
+    ],
+    "reason_for_inclusion": "Major European regional model.",
+    "aleatory": {
+      "published": true,
+      "phi_intra": "0.665 - 0.065*Mw",
+      "tau_inter": "0.222 - 0.022*Mw",
+      "note": "Magnitude-dependent, as expressions rather than constants."
+    },
+    "reproduction": {
+      "status": "ANCHOR_BRANCH_REPRODUCIBLE",
+      "branch": "PGA",
+      "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+      "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+      "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+    },
+    "resolution_provenance": {
+      "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table) and Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code L; OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/ambraseys_2005.py declares IMC.GREATER_OF_TWO_HORIZONTAL",
+      "periods.grid": "OpenQuake hazardlib (gem/oq-engine master, retrieved 2026-10-04), openquake/hazardlib/gsim/ambraseys_2005.py coefficient table; period count and range (61 periods, 0.05-2.5 s) match Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table). External implementation, original paper not checked."
+    }
+  }
+}

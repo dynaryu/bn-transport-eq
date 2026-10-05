@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "hazard/gmpe/musson-1994-uk",
+  "label": "Musson et al. (1994)",
+  "version": "0.1.0",
+  "implementedBy": "model.py:Gmpe",
+  "targetVariable": "LocalIntensity",
+  "givenVariable": [
+    "HazardEvent"
+  ],
+  "deterministic": false,
+  "support": "Continuous",
+  "units": "PGA in g; PSV in cm/s at the API boundary; the model's own units and log base are kept under parameters",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [],
+  "validityScope": "Single-site intensity only; no spatial correlation, so never use it to draw a correlated field across multiple assets. Valid only inside its own published magnitude, distance, period and damping envelope, recorded under parameters; outside it the wrapper refuses unless the caller sets allow_extrapolation. Not usable at version 0.1.0: coefficients are partial - not even the anchor branch is complete - so construction raises CoefficientsUnavailable and no capability is declared. What is missing is named under parameters.coefficients.needed.",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate.",
+    "written": "2026-10-04"
+  },
+  "parameters": {
+    "benchmark_id": "29",
+    "kind": "gmpe",
+    "label": "Musson et al. (1994)",
+    "douglas_refs": [
+      "2.108",
+      "4.64"
+    ],
+    "region": "United Kingdom + foreign",
+    "tectonic_types": [
+      "STABLE_CONTINENTAL"
+    ],
+    "magnitude": {
+      "scale": "ML",
+      "min": 3.0,
+      "max": 6.4,
+      "approximate": true,
+      "note": "Low-magnitude UK data; foreign supplementary records reach ~6.4. ML, NOT Mw - converting silently changes the model."
+    },
+    "distance": {
+      "metric": "Rhypo",
+      "field": "rhypo_km",
+      "min_km": 1.3,
+      "max_km": 477.4,
+      "approximate": true,
+      "uk_data_km": [
+        70.0,
+        477.4
+      ],
+      "note": "UK records start at about 70 km; everything closer comes from the Canadian and Belgian supplementary data."
+    },
+    "site": {
+      "parameterization": "none",
+      "fields": [],
+      "anchor_note": "Neither PGA model carries a site term in the appendix."
+    },
+    "mechanism": {
+      "classes": [
+        "none"
+      ]
+    },
+    "imts": [
+      "PGA",
+      "PSV"
+    ],
+    "damping": [
+      0.05
+    ],
+    "periods": {
+      "t_min_s": 0.1,
+      "t_max_s": 1.0,
+      "approximate": true,
+      "grid": "RESOLVE",
+      "note": "The spectral model is 5%-damped PSEUDO-VELOCITY, not acceleration.",
+      "published_grid_summary": {
+        "n_published": 4,
+        "t_min_s": 0.1,
+        "t_max_s": 1.0,
+        "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; no OpenQuake implementation and the report is not openly available. Still RESOLVE."
+      }
+    },
+    "component": "RESOLVE",
+    "log_base": "ln",
+    "internal_units": "cm/s2",
+    "variants": {
+      "pga": "RESOLVED into two named variants: model_1 and model_2.",
+      "model_1": "Complete in the appendix: a = 2.11, b = 1.23, d = -0.014.",
+      "model_2": "INCOMPLETE: c4 = -0.0148 is given, but c1 and c2 are taken from Dahle et al. (1990b) and are not reproduced. Recommended sigma 0.65."
+    },
+    "required": {
+      "rupture": [
+        "magnitude"
+      ],
+      "distance": [
+        "rhypo_km"
+      ],
+      "site": [],
+      "other": [
+        "variant"
+      ]
+    },
+    "coefficients": {
+      "status": "partial",
+      "needed": "For model_2, c1 and c2 from Dahle et al. (1990b) - a SECOND source, not just the original paper. For the spectral branch, the 5%-damped pseudo-velocity table. Model 1's PGA coefficients are complete and available."
+    },
+    "implementation_notes": [
+      "Foreign supplemental records do not change the UK regional applicability label.",
+      "Distinguish low-magnitude UK tests from the larger foreign-supported range, keeping extrapolation warnings separate."
+    ],
+    "reason_for_inclusion": "Low-seismicity UK benchmark.",
+    "reproduction": {
+      "status": "PARTIAL",
+      "branch": "PGA model 1",
+      "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+      "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+      "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3",
+      "incomplete_note": "Partial: PGA model 1 is reproducible; model 2 depends on coefficients from Dahle et al. (1990b) that the appendix does not reproduce."
+    },
+    "resolution_provenance": {
+      "magnitude.min": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): Mmin 3 ML (UK data; 3.7 for the foreign supplementary records)",
+      "distance.min_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmin '70* (>1.3)' -- UK data from ~70 km, foreign records from > 1.3 km",
+      "distance.max_km": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): rmax '>477.4 (200*)' -- UK data beyond 477.4 km, foreign records to ~200 km",
+      "distance.approximate": "Douglas (2011) BRGM/RP-59356-FR, Illustration 1 (PGA characteristics table): values starred / bounded"
+    },
+    "component_note": "Still RESOLVE. Douglas (2011) codes the component U (unknown); its footnote records only that Free (1996) 'believes it is largest horizontal component'. That is a third party's belief, not the authors' statement."
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "fragility/hazus-bridge/HWB15",
+  "label": "Hazus 6.1 highway-bridge fragility, HWB15: Continuous Steel (conventional design)",
+  "version": "0.1.0",
+  "implementedBy": "model.py:HazusBridge",
+  "targetVariable": "AssetDamageState",
+  "givenVariable": [
+    "LocalIntensity"
+  ],
+  "stateValues": [
+    "none",
+    "slight",
+    "moderate",
+    "extensive",
+    "complete"
+  ],
+  "inputEncoding": "hazus61-bridge-v1",
+  "deterministic": false,
+  "support": "Discrete",
+  "units": "categorical damage; parent Sa(1.0 s) in g or PGD in inches",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [
+    "SampleForward",
+    "EvaluateDensity",
+    "EvaluateLikelihood"
+  ],
+  "validityScope": "Hazus 6.1 class HWB15 only; the Table 7-1 rows that select it are under parameters.classification_rules. Earthquake fragility for Sa(1.0 s) or PGD, reproduced from the user-supplied Hazus 6.1 specification (Tables 7-1, 7-2, 7-6, 7-7). Shaking curves are modified for skew and span count, and the slight state for spectral shape; a missing modifier input is an error, not a fallback to the base curve. Crossed thresholds and source formula singularities are errors. PGD requires an explicit interpretation policy. US/NBI classification or a named project mapping. No deterioration/AssetHealth dependence, multi-asset joint draws, restoration, or damage-to-capacity mapping.",
+  "source": {
+    "document": "Hazus Earthquake Model Technical Manual",
+    "version": "6.1",
+    "date": "July 2024",
+    "section": "7.1",
+    "url": "https://www.fema.gov/sites/default/files/documents/fema_hazus-earthquake-model-technical-manual-6-1.pdf",
+    "transcription": "docs/sources/hazus61_roadway_bridge_fragility_prompt.md",
+    "transcription_sha256": "80148b6c42917e286e49d75834c1360d37347b86226c4891d6b8ce209d101bf7",
+    "verification": "Reproduced from user-supplied specification; full FEMA PDF retrieval returned HTTP 403",
+    "manual_page": null,
+    "pdf_page": null
+  },
+  "parameters": {
+    "model_family": "Hazus 6.1",
+    "asset_family": "highway_bridge",
+    "asset_class": "HWB15",
+    "application": "modified",
+    "curves": [
+      {
+        "curve_id": "HAZUS61_HWB15_SA1_SLIGHT",
+        "hazard_mode": "ground_shaking",
+        "im_type": "SA",
+        "im_period_s": 1.0,
+        "im_unit": "g",
+        "damage_state": "slight",
+        "median": 0.75,
+        "beta_ln": 0.6,
+        "modifier_rule_id": "HWB15_ground_shaking",
+        "source": {
+          "table": "7-6"
+        }
+      },
+      {
+        "curve_id": "HAZUS61_HWB15_SA1_MODERATE",
+        "hazard_mode": "ground_shaking",
+        "im_type": "SA",
+        "im_period_s": 1.0,
+        "im_unit": "g",
+        "damage_state": "moderate",
+        "median": 0.75,
+        "beta_ln": 0.6,
+        "modifier_rule_id": "HWB15_ground_shaking",
+        "source": {
+          "table": "7-6"
+        }
+      },
+      {
+        "curve_id": "HAZUS61_HWB15_SA1_EXTENSIVE",
+        "hazard_mode": "ground_shaking",
+        "im_type": "SA",
+        "im_period_s": 1.0,
+        "im_unit": "g",
+        "damage_state": "extensive",
+        "median": 0.75,
+        "beta_ln": 0.6,
+        "modifier_rule_id": "HWB15_ground_shaking",
+        "source": {
+          "table": "7-6"
+        }
+      },
+      {
+        "curve_id": "HAZUS61_HWB15_SA1_COMPLETE",
+        "hazard_mode": "ground_shaking",
+        "im_type": "SA",
+        "im_period_s": 1.0,
+        "im_unit": "g",
+        "damage_state": "complete",
+        "median": 1.1,
+        "beta_ln": 0.6,
+        "modifier_rule_id": "HWB15_ground_shaking",
+        "source": {
+          "table": "7-6"
+        }
+      },
+      {
+        "curve_id": "HAZUS61_HWB15_PGD_SLIGHT",
+        "hazard_mode": "ground_failure",
+        "im_type": "PGD",
+        "im_period_s": null,
+        "im_unit": "in",
+        "damage_state": "slight",
+        "median": 3.9,
+        "beta_ln": 0.2,
+        "modifier_rule_id": "HWB15_ground_failure",
+        "source": {
+          "table": "7-6"
+        }
+      },
+      {
+        "curve_id": "HAZUS61_HWB15_PGD_MODERATE",
+        "hazard_mode": "ground_failure",
+        "im_type": "PGD",
+        "im_period_s": null,
+        "im_unit": "in",
+        "damage_state": "moderate",
+        "median": 3.9,
+        "beta_ln": 0.2,
+        "modifier_rule_id": "HWB15_ground_failure",
+        "source": {
+          "table": "7-6"
+        }
+      },
+      {
+        "curve_id": "HAZUS61_HWB15_PGD_EXTENSIVE",
+        "hazard_mode": "ground_failure",
+        "im_type": "PGD",
+        "im_period_s": null,
+        "im_unit": "in",
+        "damage_state": "extensive",
+        "median": 3.9,
+        "beta_ln": 0.2,
+        "modifier_rule_id": "HWB15_ground_failure",
+        "source": {
+          "table": "7-6"
+        }
+      },
+      {
+        "curve_id": "HAZUS61_HWB15_PGD_COMPLETE",
+        "hazard_mode": "ground_failure",
+        "im_type": "PGD",
+        "im_period_s": null,
+        "im_unit": "in",
+        "damage_state": "complete",
+        "median": 13.8,
+        "beta_ln": 0.2,
+        "modifier_rule_id": "HWB15_ground_failure",
+        "source": {
+          "table": "7-6"
+        }
+      }
+    ],
+    "classification_rules": [
+      {
+        "asset_class": "HWB15",
+        "nbi_class": "402-410",
+        "region": "Non-CA",
+        "year": "<1990",
+        "spans": "-",
+        "max_span": "-",
+        "length_lt20": "No",
+        "k3d": "EQ5",
+        "ishape": "1",
+        "design": "Conventional",
+        "description": "Continuous Steel",
+        "priority": 22,
+        "source_table": "7-1"
+      },
+      {
+        "asset_class": "HWB15",
+        "nbi_class": "402-410",
+        "region": "CA",
+        "year": "<1975",
+        "spans": "-",
+        "max_span": "-",
+        "length_lt20": "No",
+        "k3d": "EQ5",
+        "ishape": "1",
+        "design": "Conventional",
+        "description": "Continuous Steel",
+        "priority": 23,
+        "source_table": "7-1"
+      }
+    ],
+    "k3d": {
+      "equation": "EQ5",
+      "A": 0.05,
+      "B": 0.0,
+      "expression": "1 + 0.05 / (N - 0)",
+      "source_table": "7-2"
+    },
+    "pgd_modifiers": {
+      "f1": "1",
+      "f2": "sin(alpha)",
+      "source_table": "7-7"
+    }
+  }
+}

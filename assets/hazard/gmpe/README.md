@@ -11,6 +11,14 @@ so the factor is a lognormal conditional density, and everything that distinguis
 one of these models from another lives in `mu`, `sigma` and the coefficient table
 behind them.
 
+**Each model family is its own asset file**, `<model_id>.asset.json` in this
+folder — thirty of them, with `cap:assetId` `hazard/gmpe/<model_id>`. A file holds
+the family's contract, its source record and, under `parameters`, everything the
+catalogue pins down about it. Each observes the
+[schema derived from the ontology](../../README.md#single-file-assets); `model.py` is
+the wrapper they share, and `params/conventions.json` explains the vocabulary their
+`parameters` blocks use.
+
 ## State at version 0.1.0 — read this first
 
 **No published GMPE in this asset can predict yet**, but the reason has narrowed.
@@ -146,7 +154,7 @@ Two deliberate refusals worth naming:
 
 - **Vs30 → site class is not applied automatically**, even for the three models
   (Ambraseys, Ghasemi, Lussou) whose papers publish the exact boundaries. The
-  boundaries are recorded in `params/registry.json`; applying them belongs with the
+  boundaries are recorded in each model's asset file; applying them belongs with the
   model's own kernel and coefficient set. Until then the caller maps deliberately and
   the assumption is visible in their code rather than in ours.
 - **Tectonic type is never inferred from focal depth.** Six models require an explicit
@@ -156,7 +164,7 @@ Two deliberate refusals worth naming:
 
 ## What the 30 cover
 
-Generated from `params/registry.json`; see `coverage_matrix()` for the full table.
+Generated from the thirty asset files; see `coverage_matrix()` for the full table.
 
 | Axis | Spread across the set |
 |---|---|
@@ -218,14 +226,26 @@ publishes event/station terms, Hong adds an orientation term, several models giv
 a total sigma, and Ambraseys and Youngs give magnitude-dependent expressions rather
 than constants. A station term is not `phi`.
 
-## Why one asset rather than thirty
+## Thirty assets, one wrapper
 
-`cap:assetId` is `hazard/gmpe`, parameterised by `model_id`, instead of 30 sibling
-folders. Thirty folders would mean thirty asset contracts that all fail to load, and
-the registry entry is what a compiler would select on anyway: tectonic type, distance
-metric, IMT and period range all live in `params/registry.json`. If model selection
-later needs to be visible in the knowledge graph rather than in a JSON file, the split
-point is the registry, not the wrapper.
+Each family is a separate asset, `hazard/gmpe/<model_id>`, declared by its own file.
+What a compiler selects on — tectonic type, distance metric, IMT, period range — is
+in that file, so a family can be contributed, corrected or withdrawn without touching
+the other twenty-nine, and the registry is simply whatever files are in the folder.
+The split is at the declaration, not at the wrapper: `model.py` stays one framework,
+because the validation rules above must not drift between families.
+
+Thirty contracts for thirty models that cannot run would be thirty overclaims, so
+**every file declares `"hasCapability": []`.** That is the honest contract, and the
+conformance check holds each file to it: `Gmpe.from_asset_file()` raises
+`CoefficientsUnavailable`, the harness reports `data` rather than `ok`, and a file
+that claimed `SampleForward` in that state would fail as an overclaim. A family gains
+capabilities in the same change that gives it a coefficient file and a kernel — see
+`params/coeffs/README.md`.
+
+The synthetic verification kernel is deliberately **not** one of the files. It is a
+test fixture in `params/verification-synthetic.json`; an asset file for it would put
+invented coefficients in the registry for a compiler to pick up.
 
 ## Assumptions
 

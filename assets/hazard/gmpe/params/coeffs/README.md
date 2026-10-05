@@ -10,7 +10,8 @@ memory. See `../../SOURCE.md` and `reproduction_status()`.
 
 ## The completeness gate
 
-Before implementing any branch, check `reproduction.status` in `../registry.json`:
+Before implementing any branch, check `reproduction.status` under `parameters` in the
+model's asset file, `../../<model_id>.asset.json`:
 
 | Status | What you may do |
 |---|---|
@@ -41,19 +42,23 @@ recorded.
 3. Write `<model_id>.json` in the format below, filling the `provenance` block.
 4. Register a `MedianKernel` subclass in `model.py` implementing the published
    equation, and add it to `_KERNELS` under the same `model_id`.
-5. Set `coefficients.status` to `"present"` in `params/registry.json`.
+5. In the model's `<model_id>.asset.json`, set `coefficients.status` to `"present"`
+   and list under `hasCapability` what the model can now do. Until this step the file
+   declares none, and the conformance check holds it to that.
 6. Add regression tests against published example values or independently calculated
    anchor cases. Transcription errors survive careful reading; they do not survive a
    known-value test.
 
-Step 6 is not optional. `test_no_published_model_can_predict_yet` will fail as soon as
-step 5 lands — narrow it to the families still missing rather than deleting it.
+Step 6 is not optional. `test_no_published_model_can_predict_yet` and
+`test_each_family_is_its_own_asset_file_and_claims_nothing_it_cannot_do` will fail as
+soon as step 5 lands — narrow them to the families still missing rather than
+deleting them.
 
 ## Format
 
 ```json
 {
-  "model_id": "<must match the registry key>",
+  "model_id": "<must match the asset file's name, without .asset.json>",
   "version": "<which publication, where a family has several>",
   "log_base": "ln | log10",
   "units": "g | cm/s2 | m/s2 | cm/s | cm",

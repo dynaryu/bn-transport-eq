@@ -1,9 +1,10 @@
 """Uniform interface every knowledge asset implements.
 
-An asset declares its capabilities in its ``asset.ttl``; this module defines what
-each declared capability obliges the wrapper to provide. The conformance harness
-checks the two agree, because a capability claimed but not implemented produces a
-wrong posterior rather than an error.
+An asset declares its capabilities in its ``asset.ttl`` or, for a single-file asset,
+its ``<name>.asset.json``; this module defines what each declared capability obliges
+the wrapper to provide. The conformance harness checks the two agree, because a
+capability claimed but not implemented produces a wrong posterior rather than an
+error.
 
 Implement only the methods your asset genuinely supports. Leave the rest alone --
 the base raises NotImplementedError, which the harness reports as a mismatch
@@ -13,6 +14,7 @@ against the declaration.
 from __future__ import annotations
 
 from abc import ABC
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
@@ -35,6 +37,15 @@ CAPABILITY_METHOD = {
 }
 
 
+class DataUnavailable(RuntimeError):
+    """The asset is registered, but the numbers it needs are not in the repository.
+
+    Raise this from construction rather than returning a placeholder. The conformance
+    harness reads it as "this asset can do nothing yet", which conforms only where the
+    declaration claims no capability either.
+    """
+
+
 class Asset(ABC):
     """One factor's computational backend.
 
@@ -48,6 +59,20 @@ class Asset(ABC):
     target: tuple[str, ...] = ()
     given: tuple[str, ...] = ()
     deterministic: bool = False
+
+    # ---- single-file assets ------------------------------------------------
+
+    @classmethod
+    def from_asset_file(cls, path: str | Path, **options: Any) -> "Asset":
+        """Bind the wrapper to the one asset a ``<name>.asset.json`` declares.
+
+        Override this where several single-file assets share the wrapper. The
+        instance returned must answer for that file's asset alone, so that the
+        harness tests the declaration it was handed and not a neighbour's.
+        """
+        raise NotImplementedError(
+            f"{cls.__name__} does not bind to a single-file asset; define from_asset_file()"
+        )
 
     # ---- capability methods ------------------------------------------------
 

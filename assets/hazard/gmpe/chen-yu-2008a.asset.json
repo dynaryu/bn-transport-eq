@@ -1,0 +1,119 @@
+{
+  "$schema": "../../../ontology/asset.schema.json",
+  "assetId": "hazard/gmpe/chen-yu-2008a",
+  "label": "Chen & Yu (2008a)",
+  "version": "0.1.0",
+  "implementedBy": "model.py:Gmpe",
+  "targetVariable": "LocalIntensity",
+  "givenVariable": [
+    "HazardEvent"
+  ],
+  "deterministic": false,
+  "support": "Continuous",
+  "units": "SA in g at the API boundary; the model's own units and log base are kept under parameters",
+  "drawKind": "Marginal",
+  "batchable": true,
+  "reproducible": true,
+  "hasCapability": [],
+  "validityScope": "Single-site intensity only; no spatial correlation, so never use it to draw a correlated field across multiple assets. Valid only inside its own published magnitude, distance, period and damping envelope, recorded under parameters; outside it the wrapper refuses unless the caller sets allow_extrapolation. Not usable at version 0.1.0: coefficients are original_table_required - the catalogue gives the equation and metadata only, with no numerical coefficients - so construction raises CoefficientsUnavailable and no capability is declared. What is missing is named under parameters.coefficients.needed.",
+  "source": {
+    "catalogue": "Douglas, J. (2011). Ground-motion prediction equations 1964-2010. PEER Report 2011/102 / BRGM/RP-59356-FR.",
+    "benchmark_spec": "gmpe_30_coding_prompts.md, sections 3 and 4 - the 30-family benchmark set definition.",
+    "caveat": "Douglas (2011) is a catalogue, not a ranking, and warns that a report of its size may contain errors or omissions. Every envelope below is its summary, frequently approximate. Nothing here substitutes for the original publication.",
+    "coefficient_appendix": "gmpe_30_coding_prompts_with_coefficients.md sections 11 and 12 - coefficients transcribed from Douglas (2011), with an explicit per-model completeness status and a coefficient-completeness gate.",
+    "written": "2026-10-04"
+  },
+  "parameters": {
+    "benchmark_id": "08",
+    "kind": "gmpe",
+    "label": "Chen & Yu (2008a)",
+    "douglas_refs": [
+      "4.154",
+      "4.153"
+    ],
+    "region": "Worldwide",
+    "tectonic_types": [
+      "ACTIVE_SHALLOW_CRUST"
+    ],
+    "magnitude": {
+      "scale": "Mw",
+      "min": 5.0,
+      "max": 7.5,
+      "approximate": true
+    },
+    "distance": {
+      "metric": "RESOLVE",
+      "field": "RESOLVE",
+      "note": "Douglas describes a source-distance form defined in the paper. Resolve before coding; do not assume Rrup."
+    },
+    "site": {
+      "parameterization": "fixed_condition",
+      "condition": "Vs30 >= 500 m/s",
+      "fields": [],
+      "note": "Douglas section 4.153: only records from sites with Vs30 >= 500 m/s are used, and the functional form has no site term. A single calibration condition, not a set of classes. Do NOT add a site-amplification model."
+    },
+    "mechanism": {
+      "classes": [
+        "none"
+      ],
+      "anchor_note": "The reproduced functional form contains no mechanism term."
+    },
+    "imts": [
+      "SA"
+    ],
+    "damping": [
+      0.005,
+      0.02,
+      0.07,
+      0.1,
+      0.2
+    ],
+    "periods": {
+      "t_min_s": 0.04,
+      "t_max_s": 10.0,
+      "approximate": true,
+      "grid": "RESOLVE",
+      "published_grid_summary": {
+        "n_published": null,
+        "t_min_s": 0.04,
+        "t_max_s": 10.0,
+        "note": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table) gives the count and range only; Douglas gives Ts = U (unknown number of periods). Still RESOLVE."
+      }
+    },
+    "component": "both_horizontal_components",
+    "log_base": "RESOLVE",
+    "internal_units": "RESOLVE",
+    "required": {
+      "rupture": [
+        "mw"
+      ],
+      "distance": [
+        "RESOLVE"
+      ],
+      "site": []
+    },
+    "coefficients": {
+      "status": "original_table_required",
+      "needed": "The whole damping-dependent coefficient set. The appendix reproduces the functional form only, explicitly NOT_REPRODUCED_IN_DOUGLAS, for all five damping ratios."
+    },
+    "implementation_notes": [
+      "Supported damping must be exactly {0.005, 0.02, 0.07, 0.10, 0.20}; never substitute 5% coefficients for an unlisted ratio.",
+      "Preserve the source magnitude-distance binning and site restrictions."
+    ],
+    "reason_for_inclusion": "Explicit damping-ratio diversity.",
+    "equation": "log Sa = C1 + C2*M + C3*M^2 + C4*log[R + C5*exp(C6*M)]",
+    "log_base_note": "The reproduced form is written 'log' with no base stated, and the appendix gives no log_base. Still unresolved.",
+    "reproduction": {
+      "status": "ORIGINAL_TABLE_REQUIRED",
+      "branch": null,
+      "spectral_coefficients": "ORIGINAL_TABLE_REQUIRED",
+      "anchor_block": "gmpe_30_coding_prompts_with_coefficients.md §11.3",
+      "resolved_from": "gmpe_30_coding_prompts_with_coefficients.md §11.2 and §11.3"
+    },
+    "resolution_provenance": {
+      "magnitude.scale": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): M scale Mw (NGA Flatfile, Douglas (2011) BRGM/RP-59356-FR, section 4.153)",
+      "component": "Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): component code B ('both components' -- each horizontal used as a separate observation)",
+      "site.classes": "Douglas (2011) BRGM/RP-59356-FR, section 4.153: 'Use records from sites with Vs,30 >= 500 m/s'; Douglas (2011) BRGM/RP-59356-FR, Illustration 2 (spectral characteristics table): S = 1. Replaced the categorical placeholder with a fixed condition."
+    }
+  }
+}

@@ -4,7 +4,8 @@
 spectral table collected for any. 20 registry fields still `RESOLVE` (from 183).**
 
 The benchmark set, every model's applicability envelope and its completeness status
-are recorded in `params/registry.json`. Run `reproduction_status()` for the gate per
+are recorded per model, in the `parameters` block of its own asset file,
+`<model_id>.asset.json`. Run `reproduction_status()` for the gate per
 model and `missing_sources()` for what remains to be obtained.
 
 ## Citation
@@ -92,7 +93,7 @@ Douglas (2011) is a **catalogue, not a critical ranking**. It summarises empiric
 GMPEs published through 2010 without assessing their quality, and it warns that a
 report of its size may contain errors or omissions. Two consequences for this asset:
 
-- The envelopes in `params/registry.json` are the catalogue's summaries and are
+- The envelopes in each `<model_id>.asset.json` are the catalogue's summaries and are
   frequently approximate — Douglas qualifies many of them, and those carry
   `approximate: true`. They are indicative, not boundaries anyone should defend.
 - **These 30 are a heterogeneity benchmark, not a recommendation.** They were chosen

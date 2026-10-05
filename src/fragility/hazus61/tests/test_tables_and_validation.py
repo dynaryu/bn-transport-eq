@@ -4,10 +4,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scripts.import_hazus61_spec import extract
+from scripts.import_hazus61_spec import extract, records
 from src.conformance.check import check_asset
 from src.fragility.hazus61.classify import classify_bridge
-from src.fragility.hazus61.data import database
+from src.fragility.hazus61.data import database, folder
+from src.wrappers.record import asset_files
 from src.fragility.hazus61.engine import evaluate
 from src.fragility.hazus61.modifiers import k_3d, pgd_factors
 from src.fragility.hazus61.probability import cumulative_to_discrete, lognormal_exceedance
@@ -22,6 +23,17 @@ def test_source_transcription_reproduces_every_record():
     assert len(roadway["curves"]) == 6
     assert len(bridge["curves"]) == 224
     assert len({c["curve_id"] for c in roadway["curves"] + bridge["curves"]}) == 230
+
+
+def test_every_asset_file_is_reproduced_from_the_source_and_none_is_a_stray():
+    """One file per class, each regenerable. A file the importer does not produce
+    would be read into the tables all the same, so its presence is a failure."""
+    expected = records()
+    assert len(expected) == 30
+    on_disk = asset_files(folder("roadway")) + asset_files(folder("highway_bridge"))
+    assert sorted(on_disk) == sorted(expected)
+    for path, record in expected.items():
+        assert json.loads(path.read_text(encoding="utf-8")) == record, path.name
 
 
 @pytest.mark.parametrize("family", ["roadway", "highway_bridge"])
@@ -94,8 +106,13 @@ def test_ordering_and_pga_rejection():
                  hazard_mode="ground_shaking", application="base")
 
 
-@pytest.mark.parametrize("slug", ["hazus-roadway", "hazus-bridge"])
-def test_registry_contract(slug):
-    result = check_asset(ROOT / "assets/fragility" / slug / "asset.ttl")
+ASSET_FILES = asset_files(folder("roadway")) + asset_files(folder("highway_bridge"))
+
+
+@pytest.mark.parametrize("path", ASSET_FILES, ids=lambda p: p.name)
+def test_registry_contract(path):
+    """Each class is its own asset, so each one's declaration is run, not the family's."""
+    result = check_asset(path)
     assert result.ok, result
     assert not result.underclaimed
+    assert result.asset_id == f"fragility/{path.parent.name}/{path.name.split('.')[0]}"

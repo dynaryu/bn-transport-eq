@@ -168,3 +168,44 @@ def test_class_mixture_preserves_shared_class_when_combining_modes():
         one = evaluate_bridge_modes(individual, application="base", bridge_pgd_policy="extensive_complete_only", combination_policy="general_hazus_combination_rule")
         expected += weight * np.asarray(one["combined"]["probabilities"])
     np.testing.assert_allclose(result["combined"]["probabilities"], expected)
+
+
+# ---- one asset file per class ----------------------------------------------
+
+ASSETS = Path(__file__).resolve().parents[1]
+
+
+def test_one_file_answers_for_one_class():
+    bound = HazusBridge.from_asset_file(ASSETS / "HWB17.asset.json")
+    assert bound.asset_id == "fragility/hazus-bridge/HWB17"
+    request = given()
+    del request["asset"]["hazus_bridge_class"]
+    assert bound.evaluate(request)["probabilities"] == HazusBridge().evaluate(given())["probabilities"]
+    assert bound.match(request["asset"])["asset_class"] == "HWB17"
+    with pytest.raises(ValueError, match="HWB17 only"):
+        bound.evaluate(given("HWB5"))
+    request["class_probabilities"] = {"HWB1": 0.4, "HWB17": 0.6}
+    with pytest.raises(ValueError, match="class mixture"):
+        bound.evaluate(request)
+
+
+@pytest.mark.parametrize("code,refusal", [("HWB3", "source_formula_singularity"),
+                                          ("HWB4", "source_formula_singularity"), ("HWB28", "HWB28")])
+def test_a_class_with_no_usable_modifier_is_declared_as_base_curves(code, refusal):
+    """The file states the policy. The wrapper still never falls back on its own."""
+    path = ASSETS / f"{code}.asset.json"
+    request = {"asset": {"num_spans": 1, "skew_angle_deg": 0}, "LocalIntensity": {"sa_1p0_g": 0.25, "sa_0p3_g": 0.5}}
+    result = HazusBridge.from_asset_file(path).evaluate(request)
+    assert result["application"] == "base"
+    assert result["match_status"] == "base_curve_only"
+    assert result["final_medians"][0] == result["base_medians"]
+    with pytest.raises(ValueError, match=refusal):
+        HazusBridge.from_asset_file(path, application="modified").evaluate(request)
+
+
+def test_a_file_from_outside_the_folder_is_not_bound(tmp_path):
+    """The engine reads this folder, so a copy elsewhere would be evaluated with other numbers."""
+    stray = tmp_path / "HWB17.asset.json"
+    stray.write_bytes((ASSETS / "HWB17.asset.json").read_bytes())
+    with pytest.raises(ValueError, match="not one of this wrapper's assets"):
+        HazusBridge.from_asset_file(stray)

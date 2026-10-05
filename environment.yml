@@ -10,6 +10,8 @@ dependencies:
   - pip:
       - rdflib>=7.0
       - pyshacl>=0.26
+      # Validates each single-file asset against the schema derived from the ontology.
+      - jsonschema>=4.0
       # Optional: only the forward pilot's natural-language panel needs this.
       # Without it (or without a credential) the pilot runs unchanged.
       - anthropic>=1.0

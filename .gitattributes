@@ -1,0 +1,3 @@
+# Retained byte-for-byte: its SHA-256 is recorded in every Hazus asset file, so
+# line-ending conversion on checkout would silently break that provenance check.
+docs/sources/** -text
