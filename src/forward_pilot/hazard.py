@@ -86,6 +86,17 @@ def component_probabilities(
             intensities[edge_id] = sa1
         return failures, intensities, warnings
 
+    if model == "shakemap":
+        from .shakemap import site_terms
+
+        terms, warnings, _ = site_terms(network, hazard)
+        for edge_id, edge in network["edges"].items():
+            ln_sa, sigma = terms[edge_id]
+            median, beta = _median_extensive(edge["bridge_class"])
+            failures[edge_id] = float(ndtr((ln_sa - log(median)) / sqrt(sigma**2 + beta**2)))
+            intensities[edge_id] = float(exp(ln_sa))
+        return failures, intensities, warnings
+
     magnitude = float(hazard.get("magnitude", 8.0))
     epicentre_x = float(hazard.get("epicentre_x", 1.0))
     epicentre_y = float(hazard.get("epicentre_y", 10.0))

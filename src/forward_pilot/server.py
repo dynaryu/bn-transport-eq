@@ -1,8 +1,9 @@
 """Local HTTP server for the forward-inference pilot UI.
 
-Standard-library only, with one optional exception: the natural-language panel
-needs the `anthropic` package and a credential. Both are checked at request time,
-so the pilot runs unchanged when neither is present.
+Standard-library only. The natural-language panel needs a model backend: a local
+Ollama server by default, or the `anthropic` package and a credential when
+FORWARD_PILOT_LLM=anthropic. Either is checked at request time, so the pilot runs
+unchanged when neither is present.
 """
 
 from __future__ import annotations
@@ -110,9 +111,26 @@ class PilotHandler(BaseHTTPRequestHandler):
             limit = int((query.get("edges") or ["3"])[0])
             network = load_package(self.packages_root / package_id)
             return self._json(structure(network, edge_limit=max(1, min(6, limit))))
+        if path.startswith("/api/shakemap-events/"):
+            package_id = path.removeprefix("/api/shakemap-events/")
+            if package_id not in self._package_ids():
+                return self._json({"error": "package not found"}, HTTPStatus.NOT_FOUND)
+            from . import shakemap
+
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                source = shakemap.get_source((query.get("source") or [None])[0])
+                events = shakemap.search_events(
+                    load_package(self.packages_root / package_id), source.name,
+                    min_magnitude=float((query.get("min_magnitude") or ["5"])[0]),
+                )
+            except shakemap.ShakeMapError as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return self._json({"source": source.name, "events": events})
         if path == "/api/chat-status":
             ok, reason = chat.available()
-            return self._json({"available": ok, "reason": reason, "model": chat.MODEL})
+            return self._json({"available": ok, "reason": reason,
+                               "provider": chat.provider(), "model": chat.model_name()})
         if path in {"/", "/index.html"}:
             return self._static("index.html", "text/html; charset=utf-8")
         if path == "/app.js":
@@ -161,7 +179,7 @@ class PilotHandler(BaseHTTPRequestHandler):
 
         The page has to show the probabilistic query before the value exists, so
         the reply cannot be one body written at the end: ``query`` goes out when
-        Claude picks the scenario, ``computed`` when the engine returns, and
+        the agent picks the scenario, ``computed`` when the engine returns, and
         ``answer`` last. The response has no Content-Length and ends when the
         connection closes, which HTTP/1.0 -- this handler's default -- allows.
 
@@ -185,7 +203,7 @@ class PilotHandler(BaseHTTPRequestHandler):
                 self.wfile.flush()
             except OSError:
                 # The reader went away. This runs inside the tool call, so letting
-                # it raise would be reported to Claude as the query having failed.
+                # it raise would be reported to the agent as the query having failed.
                 pass
 
         def fail(message: str, status: int) -> None:
@@ -202,6 +220,7 @@ class PilotHandler(BaseHTTPRequestHandler):
                 request.get("question", ""),
                 request.get("history") or [],
                 on_event=send,
+                scenario=request.get("scenario"),
             )
             send({"type": "answer", **reply})
         except KeyError as exc:
@@ -231,6 +250,12 @@ def serve(
     print(f"Packages: {packages_root}")
     if open_browser:
         webbrowser.open(f"http://{host}:{port}")
+    # Load the local model in the background, so the first question does not
+    # also pay for reading several GB from disk. No-op for hosted backends.
+    import threading
+
+    threading.Thread(target=lambda: print(f"[forward-pilot] {chat.preload_ollama()}", flush=True)
+                     if chat.provider() == "ollama" else None, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -2,6 +2,7 @@
   "case_id": "hebei-transport",
   "query_type": "connectivity",
   "inference": "forward_monte_carlo",
+  "backend": "analytic",
   "hazard": {
     "model": "uniform_sa1",
     "sa1_g": 0.7

@@ -62,6 +62,12 @@ def _site_terms(
         ln_median = log(sa1) if sa1 > 0 else float("-inf")
         return {edge_id: (ln_median, 0.0) for edge_id in network["edges"]}
 
+    if model == "shakemap":
+        # ShakeMap's own median and log standard deviation at each bridge site.
+        from ..shakemap import site_terms
+
+        return site_terms(network, hazard)[0]
+
     magnitude = float(hazard.get("magnitude", 8.0))
     if not 4.0 <= magnitude <= 9.5:
         raise ValueError("magnitude must lie between 4.0 and 9.5 for this pilot")

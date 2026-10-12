@@ -9,134 +9,200 @@
       "y": 73.651,
       "label": "CD",
       "city": "Chengde",
-      "role": "source"
+      "role": "source",
+      "lat": 40.973889,
+      "lon": 117.932222,
+      "geo_method": "city_coordinate"
     },
     "n2": {
       "x": 15.444,
       "y": 71.962,
       "label": "ZJK",
-      "city": "Zhangjiakou"
+      "city": "Zhangjiakou",
+      "lat": 40.81078,
+      "lon": 114.88114,
+      "geo_method": "city_coordinate"
     },
     "n3": {
       "x": 32.189,
       "y": 58.788,
       "label": "BJ",
-      "city": "Beijing"
+      "city": "Beijing",
+      "lat": 39.90403,
+      "lon": 116.407526,
+      "geo_method": "city_coordinate"
     },
     "n4": {
       "x": 68.364,
       "y": 61.971,
       "label": "QHD",
-      "city": "Qinhuangdao"
+      "city": "Qinhuangdao",
+      "lat": 39.93978,
+      "lon": 119.58812,
+      "geo_method": "city_coordinate"
     },
     "n5": {
       "x": 53.446,
       "y": 57.93,
       "label": "TS",
-      "city": "Tangshan"
+      "city": "Tangshan",
+      "lat": 39.629444,
+      "lon": 118.173889,
+      "geo_method": "city_coordinate"
     },
     "n6": {
       "x": 59.369,
       "y": 50.318,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 39.2686,
+      "lon": 118.6738,
+      "geo_method": "fitted_from_figure"
     },
     "n7": {
       "x": 45.945,
       "y": 46.582,
       "label": "TJ",
-      "city": "Tianjin"
+      "city": "Tianjin",
+      "lat": 39.146667,
+      "lon": 117.205556,
+      "geo_method": "city_coordinate"
     },
     "n8": {
       "x": 28.785,
       "y": 46.526,
       "label": "BZ",
-      "city": "Bazhou"
+      "city": "Bazhou",
+      "lat": 39.12346,
+      "lon": 116.38596,
+      "geo_method": "city_coordinate"
     },
     "n9": {
       "x": 8.58,
       "y": 44.229,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 38.9894,
+      "lon": 114.2775,
+      "geo_method": "fitted_from_figure"
     },
     "n10": {
       "x": 20.703,
       "y": 42.569,
       "label": "BD",
-      "city": "Baoding"
+      "city": "Baoding",
+      "lat": 38.86712,
+      "lon": 115.48452,
+      "geo_method": "city_coordinate"
     },
     "n11": {
       "x": 46.305,
       "y": 34.487,
       "label": "HH",
-      "city": "Huanghua"
+      "city": "Huanghua",
+      "lat": 38.37099,
+      "lon": 117.3329,
+      "geo_method": "city_coordinate"
     },
     "n12": {
       "x": 37.088,
       "y": 34.487,
       "label": "CZ",
-      "city": "Cangzhou"
+      "city": "Cangzhou",
+      "lat": 38.30369,
+      "lon": 116.84519,
+      "geo_method": "city_coordinate"
     },
     "n13": {
       "x": 28.231,
       "y": 37.863,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 38.5117,
+      "lon": 115.9499,
+      "geo_method": "fitted_from_figure"
     },
     "n14": {
       "x": 25.408,
       "y": 26.377,
       "label": "HS",
-      "city": "Hengshui"
+      "city": "Hengshui",
+      "lat": 37.73484,
+      "lon": 115.68599,
+      "geo_method": "city_coordinate"
     },
     "n15": {
       "x": 14.669,
       "y": 29.975,
       "label": "SJZ",
-      "city": "Shijiazhuang"
+      "city": "Shijiazhuang",
+      "lat": 38.0425,
+      "lon": 114.51,
+      "geo_method": "city_coordinate"
     },
     "n16": {
       "x": 5.397,
       "y": 34.404,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 38.3377,
+      "lon": 113.971,
+      "geo_method": "fitted_from_figure"
     },
     "n17": {
       "x": 5.093,
       "y": 18.489,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 37.2698,
+      "lon": 113.8927,
+      "geo_method": "fitted_from_figure"
     },
     "n18": {
       "x": 13.728,
       "y": 19.624,
       "label": "XT",
-      "city": "Xingtai"
+      "city": "Xingtai",
+      "lat": 37.06594,
+      "lon": 114.47531,
+      "geo_method": "city_coordinate"
     },
     "n19": {
       "x": 21.644,
       "y": 17.908,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 37.1885,
+      "lon": 115.3169,
+      "geo_method": "fitted_from_figure"
     },
     "n20": {
       "x": 3.211,
       "y": 10.379,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 36.73,
+      "lon": 113.7039,
+      "geo_method": "fitted_from_figure"
     },
     "n21": {
       "x": 18.406,
       "y": 7.279,
       "label": null,
-      "city": null
+      "city": null,
+      "lat": 36.483,
+      "lon": 115.0031,
+      "geo_method": "fitted_from_figure"
     },
     "n22": {
       "x": 10.739,
       "y": 7.556,
       "label": "HD",
       "city": "Handan",
-      "role": "sink"
+      "role": "sink",
+      "lat": 36.61161,
+      "lon": 114.48937,
+      "geo_method": "city_coordinate"
     }
   },
   "edges": {
@@ -577,7 +643,8 @@
     "n1"
   ],
   "hazard_models": [
-    "uniform_sa1"
+    "uniform_sa1",
+    "shakemap"
   ],
   "default_hazard": {
     "model": "uniform_sa1",
@@ -586,7 +653,7 @@
   "assumptions": {
     "bridge_representation": "Each network edge or arc is represented by one highway bridge.",
     "bridge_class": "Pilot assumption: each arc is one ordinary HWB11 bridge.",
-    "coordinates": "Digitised figure coordinates are unitless; no spatial GMPE is applied.",
+    "coordinates": "x/y are unitless figure coordinates, so no spatial GMPE is applied. lat/lon are georeferenced from the figure: city coordinates for labelled nodes, fitted positions (about +/-22 km) for junctions. ShakeMap shaking is read at arc midpoints.",
     "functionality": "A bridge is unusable when damage reaches Extensive or Complete.",
     "dependence": "Bridge states are sampled independently conditional on the hazard scenario."
   }

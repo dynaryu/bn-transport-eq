@@ -127,6 +127,9 @@ h2 { margin: 0; font: 500 18px Georgia, serif; }
 .chat-form input { flex: 1; border: 1px solid #c8d0ce; border-radius: 5px; padding: 11px 12px; font: inherit; font-size: 13px; background: #fff; color: var(--ink); }
 .chat-form button { width: auto; margin: 0; padding: 11px 20px; border-radius: 5px; display: inline-block; }
 .chat-examples { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.chat-download { width: auto; display: inline-block; margin: 12px 0 0; padding: 7px 12px; font-size: 12px; font-weight: 650; background: transparent; color: var(--teal); border: 1px solid var(--teal); }
+.chat-download:hover { background: #e5f3f0; }
+.chat-download:disabled { opacity: .45; cursor: default; }
 .chip { width: auto; margin: 0; padding: 6px 10px; border: 1px solid #d3dcd9; border-radius: 14px; background: #fff; color: var(--muted); font-size: 11px; font-weight: 550; display: inline-block; text-align: left; }
 .chip:hover { background: #eef5f3; color: var(--teal-dark); border-color: var(--teal); }
 

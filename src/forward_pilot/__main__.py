@@ -20,6 +20,18 @@ def main() -> None:
     query.add_argument("package", type=Path)
     query.add_argument("query", type=Path)
     query.add_argument("--output", type=Path)
+    shake = sub.add_parser("shakemap", help="find and fetch USGS ShakeMaps for a package")
+    shake_sub = shake.add_subparsers(dest="action", required=True)
+    search = shake_sub.add_parser("search", help="events with a ShakeMap around a package's network")
+    search.add_argument("--case", default="hebei-transport", help="package whose node lat/lon set the area")
+    search.add_argument("--start", default="1900-01-01")
+    search.add_argument("--end")
+    search.add_argument("--min-magnitude", type=float)
+    search.add_argument("--source", choices=["comcat", "shakecast"])
+    fetch = shake_sub.add_parser("fetch", help="download (or locate) one event's ShakeMap")
+    fetch.add_argument("event_id")
+    fetch.add_argument("--version", type=int)
+    fetch.add_argument("--source", choices=["comcat", "shakecast"])
     serve = sub.add_parser("serve", help="serve the local stakeholder UI")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
@@ -40,6 +52,21 @@ def main() -> None:
             print(args.output)
         else:
             print(rendered)
+    elif args.command == "shakemap":
+        from . import shakemap
+
+        if args.action == "search":
+            from .catalog import load_case
+
+            events = shakemap.search_events(load_case(args.case), args.source, start=args.start,
+                                            end=args.end, min_magnitude=args.min_magnitude)
+            for e in events:
+                print(f"{(e.get('time') or '')[:10]:10}  M{e.get('magnitude') or 0:<4}  {e['event_id']:<16} {e.get('place') or ''}")
+            print(f"{len(events)} event(s)")
+        else:
+            grid = shakemap.load(args.event_id, args.source, args.version)
+            print(json.dumps({**grid.meta, "extent": grid.extent,
+                              "has_uncertainty": grid.std_psa10 is not None}, indent=2))
     else:
         from .server import serve
 

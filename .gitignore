@@ -4,3 +4,6 @@ __pycache__/
 .ipynb_checkpoints/
 experiments/*/results/
 *.zip
+
+# ShakeMap grids downloaded from USGS (~30 MB each); re-fetched on demand
+experiments/forward-bn-pilot/shakemaps/

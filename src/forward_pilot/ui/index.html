@@ -79,15 +79,15 @@
         </div>
       </div>
 
-      <!-- ── Ask in words. Claude picks the query; the engine computes it. ──── -->
+      <!-- ── Ask in words. The model picks the query; the engine computes it. ── -->
       <div class="panel chat-card" id="chat-card" hidden>
         <div class="section-title">
           <div>
             <p class="eyebrow">ASK THE MODEL</p>
             <h2>Put the question in words</h2>
-            <p class="sub">Claude chooses the scenario parameters and runs the same query the
-              controls run. Each query is written out as a probability statement before it is
-              calculated, and the numbers come from the engine, not from Claude.</p>
+            <p class="sub">A language model chooses the scenario parameters and runs the same query
+              the controls run. Each query is written out as a probability statement before it
+              is calculated, and the numbers come from the engine, not from the model.</p>
           </div>
           <span class="tag" id="chat-model">&nbsp;</span>
         </div>
@@ -98,6 +98,8 @@
           <button type="submit" id="chat-send">Ask</button>
         </form>
         <div class="chat-examples" id="chat-examples"></div>
+        <button type="button" id="chat-download" class="chat-download" disabled
+                title="Save the questions, the queries with their values, and the answers">Download conversation</button>
       </div>
 
       <div class="metrics">
