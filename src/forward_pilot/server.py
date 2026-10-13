@@ -120,13 +120,25 @@ class PilotHandler(BaseHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             try:
                 source = shakemap.get_source((query.get("source") or [None])[0])
+                from .watch import DEFAULT_MIN_MAGNITUDE
+
+                # The same floor as the watcher, so anything it ran can also be picked here.
                 events = shakemap.search_events(
                     load_package(self.packages_root / package_id), source.name,
-                    min_magnitude=float((query.get("min_magnitude") or ["5"])[0]),
+                    min_magnitude=float((query.get("min_magnitude") or [DEFAULT_MIN_MAGNITUDE])[0]),
                 )
             except shakemap.ShakeMapError as exc:
                 return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
             return self._json({"source": source.name, "events": events})
+        if path == "/api/watch-events":
+            # What the ShakeMap watcher has computed -- here, or synced from where it runs.
+            from . import watch
+
+            heartbeat = None
+            if (watch.DEFAULT_STATE_DIR / "heartbeat.json").is_file():
+                ok, message = watch.check_heartbeat(watch.DEFAULT_STATE_DIR)
+                heartbeat = {"ok": ok, "message": message}
+            return self._json({"heartbeat": heartbeat, "events": watch.recent_results(watch.DEFAULT_STATE_DIR)})
         if path == "/api/chat-status":
             ok, reason = chat.available()
             return self._json({"available": ok, "reason": reason,

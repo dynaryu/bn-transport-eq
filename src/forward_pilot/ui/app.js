@@ -102,6 +102,63 @@ async function boot() {
   }));
   addEventListener('resize', debounce(() => { drawBnGraph(); drawNetwork(lastResult); drawRiskChart(lastResult); }, 160));
   await loadCase();
+  loadRecentEvents();
+  setInterval(loadRecentEvents, 60000);   // results synced in while the page is open show up
+}
+
+/* ══ RECENT EARTHQUAKES ═════════════════════════════════════════════════════
+ * What the ShakeMap watcher has already computed, newest first. Clicking one
+ * loads its package and runs the same ShakeMap here, so it can be explored and
+ * asked about. The card stays hidden where the watcher has never run. */
+async function loadRecentEvents() {
+  let data;
+  try {
+    data = await (await fetch('./api/watch-events')).json();
+  } catch { return; }
+  if (!data.heartbeat && !data.events.length) return;
+  $('recent-card').hidden = false;
+
+  const status = $('watch-status');
+  status.className = `watch-status ${data.heartbeat?.ok ? 'ok' : 'bad'}`;
+  status.textContent = data.heartbeat
+    ? (data.heartbeat.ok ? 'Watcher running' : 'Watcher not running')
+    : 'No heartbeat';
+  status.title = data.heartbeat?.message || 'No heartbeat file: the watcher has not run here, or it was not synced.';
+
+  const known = new Set(catalog.map((c) => c.case_id));
+  $('recent-list').innerHTML = data.events.length ? data.events.map((e) => {
+    const title = catalog.find((c) => c.case_id === e.package)?.title || e.package;
+    // The engine's reason is precise but technical; the row says it plainly and
+    // the tooltip keeps the full text.
+    const why = /outside the ShakeMap/.test(e.reason || '')
+      ? 'its ShakeMap does not cover the whole network'
+      : (e.reason || '').split(/[.:]/)[0];
+    const res = e.status === 'computed'
+      ? `${esc(title)}: highest-risk bridge ${esc(e.summary.highest_risk_bridge.edge)}, P(unusable) ${pct(e.summary.highest_risk_bridge.p_unusable, 1)}`
+      : `${esc(title)}: not computed, ${esc(why)}`;
+    const tip = known.has(e.package)
+      ? `ShakeMap ${e.event_id} v${e.version}. ${e.reason || 'Click to load and run it here.'}`
+      : 'This package is not loaded here';
+    return `<li><button type="button" data-package="${esc(e.package)}" data-event="${esc(e.event_id)}"
+        title="${esc(tip)}" ${known.has(e.package) ? '' : 'disabled'}>
+      <span class="ev"><span>M${e.magnitude ?? '?'} · ${esc(e.place || e.event_id)}</span>
+        <small>${esc((e.time || '').slice(0, 10))}</small></span>
+      <span class="res">${res}</span></button></li>`;
+  }).join('') : '<li class="empty">No earthquakes near these networks yet.</li>';
+
+  $('recent-list').querySelectorAll('button[data-event]').forEach((b) => b.addEventListener('click', () =>
+    showRecentEvent(b.dataset.package, b.dataset.event)));
+}
+
+async function showRecentEvent(packageId, eventId) {
+  if ($('case-select').value !== packageId) {
+    $('case-select').value = packageId;
+    await loadCase();
+  }
+  $('hazard-model').value = 'shakemap';
+  renderScenarioFields();
+  $('shakemap-id').value = eventId;     // typed id wins over the picker, so this exact event runs
+  runQuery();
 }
 
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };

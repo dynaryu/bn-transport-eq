@@ -20,6 +20,9 @@ Two sources, one reader:
   with no second poller. ShakeCast's own root is ``SHAKECAST_USER_DIRECTORY``,
   else ``~/.shakecast``.
 
+By default (``auto``) ShakeCast is tried first and the catalogue fills the
+gaps: events ShakeCast never kept, or has already deleted.
+
 Standard library and numpy only.
 """
 
@@ -391,14 +394,82 @@ class ComcatSource:
         partial.replace(path)            # never leave a truncated grid where a reader would find it
 
 
-def get_source(name: str | None = None, **kwargs: Any) -> ComcatSource | ShakeCastSource:
-    """``comcat`` (default) or ``shakecast``; ``FORWARD_PILOT_SHAKEMAP_SOURCE`` overrides."""
-    chosen = (name or os.environ.get("FORWARD_PILOT_SHAKEMAP_SOURCE") or "comcat").strip().lower()
+class FallbackSource:
+    """ShakeCast first, then the USGS catalogue.
+
+    A ShakeCast server covering the network has every recent event it kept, on
+    local disk, without a network call; it has nothing older than its retention
+    period (``keep_eq_for``) and nothing outside its group regions. The catalogue
+    has everything, so it fills those gaps. With no ShakeCast directory at all
+    this behaves exactly like the catalogue alone.
+
+    ShakeCast can trail the catalogue by a version while it polls, so the
+    version used is whichever ShakeCast has; results record which source it was.
+    """
+
+    name = "auto"
+
+    def __init__(self, shakecast_root: Path | str | None = None, cache_dir: Path | str = DEFAULT_CACHE):
+        self.shakecast = ShakeCastSource(shakecast_root)
+        self.comcat = ComcatSource(cache_dir)
+        self.last_provider: str | None = None
+
+    def directory(self, event_id: str, version: int | None = None) -> Path:
+        try:
+            path = self.shakecast.directory(event_id, version)
+            self.last_provider = self.shakecast.name
+            return path
+        except ShakeMapError:
+            path = self.comcat.directory(event_id, version)
+            self.last_provider = self.comcat.name
+            return path
+
+    def search(self, bbox, *, start="1900-01-01", end=None, min_magnitude=None) -> list[dict[str, Any]]:
+        """Both lists, one entry per event, ShakeCast's where both have it.
+
+        Either side may be missing -- no ShakeCast here, or no network -- and the
+        other still answers; only when both fail is that an error.
+        """
+        try:
+            local = _filter_box(self.shakecast.events(), bbox, min_magnitude)
+        except ShakeMapError:
+            local = []
+        try:
+            remote = self.comcat.search(bbox, start=start, end=end, min_magnitude=min_magnitude)
+        except ShakeMapError:
+            if not local:
+                raise
+            remote = []
+        seen = {e["event_id"] for e in local}
+        merged = local + [e for e in remote if e["event_id"] not in seen]
+        return sorted(merged, key=lambda e: e.get("time") or "", reverse=True)
+
+
+def _filter_box(events: Iterable[dict[str, Any]], bbox, min_magnitude) -> list[dict[str, Any]]:
+    lon_min, lat_min, lon_max, lat_max = bbox
+    return [
+        e for e in events
+        if e.get("lat") is not None and lat_min <= e["lat"] <= lat_max and lon_min <= e["lon"] <= lon_max
+        and (min_magnitude is None or (e.get("magnitude") or 0) >= min_magnitude)
+    ]
+
+
+SOURCES = ("auto", "shakecast", "comcat")
+
+
+def get_source(name: str | None = None, **kwargs: Any) -> ComcatSource | ShakeCastSource | FallbackSource:
+    """``auto`` (default: ShakeCast, then ComCat), ``shakecast`` or ``comcat``.
+
+    ``FORWARD_PILOT_SHAKEMAP_SOURCE`` overrides the default.
+    """
+    chosen = (name or os.environ.get("FORWARD_PILOT_SHAKEMAP_SOURCE") or "auto").strip().lower()
+    if chosen == "auto":
+        return FallbackSource(**kwargs)
     if chosen == "comcat":
         return ComcatSource(**kwargs)
     if chosen == "shakecast":
         return ShakeCastSource(**kwargs)
-    raise ShakeMapError(f"unknown ShakeMap source {chosen!r}; choose comcat or shakecast")
+    raise ShakeMapError(f"unknown ShakeMap source {chosen!r}; choose from {', '.join(SOURCES)}")
 
 
 @lru_cache(maxsize=8)
@@ -407,7 +478,7 @@ def _load_cached(directory: str) -> ShakeMapGrid:
 
 
 _RESOLVE_TTL = 300.0     # seconds; a ShakeMap revision is minutes apart at the fastest
-_resolved: dict[tuple[str, str, int | None], tuple[float, Path]] = {}
+_resolved: dict[tuple[str, str, int | None], tuple[float, Path, str]] = {}
 
 
 def load(event_id: str, source: str | None = None, version: int | None = None) -> ShakeMapGrid:
@@ -423,9 +494,13 @@ def load(event_id: str, source: str | None = None, version: int | None = None) -
     now = time.monotonic()
     hit = _resolved.get(key)
     if hit is None or now - hit[0] > _RESOLVE_TTL:
-        hit = (now, src.directory(str(event_id), version))
+        path = src.directory(str(event_id), version)
+        hit = (now, path, getattr(src, "last_provider", None) or src.name)
         _resolved[key] = hit
-    return _load_cached(str(hit[1]))
+    grid = _load_cached(str(hit[1]))
+    # One folder always comes from one source, so recording it on the shared grid is safe.
+    grid.meta["source"] = hit[2]
+    return grid
 
 
 # ---- the network side ----------------------------------------------------------
@@ -476,15 +551,10 @@ def search_events(
     """
     bbox = network_bbox(network)
     src = get_source(source)
-    if isinstance(src, ComcatSource):
+    if isinstance(src, (ComcatSource, FallbackSource)):
         return src.search(bbox, start=start, end=end, min_magnitude=min_magnitude)
-    lon_min, lat_min, lon_max, lat_max = bbox
-    events = [
-        e for e in src.events()
-        if e.get("lat") is not None and lat_min <= e["lat"] <= lat_max and lon_min <= e["lon"] <= lon_max
-        and (min_magnitude is None or (e.get("magnitude") or 0) >= min_magnitude)
-    ]
-    return sorted(events, key=lambda e: e.get("time") or "", reverse=True)
+    return sorted(_filter_box(src.events(), bbox, min_magnitude),
+                  key=lambda e: e.get("time") or "", reverse=True)
 
 
 def site_terms(network: dict[str, Any], hazard: dict[str, Any]) -> tuple[dict[str, tuple[float, float]], list[str], dict[str, Any]]:
@@ -510,10 +580,11 @@ def site_terms(network: dict[str, Any], hazard: dict[str, Any]) -> tuple[dict[st
 
     meta = grid.meta
     warnings = list(grid.warnings)
+    via = {"shakecast": "via the ShakeCast server", "comcat": "from the USGS catalogue"}.get(meta.get("source"), "")
     warnings.append(
         f"Ground motion from USGS ShakeMap {grid.event_id} version {grid.version} "
-        f"({meta.get('originator')}, {meta.get('map_status')}), sampled at arc midpoints; "
-        "bridge locations are not surveyed."
+        f"({meta.get('originator')}, {meta.get('map_status')}){' ' + via if via else ''}, "
+        "sampled at arc midpoints; bridge locations are not surveyed."
     )
     if not meta.get("seismic_stations"):
         warnings.append(

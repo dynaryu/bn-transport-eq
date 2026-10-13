@@ -108,14 +108,70 @@ optional `"version"` and `"source"`.
 
 **Where the maps come from** (`FORWARD_PILOT_SHAKEMAP_SOURCE`):
 
-- `comcat` (the default): searched and downloaded from the USGS catalogue, and
-  cached in `experiments/forward-bn-pilot/shakemaps/`, which is gitignored. A grid
-  is about 30 MB. With no network connection, the newest cached version is used.
-- `shakecast`: read from the data directory of a running USGS ShakeCast server
-  (`SHAKECAST_USER_DIRECTORY`, default `~/.shakecast`). ShakeCast already watches
-  for new events and saves each ShakeMap version, so the pilot follows whatever it
-  has received. The ComCat cache uses the same folder layout, so either source can
-  read the other's files.
+- `auto` (the default): ShakeCast first, then the USGS catalogue. A running
+  ShakeCast server's events are read from local disk. Anything it lacks is
+  fetched from the catalogue: events outside its group regions, events older
+  than its `keep_eq_for` retention, or a version it hasn't received. Without a
+  ShakeCast directory this is simply the catalogue. Event lists merge both
+  sources. Each result says which one supplied the map, because ShakeCast can
+  trail the catalogue by a version.
+- `shakecast`: only the data directory of a USGS ShakeCast server
+  (`SHAKECAST_USER_DIRECTORY`, default `~/.shakecast`). ShakeCast keeps an event
+  only if its epicentre lies inside one of its group regions, so a shared server
+  needs a group covering each network. A group with no facilities and no
+  notification settings is enough: it gets the ShakeMap downloaded without
+  emails or reports.
+- `comcat`: only the USGS catalogue. Downloads are cached in
+  `experiments/forward-bn-pilot/shakemaps/`, which is gitignored, using
+  ShakeCast's folder layout. A grid is about 30 MB. With no network connection,
+  the newest cached version is used.
+
+**Watching for new earthquakes.** `shakemap watch` is the part of ShakeCast the
+pilot needs. It polls the USGS real-time feed and keeps events that have a
+ShakeMap, at or above M4 by default, with the epicentre around a package. It
+downloads each new ShakeMap version and runs that package's forward query. No
+language model is involved. A revised map is fetched and run again; an unchanged
+one is not.
+
+```bash
+python -m src.forward_pilot shakemap watch --once          # one poll, for cron or a scheduled job
+python -m src.forward_pilot shakemap watch --interval 120  # or keep polling every 2 minutes
+python -m src.forward_pilot shakemap heartbeat             # exit 0 if alive and well, 1 if not
+```
+
+Everything goes under `experiments/forward-bn-pilot/watch/`, which is gitignored
+(`--state-dir` or `FORWARD_PILOT_WATCH_DIR` to move it):
+
+- `results/<event>/<event>-<version>/<package>.json`: the query, a summary, and
+  the full result.
+- `state.json`: what has been seen and run.
+- `heartbeat.json`: written on every poll, successful or not.
+
+`heartbeat` fails when the last poll is older than `--max-age-minutes` (default
+10) or failed outright. Run it from a second cron entry or an alarm, so a dead
+watcher is noticed before an earthquake rather than during one. One bad event
+marks the poll `degraded` and does not stop the others. A lock file keeps
+overlapping polls from running.
+
+The page shows the watcher's work in a **Recent earthquakes** panel above the
+controls. It shows whether the watcher is running (from the heartbeat) and each
+computed event with its highest-risk bridge, or why it was not computed. Clicking
+an event loads its package and runs that ShakeMap, ready for the chat. The panel
+reads the same folder, so with the watcher in the cloud, syncing that folder to
+your machine (e.g. `aws s3 sync`) is enough. It stays hidden where the watcher
+has never run. The ShakeMap event picker uses the same M4 floor as the watcher.
+
+A minimal deployment on a Linux instance is two cron lines:
+
+```
+* * * * *    cd /path/to/bn-on-demand-pilot && .venv/bin/python -m src.forward_pilot shakemap watch --once >> watch.log 2>&1
+*/10 * * * * cd /path/to/bn-on-demand-pilot && .venv/bin/python -m src.forward_pilot shakemap heartbeat || <your alert command>
+```
+
+On AWS Lambda the state directory must persist between runs (EFS, for example),
+because Lambda's `/tmp` does not. The watcher downloads straight from the USGS
+catalogue, into the same cache and folder layout the `auto` source reads, so the
+UI and the chat panel see the same maps.
 
 **Limits to keep in mind** — every result states these in its warnings:
 

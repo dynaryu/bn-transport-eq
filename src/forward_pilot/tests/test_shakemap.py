@@ -175,6 +175,103 @@ def test_comcat_falls_back_to_the_cache_when_offline(tmp_path, monkeypatch):
         source.directory("other")
 
 
+# ---- ShakeCast first, then the catalogue -----------------------------------
+
+
+@pytest.fixture
+def fallback(tmp_path, monkeypatch):
+    """An ``auto`` source over a ShakeCast directory and a catalogue whose only
+    event is ``remote1``. Returns (source, shakecast data dir, upstream calls)."""
+    data = tmp_path / "sc" / "data"
+    data.mkdir(parents=True)
+    upstream = write_grid(tmp_path / "upstream", "remote1", 7)
+    calls = []
+
+    def catalogue(params):
+        calls.append(params)
+        if params.get("eventid") not in (None, "remote1"):
+            raise shakemap.UnknownEvent(f"USGS has no event with id {params['eventid']!r}")
+        if "eventid" not in params:            # a search
+            return {"features": [
+                {"id": "remote1", "properties": {"mag": 6.0, "time": 0, "place": "catalogue"},
+                 "geometry": {"coordinates": [115.0, 37.5, 10.0]}},
+                {"id": "both", "properties": {"mag": 5.0, "time": 1000, "place": "catalogue copy"},
+                 "geometry": {"coordinates": [115.0, 37.5, 10.0]}}]}
+        return {"properties": {"products": {"shakemap": [{
+            "source": "us", "code": "remote1", "updateTime": 0, "properties": {"version": "7"},
+            "contents": {f"download/{n}": {"url": (upstream / n).as_uri()} for n in ("grid.xml", "uncertainty.xml")},
+        }]}}}
+
+    source = shakemap.FallbackSource(shakecast_root=tmp_path / "sc", cache_dir=tmp_path / "cache")
+    monkeypatch.setattr(source.comcat, "_get_json", catalogue)
+    return source, data, calls
+
+
+def test_auto_is_the_default_source(monkeypatch):
+    monkeypatch.delenv("FORWARD_PILOT_SHAKEMAP_SOURCE", raising=False)
+    assert shakemap.get_source().name == "auto"
+
+
+def test_shakecast_is_used_when_it_has_the_event(fallback):
+    source, data, calls = fallback
+    write_grid(data / "both" / "both-2", "both", 2)
+    assert source.directory("both") == data / "both" / "both-2"
+    assert source.last_provider == "shakecast" and calls == []      # no network call at all
+
+
+def test_the_catalogue_fills_in_what_shakecast_lacks(fallback, tmp_path):
+    source, data, _ = fallback
+    folder = source.directory("remote1")
+    assert folder == tmp_path / "cache" / "remote1" / "remote1-7"
+    assert source.last_provider == "comcat"
+
+
+def test_a_version_shakecast_lacks_is_looked_for_upstream(fallback):
+    source, data, _ = fallback
+    write_grid(data / "remote1" / "remote1-6", "remote1", 6)
+    assert source.directory("remote1").name == "remote1-6"           # ShakeCast's newest
+    assert source.directory("remote1", 7).name == "remote1-7"        # asked for, so fetched
+    assert source.last_provider == "comcat"
+
+
+def test_an_event_neither_has_is_reported_by_the_catalogue(fallback):
+    source, _, _ = fallback
+    with pytest.raises(shakemap.UnknownEvent, match="no event with id 'nope'"):
+        source.directory("nope")
+
+
+def test_without_a_shakecast_directory_auto_is_just_the_catalogue(tmp_path, monkeypatch):
+    source = shakemap.FallbackSource(shakecast_root=tmp_path / "absent", cache_dir=tmp_path / "cache")
+    write_grid(tmp_path / "cache" / "ev9" / "ev9-1", "ev9", 1)
+    monkeypatch.setattr(source.comcat, "_get_json", lambda params: (_ for _ in ()).throw(
+        shakemap.ShakeMapError("could not reach the USGS catalogue")))
+    assert source.directory("ev9").name == "ev9-1" and source.last_provider == "comcat"
+
+
+def test_search_merges_both_lists_once_each(fallback):
+    source, data, _ = fallback
+    write_grid(data / "both" / "both-1", "both", 1)
+    events = source.search((112.0, 35.0, 121.0, 43.0))
+    assert sorted(e["event_id"] for e in events) == ["both", "remote1"]
+    assert next(e for e in events if e["event_id"] == "both")["source"] == "shakecast"
+
+
+def test_search_still_lists_shakecast_events_when_offline(fallback, monkeypatch):
+    source, data, _ = fallback
+    write_grid(data / "both" / "both-1", "both", 1)
+    monkeypatch.setattr(source.comcat, "_get_json", lambda params: (_ for _ in ()).throw(
+        shakemap.ShakeMapError("could not reach the USGS catalogue")))
+    assert [e["event_id"] for e in source.search((112.0, 35.0, 121.0, 43.0))] == ["both"]
+
+
+def test_results_say_which_source_the_map_came_from(shakecast_dir, hebei, monkeypatch):
+    monkeypatch.setenv("FORWARD_PILOT_SHAKEMAP_SOURCE", "auto")
+    write_grid(shakecast_dir / "ev1" / "ev1-1", "ev1", 1)
+    result = run_forward_query(hebei, {"hazard": {"model": "shakemap", "event_id": "ev1"},
+                                       "samples": 100, "backend": "analytic"})
+    assert any("ShakeMap ev1 version 1" in w and "via the ShakeCast server" in w for w in result["warnings"])
+
+
 def test_an_unknown_event_is_reported_as_such_not_as_an_outage(tmp_path, monkeypatch):
     """USGS answers a bad id with 404. Calling that unreachable sent a model off
     concluding the event did not exist in the package at all."""

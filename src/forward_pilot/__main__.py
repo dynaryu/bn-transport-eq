@@ -27,11 +27,22 @@ def main() -> None:
     search.add_argument("--start", default="1900-01-01")
     search.add_argument("--end")
     search.add_argument("--min-magnitude", type=float)
-    search.add_argument("--source", choices=["comcat", "shakecast"])
+    search.add_argument("--source", choices=["auto", "shakecast", "comcat"])
     fetch = shake_sub.add_parser("fetch", help="download (or locate) one event's ShakeMap")
     fetch.add_argument("event_id")
     fetch.add_argument("--version", type=int)
-    fetch.add_argument("--source", choices=["comcat", "shakecast"])
+    fetch.add_argument("--source", choices=["auto", "shakecast", "comcat"])
+    watch = shake_sub.add_parser("watch", help="poll the USGS feed and run packages on new ShakeMaps")
+    watch.add_argument("--once", action="store_true", help="poll once and exit (for cron or a scheduled job)")
+    watch.add_argument("--interval", type=float, default=120, help="seconds between polls when looping")
+    watch.add_argument("--feed", default="2.5_day", help="USGS summary feed, e.g. 2.5_hour, 2.5_day, all_week")
+    watch.add_argument("--min-magnitude", type=float, default=4.0)
+    watch.add_argument("--samples", type=int, default=5000)
+    watch.add_argument("--state-dir", type=Path, help="where state, results and the heartbeat are kept")
+    watch.add_argument("--packages", type=Path, default=DEFAULT_OUTPUT)
+    beat = shake_sub.add_parser("heartbeat", help="exit 0 if the watcher is alive and well, 1 if not")
+    beat.add_argument("--max-age-minutes", type=float, default=10)
+    beat.add_argument("--state-dir", type=Path)
     serve = sub.add_parser("serve", help="serve the local stakeholder UI")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
@@ -55,6 +66,31 @@ def main() -> None:
     elif args.command == "shakemap":
         from . import shakemap
 
+        if args.action in ("watch", "heartbeat"):
+            import sys
+
+            from . import watch as watcher
+
+            state_dir = args.state_dir or watcher.DEFAULT_STATE_DIR
+            if args.action == "heartbeat":
+                ok, message = watcher.check_heartbeat(state_dir, args.max_age_minutes)
+                print(message)
+                sys.exit(0 if ok else 1)
+            options = dict(feed=args.feed, state_dir=state_dir, packages_root=args.packages,
+                           min_magnitude=args.min_magnitude, samples=args.samples)
+            if not args.once:
+                watcher.run_forever(args.interval, **options)
+            try:
+                beat = watcher.poll(**options)
+            except watcher.PollInProgress as exc:
+                print(exc)
+                return
+            except watcher.WatchError as exc:
+                print(f"poll failed: {exc}")
+                sys.exit(1)
+            print(f"{beat['status']}: {beat['events_in_feed']} event(s) in feed, "
+                  f"{beat['events_matched']} near a package, {len(beat['runs'])} run(s)")
+            return
         if args.action == "search":
             from .catalog import load_case
 

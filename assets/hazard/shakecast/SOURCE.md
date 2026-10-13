@@ -8,7 +8,8 @@ There is no `asset.ttl`, `model.py` or `tests/` here yet. The working code is
 
 **A USGS ShakeMap product consumed as a grid** — specifically `grid.xml` (median
 `PSA10`, in %g) and `uncertainty.xml` (`STDPSA10`, ln units) for one event. It can
-come from either of two places, and both are read the same way:
+come from either of two places, and both are read the same way. By default the
+pilot tries ShakeCast first and falls back to ComCat (`auto`):
 
 - **USGS ComCat**: the FDSN event service at
   `https://earthquake.usgs.gov/fdsnws/event/1/query`, using
