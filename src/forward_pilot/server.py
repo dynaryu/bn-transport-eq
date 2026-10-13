@@ -51,6 +51,11 @@ def _readable_api_error(exc: Exception) -> str:
     return _API_ERRORS.get(name, f"The request failed ({name}). See the server log for detail.")
 
 
+RECENT_DAYS = 30
+RECENT_TTL = 60.0                 # seconds; the page asks every 2 minutes, USGS's feed updates every minute
+_recent_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+
+
 class PilotHandler(BaseHTTPRequestHandler):
     packages_root = DEFAULT_OUTPUT
 
@@ -70,6 +75,36 @@ class PilotHandler(BaseHTTPRequestHandler):
             for path in self.packages_root.iterdir()
             if path.is_dir() and (path / "network.json").is_file()
         )
+
+    def _recent_earthquakes(self) -> list[dict[str, Any]]:
+        """Events of the last ``RECENT_DAYS`` with a ShakeMap around any package,
+        newest first, each with the packages it concerns."""
+        import time
+        from datetime import datetime, timedelta, timezone
+
+        from . import shakemap
+        from .feedwatch import DEFAULT_MIN_MAGNITUDE
+
+        key = str(self.packages_root)
+        hit = _recent_cache.get(key)
+        if hit and time.monotonic() - hit[0] < RECENT_TTL:
+            return hit[1]
+        start = (datetime.now(timezone.utc) - timedelta(days=RECENT_DAYS)).strftime("%Y-%m-%d")
+        source = shakemap.ComcatSource()
+        events: dict[str, dict[str, Any]] = {}
+        for package_id in self._package_ids():
+            network = load_package(self.packages_root / package_id)
+            if "shakemap" not in network.get("hazard_models", ()):
+                continue
+            try:
+                bbox = shakemap.network_bbox(network)
+            except shakemap.ShakeMapError:
+                continue                  # offers ShakeMaps but has no coordinates
+            for event in source.search(bbox, start=start, min_magnitude=DEFAULT_MIN_MAGNITUDE):
+                events.setdefault(event["event_id"], {**event, "packages": []})["packages"].append(package_id)
+        found = sorted(events.values(), key=lambda e: e.get("time") or "", reverse=True)
+        _recent_cache[key] = (time.monotonic(), found)
+        return found
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         path = urlparse(self.path).path
@@ -120,9 +155,9 @@ class PilotHandler(BaseHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             try:
                 source = shakemap.get_source((query.get("source") or [None])[0])
-                from .watch import DEFAULT_MIN_MAGNITUDE
+                from .feedwatch import DEFAULT_MIN_MAGNITUDE
 
-                # The same floor as the watcher, so anything it ran can also be picked here.
+                # The same floor as the watcher, so anything it emails can also be picked here.
                 events = shakemap.search_events(
                     load_package(self.packages_root / package_id), source.name,
                     min_magnitude=float((query.get("min_magnitude") or [DEFAULT_MIN_MAGNITUDE])[0]),
@@ -130,15 +165,23 @@ class PilotHandler(BaseHTTPRequestHandler):
             except shakemap.ShakeMapError as exc:
                 return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
             return self._json({"source": source.name, "events": events})
-        if path == "/api/watch-events":
-            # What the ShakeMap watcher has computed -- here, or synced from where it runs.
-            from . import watch
+        if path == "/api/recent-earthquakes":
+            # Straight from USGS, so the page sees new events and aftershocks without the watcher.
+            from . import shakemap
 
-            heartbeat = None
-            if (watch.DEFAULT_STATE_DIR / "heartbeat.json").is_file():
-                ok, message = watch.check_heartbeat(watch.DEFAULT_STATE_DIR)
-                heartbeat = {"ok": ok, "message": message}
-            return self._json({"heartbeat": heartbeat, "events": watch.recent_results(watch.DEFAULT_STATE_DIR)})
+            try:
+                return self._json({"days": RECENT_DAYS, "events": self._recent_earthquakes()})
+            except shakemap.ShakeMapError as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+        if path.startswith("/api/shakemap-version/"):
+            from . import shakemap
+
+            event_id = path.removeprefix("/api/shakemap-version/")
+            try:
+                version = shakemap.ComcatSource().current_version(event_id)
+            except shakemap.ShakeMapError as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return self._json({"event_id": event_id, "version": version})
         if path == "/api/chat-status":
             ok, reason = chat.available()
             return self._json({"available": ok, "reason": reason,
@@ -174,7 +217,16 @@ class PilotHandler(BaseHTTPRequestHandler):
             try:
                 request = self._read_request()
                 network = self._network_for(request.pop("package_id"))
-                self._json(run_forward_query(network, request))
+                result = run_forward_query(network, request)
+                hazard = request.get("hazard") or {}
+                if hazard.get("model") == "shakemap":
+                    # Which version ran, so the page can tell when USGS has revised it.
+                    # The grid is already loaded: this reads the in-process cache.
+                    from . import shakemap
+
+                    grid = shakemap.load(hazard["event_id"], hazard.get("source"), hazard.get("version"))
+                    result["shakemap"] = {"event_id": grid.event_id, "version": shakemap._int(grid.version)}
+                self._json(result)
             except KeyError as exc:
                 self._json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
             except (ForwardQueryError, ValueError, json.JSONDecodeError) as exc:
@@ -248,28 +300,11 @@ class PilotHandler(BaseHTTPRequestHandler):
         print(f"[forward-pilot] {self.address_string()} {format % args}")
 
 
-def _sync_loop(sync_url: str, minutes: float) -> None:
-    """Keep the feed watcher's archive and heartbeat current while the page is open,
-    so the Recent earthquakes panel shows the watcher as it is, not as last synced."""
-    import time
-
-    from . import watch
-
-    while True:
-        try:
-            watch.sync_from_s3(sync_url)
-        except watch.WatchError as exc:
-            print(f"[forward-pilot] sync from {sync_url} failed: {exc}", flush=True)
-        time.sleep(minutes * 60)
-
-
 def serve(
     host: str = "127.0.0.1",
     port: int = 8765,
     packages_root: Path = DEFAULT_OUTPUT,
     open_browser: bool = False,
-    sync_url: str | None = None,
-    sync_minutes: float = 2,
 ) -> None:
     if not packages_root.exists() or not any(packages_root.iterdir()):
         assemble_all(packages_root)
@@ -277,6 +312,8 @@ def serve(
     server = ThreadingHTTPServer((host, port), handler)
     print(f"Forward BN pilot: http://{host}:{port}")
     print(f"Packages: {packages_root}")
+    ok, reason = chat.available()
+    print(f"Chat: {chat.provider()} ({chat.model_name()}), " + ("ready" if ok else f"not available. {reason}"))
     if open_browser:
         webbrowser.open(f"http://{host}:{port}")
     # Load the local model in the background, so the first question does not
@@ -285,8 +322,6 @@ def serve(
 
     threading.Thread(target=lambda: print(f"[forward-pilot] {chat.preload_ollama()}", flush=True)
                      if chat.provider() == "ollama" else None, daemon=True).start()
-    if sync_url:
-        threading.Thread(target=_sync_loop, args=(sync_url, sync_minutes), daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

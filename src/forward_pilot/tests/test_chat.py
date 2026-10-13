@@ -35,6 +35,13 @@ def empty_result_cache():
 
 
 @pytest.fixture(autouse=True)
+def no_model_override(monkeypatch):
+    """A model chosen in the shell running the tests must not leak into them."""
+    for var in ("FORWARD_PILOT_MODEL", "ANTHROPIC_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def no_catalogue_search(monkeypatch):
     """Both packages offer ShakeMaps now, so ask() would search the USGS
     catalogue for the prompt's event list; tests must not touch the network."""
@@ -303,6 +310,31 @@ def test_ollama_is_the_default_backend(monkeypatch):
     monkeypatch.delenv("OLLAMA_MODEL", raising=False)
     assert chat.provider() == "ollama"
     assert chat.model_name() == chat.OLLAMA_MODEL
+
+
+def test_one_variable_picks_the_model_of_whichever_backend_is_chosen(monkeypatch):
+    for backend in chat.PROVIDERS:
+        monkeypatch.setenv("FORWARD_PILOT_LLM", backend)
+        monkeypatch.delenv(f"{backend.upper()}_MODEL", raising=False)
+        assert chat.model_name() == chat.DEFAULT_MODELS[backend]
+        monkeypatch.setenv(f"{backend.upper()}_MODEL", "own-variable")
+        assert chat.model_name() == "own-variable"
+        monkeypatch.setenv("FORWARD_PILOT_MODEL", "chosen")
+        assert chat.model_name() == "chosen"                  # the general one wins
+        monkeypatch.delenv("FORWARD_PILOT_MODEL")
+
+
+def test_serve_flags_choose_the_backend_and_model(monkeypatch):
+    import sys
+
+    from src.forward_pilot import __main__ as cli, server
+
+    seen = {}
+    monkeypatch.setattr(server, "serve", lambda *a, **kw: seen.update(llm=chat.provider(), model=chat.model_name()))
+    monkeypatch.delenv("FORWARD_PILOT_LLM", raising=False)
+    monkeypatch.setattr(sys, "argv", ["forward_pilot", "serve", "--llm", "anthropic", "--model", "claude-x"])
+    cli.main()
+    assert seen == {"llm": "anthropic", "model": "claude-x"}
 
 
 def test_an_unknown_backend_is_named_in_the_reason(monkeypatch):

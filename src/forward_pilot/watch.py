@@ -25,9 +25,8 @@ a watcher that has died or keeps failing is visible *before* an earthquake.
 
 Run it once per minute from cron or a systemd timer (``--once``), or as a
 long-running loop (``--interval``). A lock file keeps two polls from
-overlapping. ``feedwatch`` is the lighter variant that only archives the
-ShakeMaps (the one deployed as a Lambda); both write the same state and
-heartbeat, so the page reads either.
+overlapping. ``feedwatch`` is the lighter variant deployed as a Lambda: it
+runs no BN, and emails new earthquakes instead.
 """
 
 from __future__ import annotations
@@ -248,37 +247,6 @@ def run_forever(interval: float, **kwargs: Any) -> None:
         time.sleep(interval)
 
 
-def recent_results(state_dir: Path = DEFAULT_STATE_DIR, limit: int = 20) -> list[dict[str, Any]]:
-    """One row per event and package, newest event first.
-
-    A package the watcher ran has its result (``computed`` or ``not_computed``).
-    A package whose ShakeMap was only archived -- by ``feedwatch``, which runs no
-    BN -- is ``fetched``, or ``error`` when the ShakeMap could not be saved.
-    """
-    state = _read_json(Path(state_dir) / "state.json", {"events": {}})
-    rows = []
-    for event_id, record in state.get("events", {}).items():
-        when = (datetime.fromtimestamp(record["time"] / 1000, timezone.utc).isoformat(timespec="seconds")
-                if record.get("time") else None)
-        event = {"event_id": event_id, "magnitude": record.get("magnitude"), "place": record.get("place"),
-                 "time": when}
-        runs = record.get("runs", {})
-        for package, run in runs.items():
-            rows.append({**event, "package": package, "version": run.get("version"),
-                         "status": run.get("status"), "summary": run.get("summary"), "reason": run.get("reason"),
-                         "computed_utc": run.get("computed_utc")})
-        for package in record.get("packages", []):
-            if package in runs:
-                continue
-            fetched = record.get("version") is not None
-            rows.append({**event, "package": package, "version": record.get("version"),
-                         "versions": record.get("versions", []), "status": "fetched" if fetched else "error",
-                         "summary": None, "reason": None if fetched else record.get("error"),
-                         "computed_utc": None})
-    rows.sort(key=lambda r: (r["time"] or r["computed_utc"] or ""), reverse=True)
-    return rows[:limit]
-
-
 def check_heartbeat(state_dir: Path = DEFAULT_STATE_DIR, max_age_minutes: float = 10) -> tuple[bool, str]:
     """Whether the watcher is alive and well: (ok, one line saying why).
 
@@ -298,32 +266,9 @@ def check_heartbeat(state_dir: Path = DEFAULT_STATE_DIR, max_age_minutes: float 
     return True, f"ok: last poll {age:.1f} min ago, status {beat['status']}{note}"
 
 
-# ---- the feed watcher's side: its regions in, its archive back -------------------
+# ---- the feed watcher's regions ---------------------------------------------------
 
 
 def regions(packages_root: Path = DEFAULT_OUTPUT) -> dict[str, list[float]]:
     """Each ShakeMap-capable package's box, for ``feedwatch`` (which has no packages)."""
     return {name: [round(v, 4) for v in p["bbox"]] for name, p in watched_packages(packages_root).items()}
-
-
-def sync_from_s3(s3_url: str, state_dir: Path = DEFAULT_STATE_DIR,
-                 cache_dir: Path | None = None, timeout: float = 600) -> None:
-    """Copy what the feed watcher archived into this machine's folders.
-
-    ``s3_url`` is ``s3://bucket`` or ``s3://bucket/prefix``. Uses the AWS CLI and
-    its credentials (``aws sso login``). Only new and changed files are copied.
-    """
-    import subprocess
-
-    base = s3_url.rstrip("/")
-    if not base.startswith("s3://"):
-        raise WatchError(f"{s3_url!r} is not an s3:// URL")
-    for remote, local in ((f"{base}/shakemaps", cache_dir or shakemap.DEFAULT_CACHE),
-                          (f"{base}/watch", state_dir)):
-        try:
-            done = subprocess.run(["aws", "s3", "sync", remote, str(local), "--only-show-errors",
-                                   "--exclude", "*.part"], capture_output=True, text=True, timeout=timeout)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise WatchError(f"could not run the AWS CLI: {exc}") from exc
-        if done.returncode:
-            raise WatchError(f"aws s3 sync {remote} failed: {(done.stderr or done.stdout).strip()[:300]}")

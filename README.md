@@ -9,18 +9,23 @@ Massachusetts highway network, and access to Handan on a Hebei transport network
 
 ## Run it
 
-```powershell
-conda env create -f environment.yml
-conda activate dra
-python -m src.forward_pilot serve --open
-```
+Set up once, with either conda or uv:
 
-That opens the pilot at `http://127.0.0.1:8765`. Nothing else is needed — the two
-cases ship as self-contained packages.
+| | conda | uv |
+|---|---|---|
+| Set up | `conda env create -f environment.yml` | `uv sync` |
+| Each session | `conda activate dra` | (nothing; prefix commands with `uv run`) |
+| Start the pilot | `python -m src.forward_pilot serve --open` | `uv run python -m src.forward_pilot serve --open` |
+| Update after a `git pull` | `conda env update -f environment.yml --prune` | `uv sync` |
+| Includes | everything: the Claude SDK, the tbnpy/torch backend, the conformance checks | the pilot only (no torch). Add `--extra anthropic` for Claude |
 
-```powershell
-python -m src.conformance.check    # every asset against its declared contract
-python -m pytest -q                # 210 tests
+That opens the pilot at `http://127.0.0.1:8765`. Nothing else is needed: the two
+cases ship as self-contained packages. The commands below are written for conda,
+as `python -m ...`; with uv, run each as `uv run python -m ...`.
+
+```bash
+python -m pytest -q                # the tests
+python -m src.conformance.check    # every asset against its declared contract (conda set-up)
 ```
 
 ## The workflow, in the order it happens
@@ -77,8 +82,8 @@ The EMA network is 331 variables across 260 nodes.
 
 ## Optional extras
 
-- **Ask in words.** With a local [Ollama](https://ollama.com) server (free) or an
-  Anthropic credential, a chat panel appears: the language model picks the scenario
+- **Ask in words.** With a local [Ollama](https://ollama.com) server (free), a
+  Gemini key (free tier) or a Claude credential, a chat panel appears: the language model picks the scenario
   parameters, the engine computes the numbers, and every answer shows the query it
   ran. The model is never asked to estimate a probability. Setting up a backend is
   its own section below.
@@ -124,7 +129,8 @@ optional `"version"` and `"source"`.
 - `comcat`: only the USGS catalogue. Downloads are cached in
   `experiments/forward-bn-pilot/shakemaps/`, which is gitignored, using
   ShakeCast's folder layout. A grid is about 30 MB. With no network connection,
-  the newest cached version is used.
+  the newest cached version is used. Any earlier version (`"version": 2`) is
+  fetched from the catalogue too, which keeps every one.
 
 **Watching for new earthquakes.** `shakemap watch` is the part of ShakeCast the
 pilot needs. It polls the USGS real-time feed and keeps events that have a
@@ -153,103 +159,73 @@ watcher is noticed before an earthquake rather than during one. One bad event
 marks the poll `degraded` and does not stop the others. A lock file keeps
 overlapping polls from running.
 
-The page shows the watcher's work in a **Recent earthquakes** panel above the
-controls. It shows whether the watcher is running (from the heartbeat) and each
-computed event with its highest-risk bridge, or why it was not computed. Clicking
-an event loads its package and runs that ShakeMap, ready for the chat. The panel
-reads the same folder, so with the watcher in the cloud, syncing that folder to
-your machine (e.g. `aws s3 sync`) is enough. It stays hidden where the watcher
-has never run. The ShakeMap event picker uses the same M4 floor as the watcher.
+The page has a **Recent earthquakes** panel above the controls, filled straight
+from USGS. It lists events of the last 30 days, M4 or more, with a ShakeMap near
+a network, and checks again every 2 minutes while the page is open. No watcher
+is needed for it. An event that appears after the page was opened, such as an
+aftershock, is marked NEW, announced at the top of the page, and counted in the
+tab title. While a ShakeMap result is on screen, the page also checks whether
+USGS has revised that ShakeMap. If it has, a notice offers to re-run with the
+new version. Clicking an event loads its package and runs that ShakeMap, ready
+for the chat. The ShakeMap event picker uses the same M4 floor.
 
-A minimal deployment on a Linux instance is two cron lines:
+A minimal deployment on a Linux instance is two cron lines. `PY` is the
+environment's interpreter: `.venv/bin/python` with uv, or the output of `which
+python` with the conda environment active.
 
 ```
-* * * * *    cd /path/to/bn-on-demand-pilot && .venv/bin/python -m src.forward_pilot shakemap watch --once >> watch.log 2>&1
-*/10 * * * * cd /path/to/bn-on-demand-pilot && .venv/bin/python -m src.forward_pilot shakemap heartbeat || <your alert command>
+PY=/path/to/python
+* * * * *    cd /path/to/bn-on-demand-pilot && $PY -m src.forward_pilot shakemap watch --once >> watch.log 2>&1
+*/10 * * * * cd /path/to/bn-on-demand-pilot && $PY -m src.forward_pilot shakemap heartbeat || <your alert command>
 ```
 
-**The feed-only watcher, on AWS Lambda.** The always-on part does not need the
-BN. `feedwatch.py` polls the same feed and saves every new ShakeMap version
-near a package, but runs nothing. Its only dependencies are the standard library
-and boto3 (part of the Lambda runtime). Results are computed on your machine
-when you click an event, using the saved map. It keeps every version as it is
-issued, while the catalogue serves only the current one. `shakemap watch
---fetch-only` runs the same poll locally.
+**Email when an earthquake happens: the feed watcher on AWS Lambda.** The page
+only sees new events while it is open. `feedwatch.py` runs without it. It polls
+the same feed every 2 minutes and emails you once per earthquake near a network,
+when the event's first ShakeMap appears. The email gives the magnitude, place,
+time, the networks concerned, the USGS event id and its page. Events found in
+the same poll share one email, so an aftershock sequence does not arrive as a
+flood. Revised ShakeMaps are not emailed; the open page shows those. The watcher
+downloads no grid and runs no BN. Its only dependencies are the standard library
+and boto3 (part of the Lambda runtime). `shakemap watch --fetch-only` runs the
+same poll locally, without email.
 
-The bucket is laid out like `experiments/forward-bn-pilot/`:
-`shakemaps/<id>/<id>-<version>/` (the catalogue cache) and `watch/`
-(`state.json`, `heartbeat.json`). A sync puts each where the pilot already reads
-it. In the Recent earthquakes panel, these events show as "ShakeMap saved, click
-to run".
-
-One-time setup, from a shell with the AWS CLI logged in (`aws sso login`).
-Region `ap-southeast-2`; replace `<you@example.com>`:
+Deploy it with one script, from WSL or Linux with the AWS CLI logged in (`aws
+sso login`). Run it inside the uv project or with the conda environment active;
+it uses that Python to build the zip:
 
 ```bash
-export AWS_REGION=ap-southeast-2
-ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-BUCKET=bn-pilot-watch-$ACCOUNT
-aws s3 mb s3://$BUCKET
-
-# 1. The code: feedwatch.py plus each package's region, in one zip.
-python -m src.forward_pilot shakemap lambda-zip            # -> dist/feedwatch-lambda.zip
-
-# 2. A role allowed to log, write the bucket, and report its health.
-aws iam create-role --role-name bn-pilot-feedwatch --assume-role-policy-document \
-  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
-aws iam attach-role-policy --role-name bn-pilot-feedwatch \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-aws iam put-role-policy --role-name bn-pilot-feedwatch --policy-name feedwatch --policy-document "{
-  \"Version\": \"2012-10-17\", \"Statement\": [
-  {\"Effect\": \"Allow\", \"Action\": \"s3:ListBucket\", \"Resource\": \"arn:aws:s3:::$BUCKET\"},
-  {\"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::$BUCKET/*\"},
-  {\"Effect\": \"Allow\", \"Action\": \"cloudwatch:PutMetricData\", \"Resource\": \"*\",
-   \"Condition\": {\"StringEquals\": {\"cloudwatch:namespace\": \"BNPilot\"}}}]}"
-sleep 10                                                    # a new role takes a moment to be usable
-
-# 3. The function. One poll at a time (reserved concurrency 1); 256 MB and 5 min
-#    are ample for streaming a 30 MB grid to S3.
-aws lambda create-function --function-name bn-pilot-feedwatch --runtime python3.13 \
-  --handler feedwatch.lambda_handler --zip-file fileb://dist/feedwatch-lambda.zip \
-  --role arn:aws:iam::$ACCOUNT:role/bn-pilot-feedwatch --memory-size 256 --timeout 300 \
-  --environment "Variables={FEEDWATCH_BUCKET=$BUCKET}"
-aws lambda put-function-concurrency --function-name bn-pilot-feedwatch --reserved-concurrent-executions 1
-aws lambda invoke --function-name bn-pilot-feedwatch out.json && cat out.json   # expect "status": "ok"
-
-# 4. Every 2 minutes.
-aws events put-rule --name bn-pilot-feedwatch --schedule-expression "rate(2 minutes)"
-aws lambda add-permission --function-name bn-pilot-feedwatch --statement-id schedule \
-  --action lambda:InvokeFunction --principal events.amazonaws.com \
-  --source-arn arn:aws:events:$AWS_REGION:$ACCOUNT:rule/bn-pilot-feedwatch
-aws events put-targets --rule bn-pilot-feedwatch \
-  --targets "Id=1,Arn=arn:aws:lambda:$AWS_REGION:$ACCOUNT:function:bn-pilot-feedwatch"
-
-# 5. An email when no healthy poll has been reported for 10 minutes: polls
-#    failing, or the schedule stopped. Confirm the subscription email.
-TOPIC=$(aws sns create-topic --name bn-pilot-feedwatch --query TopicArn --output text)
-aws sns subscribe --topic-arn $TOPIC --protocol email --notification-endpoint <you@example.com>
-aws cloudwatch put-metric-alarm --alarm-name bn-pilot-feedwatch-down \
-  --namespace BNPilot --metric-name WatcherHealthy --statistic Maximum --period 300 \
-  --evaluation-periods 2 --threshold 1 --comparison-operator LessThanThreshold \
-  --treat-missing-data breaching --alarm-actions $TOPIC --ok-actions $TOPIC
+bash scripts/deploy-feedwatch.sh you@example.com    # subscribes this address; confirm the email AWS sends
 ```
 
-Then, on your machine:
+It creates:
+- an S3 bucket, `bn-pilot-watch-<account>` in `ap-southeast-2`;
+- an SNS topic for the emails;
+- the zip (`shakemap lambda-zip`);
+- a role limited to logs, the bucket, the topic and the health metric;
+- the function, with reserved concurrency 1 so polls never overlap;
+- a schedule that runs it every 2 minutes;
+- an alarm that emails the same topic when no healthy poll has been reported for
+  10 minutes, because polls are failing or the schedule has stopped.
 
-```bash
-python -m src.forward_pilot shakemap sync s3://$BUCKET      # once: copy what was saved
-python -m src.forward_pilot serve --sync s3://$BUCKET       # or keep it synced while the page is open
-```
+It finishes with one test poll. It is safe to re-run: existing pieces are kept,
+and the function gets fresh code. That is also how to update it after a
+package's network changes. The script's header lists its overrides (region,
+bucket, names).
 
-`--sync` re-syncs every 2 minutes, so the panel's watcher status is current, not
-as of the last copy. It uses the AWS CLI's login. After changing a package's
-network, rebuild the zip and run `aws lambda update-function-code --function-name
-bn-pilot-feedwatch --zip-file fileb://dist/feedwatch-lambda.zip`. Settings are
-environment variables: `FEEDWATCH_FEED` (default `2.5_day`),
-`FEEDWATCH_MIN_MAGNITUDE` (default 4), and `FEEDWATCH_PREFIX` to share a bucket.
-Expected cost is a few cents a month (about 22,000 short invocations, inside
-Lambda's free tier, plus S3 storage and one custom metric with an alarm). Check
-current AWS pricing for your account.
+The bucket holds two small files under `watch/`. `state.json` records each
+event, its networks, its ShakeMap versions, and whether it has been emailed.
+`heartbeat.json` records the last poll. A Lambda keeps nothing between runs, so
+they live in S3. Nothing needs syncing to your machine: the page asks USGS
+itself. A failed email is retried on the next poll.
+
+The function's settings are environment variables, set in the Lambda console;
+re-running the script keeps them. They are `FEEDWATCH_MIN_MAGNITUDE` (default
+4), `FEEDWATCH_FEED` (default `2.5_day`), `FEEDWATCH_TOPIC_ARN` (set by the
+script) and `FEEDWATCH_PREFIX` to share a bucket. Expected cost is well under
+US$1 a month: about 22,000 one-second invocations (inside Lambda's free tier),
+two small S3 writes per poll, one custom metric with an alarm, and a few
+emails. Check current AWS pricing for your account.
 
 **Limits to keep in mind** — every result states these in its warnings:
 
@@ -298,8 +274,35 @@ what is missing.
 
 ### Choosing a backend
 
-`FORWARD_PILOT_LLM` picks the model behind the panel: `ollama` (the default),
-`gemini` or `anthropic`. Set it in the shell that starts the server.
+Pick the model behind the panel when starting the server with `--llm`. Add
+`--model` to use a model of that backend other than its default.
+
+| Backend | Costs | Setup | Start |
+|---|---|---|---|
+| Ollama (default) | free, runs locally | install Ollama, `ollama pull qwen3:8b` | `python -m src.forward_pilot serve` |
+| Gemini | free tier, hosted | a key from aistudio.google.com/apikey in `GEMINI_API_KEY` | `python -m src.forward_pilot serve --llm gemini` |
+| Claude | paid API credit, hosted | `ant auth login` or `ANTHROPIC_API_KEY`. The SDK comes with the conda environment; with uv, `uv sync --extra anthropic` | `python -m src.forward_pilot serve --llm anthropic` |
+
+For example, Claude with an API key:
+
+```bash
+# conda
+conda activate dra
+export ANTHROPIC_API_KEY="sk-ant-..."      # PowerShell: $env:ANTHROPIC_API_KEY = "sk-ant-..."
+python -m src.forward_pilot serve --llm anthropic --open
+
+# uv
+uv sync --extra anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+uv run python -m src.forward_pilot serve --llm anthropic --open
+```
+
+Keep the key out of the repository.
+
+On startup the server prints which backend and model it is using, and either
+"ready" or what is missing. The default models are `qwen3:8b`,
+`gemini-3.8-flash` and `claude-opus-5-5`. `FORWARD_PILOT_LLM` and
+`FORWARD_PILOT_MODEL` do the same as the flags, for a shell profile.
 
 ### Ollama: free, local (the default)
 
@@ -314,7 +317,7 @@ ollama pull qwen3:8b                             # ~5 GB; needs a model with too
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `OLLAMA_MODEL` | `qwen3:8b` | Any pulled model with tool support, e.g. `llama3.1:8b`, `mistral-small` |
+| `--model` | `qwen3:8b` | Any pulled model with tool support, e.g. `llama3.1:8b`, `mistral-small` |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Where the Ollama server listens |
 | `OLLAMA_THINK` | off | `1` turns on the model's thinking mode: slower (about 2× in a test with qwen3:8b), rarely needed to pick parameters |
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps the model loaded after a question. The server also loads it at startup, so the first question does not wait for it |
@@ -336,10 +339,8 @@ package is needed; the server calls the API with the standard library.
 2. Start the server with the key in its environment:
 
    ```bash
-   export FORWARD_PILOT_LLM=gemini
    export GEMINI_API_KEY="..."             # keep it out of the repository
-   export GEMINI_MODEL=gemini-3.8-flash    # optional; this is the default
-   python -m src.forward_pilot serve
+   python -m src.forward_pilot serve --llm gemini
    ```
 
 The free tier is rate-limited, and Google may use free-tier prompts to improve
@@ -350,7 +351,8 @@ numbers accurately. The numbers still come only from the engine.
 
 ### Anthropic: Claude, with a credential
 
-Set `FORWARD_PILOT_LLM=anthropic` and `pip install anthropic`, then get a
+Start the server with `--llm anthropic`. The SDK is already in the conda
+environment; with uv, run `uv sync --extra anthropic` first. Then get a
 credential. **Either route below works, and neither is a Claude subscription.** API access
 bills to an Anthropic Console account with its own credits; a Claude Pro or Max
 plan, or a Claude Code login, does not grant it. Signing up as an individual is

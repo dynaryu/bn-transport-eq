@@ -25,15 +25,17 @@ engine is called, then the values, then the prose. A reader sees what is about
 to be computed while it can still be read as a claim to check, rather than as a
 footnote to an answer they have already accepted.
 
-Two backends can drive the loop, chosen by ``FORWARD_PILOT_LLM``:
+Three backends can drive the loop, chosen by ``FORWARD_PILOT_LLM`` (or
+``serve --llm``), with ``FORWARD_PILOT_MODEL`` (or ``serve --model``) to pick
+another model of that backend:
 
 * ``ollama`` (the default) -- a local model served by Ollama, reached over its
   HTTP API with the standard library alone. Free, offline, nothing to install in
-  Python. ``OLLAMA_MODEL`` and ``OLLAMA_BASE_URL`` override the defaults.
+  Python. ``OLLAMA_BASE_URL`` overrides the server address.
 * ``gemini`` -- Google Gemini through its OpenAI-compatible API, also with the
-  standard library alone. Needs ``GEMINI_API_KEY``; ``GEMINI_MODEL`` overrides
-  the model.
-* ``anthropic`` -- Claude through the ``anthropic`` SDK and a Console credential.
+  standard library alone. Needs ``GEMINI_API_KEY``.
+* ``anthropic`` -- Claude through the ``anthropic`` SDK (in the conda
+  environment; ``uv sync --extra anthropic`` with uv) and a Console credential.
 
 The division of labour above holds for either: the model only picks parameters,
 so a small local model costs accuracy in translating the question, which the
@@ -69,7 +71,7 @@ GEMINI_TIMEOUT = 45
 GEMINI_ATTEMPTS = 2
 GEMINI_RETRY_DELAY = 3.0
 _GEMINI_TRANSIENT = {500, 502, 503, 504}
-ANTHROPIC_MODEL = "claude-opus-5"
+ANTHROPIC_MODEL = "claude-opus-5-5"
 OLLAMA_MODEL = "qwen3:8b"
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TIMEOUT = 300    # seconds per model call; a CPU-only 8B model can be slow
@@ -90,12 +92,15 @@ def provider() -> str:
     return (os.environ.get("FORWARD_PILOT_LLM") or "ollama").strip().lower()
 
 
+DEFAULT_MODELS = {"ollama": OLLAMA_MODEL, "gemini": GEMINI_MODEL, "anthropic": ANTHROPIC_MODEL}
+
+
 def model_name() -> str:
-    if provider() == "anthropic":
-        return ANTHROPIC_MODEL
-    if provider() == "gemini":
-        return os.environ.get("GEMINI_MODEL") or GEMINI_MODEL
-    return os.environ.get("OLLAMA_MODEL") or OLLAMA_MODEL
+    """``FORWARD_PILOT_MODEL``, else the backend's own variable (``OLLAMA_MODEL``,
+    ``GEMINI_MODEL``, ``ANTHROPIC_MODEL``), else its default."""
+    chosen = provider()
+    return (os.environ.get("FORWARD_PILOT_MODEL") or os.environ.get(f"{chosen.upper()}_MODEL")
+            or DEFAULT_MODELS.get(chosen, OLLAMA_MODEL))
 
 
 def _ollama_keep_alive() -> str:
@@ -152,7 +157,7 @@ def _ollama_request(path: str, payload: Mapping[str, Any] | None = None, *,
     except TimeoutError as exc:
         raise ChatUnavailable(
             f"Ollama took longer than {timeout:g}s to answer. A smaller model "
-            "(set OLLAMA_MODEL) or a GPU will help; the controls still work."
+            "(serve --model) or a GPU will help; the controls still work."
         ) from exc
     except URLError as exc:
         raise ChatUnavailable(
@@ -257,7 +262,7 @@ def _gemini_error_text(exc: HTTPError) -> str:
         400: "The request was rejected.",
         401: "The API key was rejected; check GEMINI_API_KEY.",
         403: "The API key is not allowed to use this model.",
-        404: f"Model {model_name()!r} was not found; set GEMINI_MODEL to a current one.",
+        404: f"Model {model_name()!r} was not found; start the server with --model and a current one.",
         429: "Rate limit or free-tier quota reached; wait and ask again.",
         503: ("Gemini is overloaded right now and stayed so after a retry. Ask again in a "
               "minute, or switch to FORWARD_PILOT_LLM=ollama."),
@@ -281,7 +286,7 @@ def _ollama_available() -> tuple[bool, str]:
     hint = f" Pulled models: {', '.join(pulled)}." if pulled else ""
     return False, (
         f"Ollama is running but {model!r} has not been pulled. Run ollama pull "
-        f"{model}, or set OLLAMA_MODEL to a pulled model with tool support.{hint}"
+        f"{model}, or start the server with --model and a pulled model with tool support.{hint}"
     )
 
 
@@ -300,7 +305,8 @@ def _anthropic_available() -> tuple[bool, str]:
     try:
         import anthropic  # noqa: F401
     except ImportError:
-        return False, "The anthropic package is not installed. pip install anthropic"
+        return False, ("The anthropic package is not installed. With conda, run conda env update "
+                       "-f environment.yml; with uv, uv sync --extra anthropic. Then restart the server.")
 
     for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
         value = os.environ.get(var)

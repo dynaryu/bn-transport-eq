@@ -1,20 +1,17 @@
 """Tests for the feed-only ShakeMap watcher (the one deployed as a Lambda).
 
-The feed, the catalogue and S3 are stand-ins; grids are written in the real
-format by the ShakeMap tests' helper.
+The feed, the catalogue and S3 are stand-ins.
 """
 
 import ast
 import io
 import json
 import sys
-import zipfile
 from pathlib import Path
 
 import pytest
 
-from src.forward_pilot import feedwatch, shakemap, watch
-from src.forward_pilot.tests.test_shakemap import write_grid
+from src.forward_pilot import feedwatch, watch
 from src.forward_pilot.tests.test_watch import feature
 
 REGIONS = {"hebei-transport": [112.0, 35.0, 121.0, 43.0], "ema-highway": [-74.0, 40.5, -69.0, 44.0]}
@@ -28,26 +25,22 @@ class World:
         self.features = []
         self.versions = {}
         self.detail_calls = []
-        self.store = feedwatch.DirStore({"shakemaps": tmp_path / "cache", "watch": tmp_path / "watch"})
+        self.store = feedwatch.DirStore({"watch": tmp_path / "watch"})
 
     def publish(self, event_id, version, **feature_kwargs):
-        upstream = write_grid(self.tmp / "upstream" / f"{event_id}-{version}", event_id, version)
-        self.versions[event_id] = (version, upstream)
+        self.versions[event_id] = version
         self.features = [f for f in self.features if f["id"] != event_id] + [feature(event_id, **feature_kwargs)]
 
     def detail(self, event_id):
         self.detail_calls.append(event_id)
         if event_id not in self.versions:
             raise feedwatch.WatchError("the catalogue has no such event")
-        version, upstream = self.versions[event_id]
         return {"properties": {"products": {"shakemap": [{
-            "source": "us", "code": event_id, "updateTime": 0, "properties": {"version": str(version)},
-            "contents": {f"download/{n}": {"url": str(upstream / n)} for n in ("grid.xml", "uncertainty.xml")},
-        }]}}}
+            "source": "us", "code": event_id, "properties": {"version": str(self.versions[event_id])}}]}}}
 
     def poll(self, store=None, **kwargs):
         return feedwatch.poll(store or self.store, REGIONS, fetch=lambda feed: {"features": self.features},
-                              detail=self.detail, opener=lambda url: open(url, "rb"), log=lambda m: None, **kwargs)
+                              detail=self.detail, log=lambda m: None, **kwargs)
 
 
 @pytest.fixture
@@ -55,37 +48,31 @@ def world(tmp_path):
     return World(tmp_path)
 
 
-def test_a_new_shakemap_is_archived_where_the_pilot_reads_it(world):
+def test_a_new_shakemap_is_noted_without_downloading_it(world):
     world.publish("ev1", 1)
     beat = world.poll()
-    assert beat["status"] == "ok" and beat["fetched"] == [{"event_id": "ev1", "version": 1,
+    assert beat["status"] == "ok" and beat["updates"] == [{"event_id": "ev1", "version": 1,
                                                             "packages": ["hebei-transport"]}]
-    folder = world.tmp / "cache" / "ev1" / "ev1-1"
-    assert sorted(p.name for p in folder.iterdir()) == ["grid.xml", "info.json", "uncertainty.xml"]
-
-    # The catalogue source finds it without going to the network.
-    source = shakemap.ComcatSource(cache_dir=world.tmp / "cache")
-    assert source.directory("ev1", version=1) == folder
-    assert shakemap.read_grid(folder).std_psa10 is not None
+    state = json.loads((world.tmp / "watch" / "state.json").read_text())
+    assert state["events"]["ev1"]["versions"] == [1]
+    assert sorted(p.name for p in world.tmp.rglob("*") if p.is_file()) == ["heartbeat.json", "state.json"]
 
 
 def test_an_unchanged_event_is_not_looked_up_again(world):
     world.publish("ev1", 1)
     world.poll()
-    assert world.poll()["fetched"] == [] and world.detail_calls == ["ev1"]
+    assert world.poll()["updates"] == [] and world.detail_calls == ["ev1"]
 
 
-def test_a_revised_shakemap_is_kept_beside_the_old_one(world):
+def test_each_revised_shakemap_version_is_recorded(world):
     world.publish("ev1", 1, updated=1000)
     world.poll()
-    world.features = [feature("ev1", updated=1500)]          # updated, same map: looked up, nothing saved
-    assert world.poll()["fetched"] == []
+    world.features = [feature("ev1", updated=1500)]          # updated, same map: looked up, nothing new
+    assert world.poll()["updates"] == []
     world.publish("ev1", 2, updated=2000)
-    assert [f["version"] for f in world.poll()["fetched"]] == [2]
-    assert (world.tmp / "cache" / "ev1" / "ev1-1" / "grid.xml").is_file()
-    assert (world.tmp / "cache" / "ev1" / "ev1-2" / "grid.xml").is_file()
+    assert [u["version"] for u in world.poll()["updates"]] == [2]
     state = json.loads((world.tmp / "watch" / "state.json").read_text())
-    assert state["events"]["ev1"]["versions"] == [1, 2]
+    assert state["events"]["ev1"]["versions"] == [1, 2] and state["events"]["ev1"]["version"] == 2
 
 
 @pytest.mark.parametrize("kwargs", [
@@ -96,7 +83,7 @@ def test_a_revised_shakemap_is_kept_beside_the_old_one(world):
 def test_events_that_do_not_concern_any_package_are_ignored(world, kwargs):
     world.publish("ev1", 1, **kwargs)
     beat = world.poll()
-    assert beat["events_matched"] == 0 and beat["fetched"] == [] and world.detail_calls == []
+    assert beat["events_matched"] == 0 and beat["updates"] == [] and world.detail_calls == []
 
 
 def test_a_failed_event_is_recorded_and_retried(world):
@@ -104,7 +91,7 @@ def test_a_failed_event_is_recorded_and_retried(world):
     world.features.append(feature("gone"))
     beat = world.poll()
     assert beat["status"] == "degraded" and beat["errors"][0].startswith("gone:")
-    assert [f["event_id"] for f in beat["fetched"]] == ["good"]
+    assert [u["event_id"] for u in beat["updates"]] == ["good"]
     world.poll()
     assert world.detail_calls.count("gone") == 2              # an error is not taken as "seen"
 
@@ -116,16 +103,6 @@ def test_a_feed_failure_is_raised_and_recorded_in_the_heartbeat(world):
     with pytest.raises(feedwatch.WatchError):
         feedwatch.poll(world.store, REGIONS, fetch=broken, log=lambda m: None)
     assert watch.check_heartbeat(world.tmp / "watch")[0] is False
-
-
-def test_the_page_lists_archived_events_ready_to_run(world):
-    world.publish("ev1", 1)
-    world.features.append(feature("gone", lonlat=(-71.0, 42.4)))
-    world.poll()
-    rows = {(r["event_id"], r["package"]): r for r in watch.recent_results(world.tmp / "watch")}
-    assert rows["ev1", "hebei-transport"]["status"] == "fetched" and rows["ev1", "hebei-transport"]["version"] == 1
-    assert rows["gone", "ema-highway"]["status"] == "error" and rows["gone", "ema-highway"]["reason"]
-    assert watch.check_heartbeat(world.tmp / "watch")[0] is True
 
 
 # ---- S3 and the Lambda entry point -----------------------------------------------
@@ -141,9 +118,6 @@ class FakeS3:
     def __init__(self):
         self.objects = {}
 
-    def list_objects_v2(self, Bucket, Prefix, MaxKeys):
-        return {"Contents": [{"Key": k} for k in sorted(self.objects) if k.startswith(Prefix)][:MaxKeys]}
-
     def get_object(self, Bucket, Key):
         if Key not in self.objects:
             raise self.exceptions.NoSuchKey(Key)
@@ -151,9 +125,6 @@ class FakeS3:
 
     def put_object(self, Bucket, Key, Body):
         self.objects[Key] = Body
-
-    def upload_fileobj(self, stream, Bucket, Key):
-        self.objects[Key] = stream.read()
 
 
 class FakeCloudWatch:
@@ -164,21 +135,19 @@ class FakeCloudWatch:
         self.values += [(Namespace, d["MetricName"], d["Value"]) for d in MetricData]
 
 
-def test_the_lambda_archives_to_s3_and_reports_health(world, monkeypatch, tmp_path):
+def test_the_lambda_keeps_its_state_in_s3_and_reports_health(world, monkeypatch, tmp_path):
     (tmp_path / "regions.json").write_text(json.dumps(REGIONS))
     monkeypatch.setenv("FEEDWATCH_REGIONS", str(tmp_path / "regions.json"))
     s3, cloudwatch = FakeS3(), FakeCloudWatch()
     store = feedwatch.S3Store("bucket", "pilot", client=s3)
     world.publish("ev1", 1)
     common = dict(store=store, cloudwatch=cloudwatch, fetch=lambda feed: {"features": world.features},
-                  detail=world.detail, opener=lambda url: open(url, "rb"), log=lambda m: None)
+                  detail=world.detail, log=lambda m: None)
 
     out = feedwatch.lambda_handler({}, None, **common)
-    assert out["status"] == "ok" and out["fetched"][0]["event_id"] == "ev1"
-    assert {"pilot/shakemaps/ev1/ev1-1/grid.xml", "pilot/shakemaps/ev1/ev1-1/uncertainty.xml",
-            "pilot/shakemaps/ev1/ev1-1/info.json", "pilot/watch/state.json",
-            "pilot/watch/heartbeat.json"} <= set(s3.objects)
-    assert feedwatch.lambda_handler({}, None, **common)["fetched"] == []      # the S3 copy counts as kept
+    assert out["status"] == "ok" and out["updates"][0]["event_id"] == "ev1"
+    assert set(s3.objects) == {"pilot/watch/state.json", "pilot/watch/heartbeat.json"}
+    assert feedwatch.lambda_handler({}, None, **common)["updates"] == []      # the state in S3 remembers it
     assert cloudwatch.values == [("BNPilot", "WatcherHealthy", 1.0)] * 2
 
     common["fetch"] = lambda feed: (_ for _ in ()).throw(feedwatch.WatchError("feed down"))
@@ -205,3 +174,94 @@ def test_the_lambda_zip_carries_the_real_package_regions(tmp_path):
     assert lon_min < 115.0 < lon_max and lat_min < 37.5 < lat_max      # Xingtai
     lon_min, lat_min, lon_max, lat_max = regions["ema-highway"]
     assert lon_min < -71.06 < lon_max and lat_min < 42.36 < lat_max    # Boston
+
+
+# ---- the email -------------------------------------------------------------------
+
+
+class Outbox:
+    def __init__(self, fail=False):
+        self.sent, self.fail = [], fail
+
+    def __call__(self, events):
+        if self.fail:
+            raise RuntimeError("SNS unavailable")
+        self.sent.append([e["event_id"] for e in events])
+
+
+def test_a_new_earthquake_is_emailed_once_and_revisions_are_not(world):
+    outbox = Outbox()
+    world.publish("ev1", 1, updated=1000)
+    assert world.poll(notify=outbox)["notified"] == ["ev1"]
+    world.publish("ev1", 2, updated=2000)                     # a revised ShakeMap
+    assert world.poll(notify=outbox)["notified"] == []
+    assert outbox.sent == [["ev1"]]
+
+
+def test_events_found_in_one_poll_share_one_email(world):
+    outbox = Outbox()
+    world.publish("main", 1)
+    world.publish("after1", 1)
+    world.publish("after2", 1)
+    world.poll(notify=outbox)
+    assert outbox.sent == [["main", "after1", "after2"]]
+
+
+def test_a_failed_email_is_retried_on_the_next_poll(world):
+    world.publish("ev1", 1)
+    beat = world.poll(notify=Outbox(fail=True))
+    assert beat["status"] == "degraded" and "notification failed" in beat["errors"][0]
+    outbox = Outbox()
+    assert world.poll(notify=outbox)["notified"] == ["ev1"] and outbox.sent == [["ev1"]]
+
+
+def test_an_event_without_a_shakemap_yet_is_not_emailed_until_it_has_one(world):
+    outbox = Outbox()
+    world.features = [feature("slow")]                        # the catalogue has no ShakeMap for it yet
+    world.poll(notify=outbox)
+    world.publish("slow", 1, updated=2000)
+    world.poll(notify=outbox)
+    assert outbox.sent == [["slow"]]
+
+
+def test_events_kept_from_before_notification_existed_are_not_emailed(world):
+    (world.tmp / "watch").mkdir()
+    (world.tmp / "watch" / "state.json").write_text(json.dumps(
+        {"events": {"old": {"updated": 1000, "version": 1, "versions": [1]}}}))
+    world.publish("old", 1, updated=1000)
+    outbox = Outbox()
+    world.poll(notify=outbox)
+    assert outbox.sent == []
+
+
+def test_the_email_names_the_event_the_networks_and_how_to_run_it():
+    events = [{"event_id": "us7000abcd", "magnitude": 5.8, "place": "25 km SW of Xingtai, China",
+               "time": 1_760_000_000_000, "lat": 37.0, "lon": 114.3, "packages": ["hebei-transport"],
+               "version": 1, "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000abcd"}]
+    subject, body = feedwatch.compose_email(events)
+    assert subject == "M5.8 earthquake near hebei-transport: 25 km SW of Xingtai, China"
+    assert "us7000abcd" in body and "ShakeMap version 1" in body and "eventpage/us7000abcd" in body
+    many = [{**events[0], "event_id": f"ev{i}", "magnitude": 4 + i / 10, "place": "x" * 80} for i in range(5)]
+    subject, _ = feedwatch.compose_email(many)
+    assert subject.startswith("5 earthquakes near hebei-transport, up to M4.4") and len(subject) <= 100
+
+
+def test_the_lambda_emails_through_its_topic(world, monkeypatch, tmp_path):
+    class FakeSNS:
+        def __init__(self):
+            self.published = []
+
+        def publish(self, TopicArn, Subject, Message):
+            self.published.append((TopicArn, Subject))
+
+    sns = FakeSNS()
+    monkeypatch.setattr(feedwatch, "sns_notifier",
+                        lambda arn: lambda events: sns.publish(arn, *feedwatch.compose_email(events)))
+    (tmp_path / "regions.json").write_text(json.dumps(REGIONS))
+    monkeypatch.setenv("FEEDWATCH_REGIONS", str(tmp_path / "regions.json"))
+    monkeypatch.setenv("FEEDWATCH_TOPIC_ARN", "arn:aws:sns:ap-southeast-2:1:topic")
+    world.publish("ev1", 1)
+    out = feedwatch.lambda_handler({}, None, store=feedwatch.S3Store("b", client=FakeS3()),
+                                   cloudwatch=FakeCloudWatch(), fetch=lambda feed: {"features": world.features},
+                                   detail=world.detail, log=lambda m: None)
+    assert out["notified"] == ["ev1"] and sns.published[0][0] == "arn:aws:sns:ap-southeast-2:1:topic"

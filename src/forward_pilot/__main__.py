@@ -41,21 +41,21 @@ def main() -> None:
     watch.add_argument("--state-dir", type=Path, help="where state, results and the heartbeat are kept")
     watch.add_argument("--packages", type=Path, default=DEFAULT_OUTPUT)
     watch.add_argument("--fetch-only", action="store_true",
-                       help="poll once, only archiving new ShakeMaps (as the Lambda does); run no BN")
+                       help="poll once as the Lambda does: note new ShakeMaps, run no BN, send no email")
     beat = shake_sub.add_parser("heartbeat", help="exit 0 if the watcher is alive and well, 1 if not")
     beat.add_argument("--max-age-minutes", type=float, default=10)
     beat.add_argument("--state-dir", type=Path)
     zip_ = shake_sub.add_parser("lambda-zip", help="build the feed watcher's AWS Lambda zip")
     zip_.add_argument("--output", type=Path, default=Path("dist/feedwatch-lambda.zip"))
     zip_.add_argument("--packages", type=Path, default=DEFAULT_OUTPUT)
-    sync = shake_sub.add_parser("sync", help="copy the feed watcher's archive from S3 into the local folders")
-    sync.add_argument("s3_url", help="s3://bucket or s3://bucket/prefix")
     serve = sub.add_parser("serve", help="serve the local stakeholder UI")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
     serve.add_argument("--packages", type=Path, default=DEFAULT_OUTPUT)
     serve.add_argument("--open", action="store_true", help="open the UI in the default browser")
-    serve.add_argument("--sync", metavar="S3_URL", help="keep the feed watcher's archive synced from S3")
+    serve.add_argument("--llm", choices=["ollama", "gemini", "anthropic"],
+                       help="model behind the chat panel (default: FORWARD_PILOT_LLM, else ollama)")
+    serve.add_argument("--model", help="a model of that backend other than its default")
     args = parser.parse_args()
 
     if args.command == "build":
@@ -74,7 +74,7 @@ def main() -> None:
     elif args.command == "shakemap":
         from . import shakemap
 
-        if args.action in ("watch", "heartbeat", "lambda-zip", "sync"):
+        if args.action in ("watch", "heartbeat", "lambda-zip"):
             import sys
 
             from . import feedwatch
@@ -90,21 +90,13 @@ def main() -> None:
                     zf.writestr("regions.json", json.dumps(found, indent=2) + "\n")
                 print(f"{args.output}: handler feedwatch.lambda_handler, regions {', '.join(found)}")
                 return
-            if args.action == "sync":
-                try:
-                    watcher.sync_from_s3(args.s3_url)
-                except watcher.WatchError as exc:
-                    print(exc)
-                    sys.exit(1)
-                print(watcher.check_heartbeat(watcher.DEFAULT_STATE_DIR)[1])
-                return
             state_dir = args.state_dir or watcher.DEFAULT_STATE_DIR
             if args.action == "heartbeat":
                 ok, message = watcher.check_heartbeat(state_dir, args.max_age_minutes)
                 print(message)
                 sys.exit(0 if ok else 1)
             if args.fetch_only:
-                store = feedwatch.DirStore({"shakemaps": shakemap.DEFAULT_CACHE, "watch": state_dir})
+                store = feedwatch.DirStore({"watch": state_dir})
                 try:
                     beat = feedwatch.poll(store, watcher.regions(args.packages), feed=args.feed,
                                           min_magnitude=args.min_magnitude)
@@ -112,7 +104,7 @@ def main() -> None:
                     print(f"poll failed: {exc}")
                     sys.exit(1)
                 print(f"{beat['status']}: {beat['events_in_feed']} event(s) in feed, "
-                      f"{beat['events_matched']} near a package, {len(beat['fetched'])} ShakeMap(s) saved")
+                      f"{beat['events_matched']} near a package, {len(beat['updates'])} new ShakeMap version(s)")
                 return
             options = dict(feed=args.feed, state_dir=state_dir, packages_root=args.packages,
                            min_magnitude=args.min_magnitude, samples=args.samples)
@@ -142,9 +134,16 @@ def main() -> None:
             print(json.dumps({**grid.meta, "extent": grid.extent,
                               "has_uncertainty": grid.std_psa10 is not None}, indent=2))
     else:
+        import os
+
+        # The chat reads its settings from the environment, so the flags simply set it.
+        if args.llm:
+            os.environ["FORWARD_PILOT_LLM"] = args.llm
+        if args.model:
+            os.environ["FORWARD_PILOT_MODEL"] = args.model
         from .server import serve
 
-        serve(args.host, args.port, args.packages, open_browser=args.open, sync_url=args.sync)
+        serve(args.host, args.port, args.packages, open_browser=args.open)
 
 
 if __name__ == "__main__":

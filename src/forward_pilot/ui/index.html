@@ -27,11 +27,14 @@
     <code>python -m src.forward_pilot serve</code>
   </div>
 
+  <!-- New earthquakes and revised ShakeMaps, announced while the page is open. -->
+  <div id="notices" class="notices" aria-live="polite"></div>
+
   <main>
     <aside class="controls panel">
-      <!-- Filled from the ShakeMap watcher's results; hidden when it has never run here. -->
-      <div class="recent" id="recent-card" hidden>
-        <div class="recent-head"><b>Recent earthquakes</b><span id="watch-status" class="watch-status"></span></div>
+      <!-- Asked of USGS every 2 minutes while the page is open. -->
+      <div class="recent" id="recent-card">
+        <div class="recent-head"><b>Recent earthquakes</b><span id="recent-status" class="recent-status">checking USGS…</span></div>
         <ul id="recent-list" class="recent-list"></ul>
       </div>
       <div class="step"><span>01</span><div><b>Choose a network</b><small>A packaged network and its assumptions</small></div></div>

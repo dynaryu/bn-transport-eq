@@ -103,60 +103,102 @@ async function boot() {
   addEventListener('resize', debounce(() => { drawBnGraph(); drawNetwork(lastResult); drawRiskChart(lastResult); }, 160));
   await loadCase();
   loadRecentEvents();
-  setInterval(loadRecentEvents, 60000);   // results synced in while the page is open show up
+  setInterval(loadRecentEvents, RECENT_EVERY_MS);
 }
 
 /* ══ RECENT EARTHQUAKES ═════════════════════════════════════════════════════
- * What the ShakeMap watcher has computed or saved, newest first. Clicking one
- * loads its package and runs the same ShakeMap here, so it can be explored and
- * asked about. The card stays hidden where the watcher has never run. */
+ * Events of the last 30 days with a ShakeMap near any package, asked of USGS
+ * every 2 minutes while the page is open. One that appears after the page was
+ * opened -- an aftershock, say -- is marked new and announced. Clicking a row
+ * loads its package and runs that ShakeMap. While a ShakeMap result is shown,
+ * the same check notices when USGS revises that map. */
+const RECENT_EVERY_MS = 120000;
+let recentSeen = null;                 // event ids already listed; null until the first answer
+const recentNew = new Set();           // listed since the page opened, not yet clicked
+let shownShakemap = null;              // {event_id, version} of the ShakeMap result on screen
+let pinnedVersion = null;              // {event_id, version} a re-run asks for explicitly
+
 async function loadRecentEvents() {
   let data;
   try {
-    data = await (await fetch('./api/watch-events')).json();
-  } catch { return; }
-  if (!data.heartbeat && !data.events.length) return;
-  $('recent-card').hidden = false;
+    const response = await fetch('./api/recent-earthquakes');
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'USGS did not answer');
+  } catch (error) {
+    $('recent-status').textContent = 'USGS not reachable; retrying';
+    $('recent-status').title = error.message;
+    return;
+  }
+  const status = $('recent-status');
+  status.textContent = `last ${data.days} days, M4+ · checked ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  status.title = 'Asked of the USGS catalogue every 2 minutes while this page is open.';
 
-  const status = $('watch-status');
-  status.className = `watch-status ${data.heartbeat?.ok ? 'ok' : 'bad'}`;
-  status.textContent = data.heartbeat
-    ? (data.heartbeat.ok ? 'Watcher running' : 'Watcher not running')
-    : 'No heartbeat';
-  status.title = data.heartbeat?.message || 'No heartbeat file: the watcher has not run here, or it was not synced.';
+  const arrived = recentSeen ? data.events.filter((e) => !recentSeen.has(e.event_id)) : [];
+  recentSeen = new Set(data.events.map((e) => e.event_id));
+  arrived.forEach((e) => recentNew.add(e.event_id));
+  if (arrived.length) {
+    const e = arrived[0];
+    notice('new-event', `${arrived.length > 1 ? `${arrived.length} new earthquakes` : 'New earthquake'}: M${e.magnitude ?? '?'} ${e.place || e.event_id}`,
+      'Show', () => showRecentEvent(e.packages.find((p) => known(p)) || e.packages[0], e.event_id));
+  }
+  updateTitle();
 
-  const known = new Set(catalog.map((c) => c.case_id));
-  $('recent-list').innerHTML = data.events.length ? data.events.map((e) => {
-    const title = catalog.find((c) => c.case_id === e.package)?.title || e.package;
-    // The engine's reason is precise but technical; the row says it plainly and
-    // the tooltip keeps the full text.
-    const why = /outside the ShakeMap/.test(e.reason || '')
-      ? 'its ShakeMap does not cover the whole network'
-      : (e.reason || '').split(/[.:]/)[0];
-    // 'fetched': the feed watcher archived the ShakeMap but runs no BN; it runs here on click.
-    const versions = (e.versions || []).length > 1 ? `versions ${e.versions.join(', ')}` : `v${e.version}`;
-    const res = e.status === 'computed'
-      ? `${esc(title)}: highest-risk bridge ${esc(e.summary.highest_risk_bridge.edge)}, P(unusable) ${pct(e.summary.highest_risk_bridge.p_unusable, 1)}`
-      : e.status === 'fetched'
-        ? `${esc(title)}: ShakeMap ${esc(versions)} saved, click to run`
-        : e.status === 'error'
-          ? `${esc(title)}: ShakeMap not saved yet, ${esc(why)}`
-          : `${esc(title)}: not computed, ${esc(why)}`;
-    const tip = known.has(e.package)
-      ? `ShakeMap ${e.event_id} v${e.version}. ${e.reason || 'Click to load and run it here.'}`
-      : 'This package is not loaded here';
-    return `<li><button type="button" data-package="${esc(e.package)}" data-event="${esc(e.event_id)}"
-        title="${esc(tip)}" ${known.has(e.package) ? '' : 'disabled'}>
-      <span class="ev"><span>M${e.magnitude ?? '?'} · ${esc(e.place || e.event_id)}</span>
+  $('recent-list').innerHTML = data.events.length ? data.events.flatMap((e) => e.packages.map((p) => {
+    const title = catalog.find((c) => c.case_id === p)?.title || p;
+    const isNew = recentNew.has(e.event_id);
+    return `<li><button type="button" data-package="${esc(p)}" data-event="${esc(e.event_id)}"
+        title="${known(p) ? `ShakeMap for ${esc(e.event_id)}. Click to load and run it here.` : 'This package is not loaded here'}"
+        ${known(p) ? '' : 'disabled'}>
+      <span class="ev"><span>${isNew ? '<em class="new-tag">NEW</em>' : ''}M${e.magnitude ?? '?'} · ${esc(e.place || e.event_id)}</span>
         <small>${esc((e.time || '').slice(0, 10))}</small></span>
-      <span class="res">${res}</span></button></li>`;
-  }).join('') : '<li class="empty">No earthquakes near these networks yet.</li>';
+      <span class="res">${esc(title)} · ${esc(e.event_id)}</span></button></li>`;
+  })).join('') : `<li class="empty">No M4+ earthquakes with a ShakeMap near these networks in the last ${data.days} days.</li>`;
 
   $('recent-list').querySelectorAll('button[data-event]').forEach((b) => b.addEventListener('click', () =>
     showRecentEvent(b.dataset.package, b.dataset.event)));
+  checkShakemapRevision();
+}
+
+const known = (packageId) => catalog.some((c) => c.case_id === packageId);
+
+function updateTitle() {
+  const base = document.title.replace(/^\(\d+\) /, '');
+  document.title = recentNew.size ? `(${recentNew.size}) ${base}` : base;
+}
+
+/** One notice per kind at the top of the page; a newer one of the same kind replaces it. */
+function notice(kind, text, actionLabel, action) {
+  $('notices').querySelector(`[data-kind="${kind}"]`)?.remove();
+  const item = document.createElement('div');
+  item.className = 'notice';
+  item.dataset.kind = kind;
+  item.innerHTML = `<span>${esc(text)}</span>${actionLabel ? `<button type="button" class="act">${esc(actionLabel)}</button>` : ''}
+    <button type="button" class="close" aria-label="Dismiss">×</button>`;
+  item.querySelector('.act')?.addEventListener('click', () => { item.remove(); action(); });
+  item.querySelector('.close').addEventListener('click', () => item.remove());
+  $('notices').append(item);
+}
+
+/** Tell the reader when the ShakeMap behind the result on screen has a newer version. */
+async function checkShakemapRevision() {
+  if (!shownShakemap) return;
+  const { event_id: eventId, version } = shownShakemap;
+  let data;
+  try {
+    data = await (await fetch(`./api/shakemap-version/${encodeURIComponent(eventId)}`)).json();
+  } catch { return; }
+  if (!data.version || data.version <= version || shownShakemap?.event_id !== eventId) return;
+  notice('revision', `USGS has revised the ShakeMap for ${eventId}: version ${data.version} is out; the results shown use version ${version}.`,
+    `Re-run with version ${data.version}`, () => {
+      pinnedVersion = { event_id: eventId, version: data.version };
+      runQuery();
+    });
 }
 
 async function showRecentEvent(packageId, eventId) {
+  recentNew.delete(eventId);
+  updateTitle();
+  $('notices').querySelector('[data-kind="new-event"]')?.remove();
   if ($('case-select').value !== packageId) {
     $('case-select').value = packageId;
     await loadCase();
@@ -909,8 +951,10 @@ function queryPayload() {
   const model = $('hazard-model').value;
   const destinations = [...$('destination-list').querySelectorAll('input:checked')].map((x) => x.value);
   const origin = $('origin-select').value;
+  const eventId = $('shakemap-id')?.value.trim() || $('shakemap-event')?.value;
   const hazard = model === 'shakemap'
-    ? { model, event_id: $('shakemap-id').value.trim() || $('shakemap-event').value }
+    // A re-run after a revision names the version, so it does not get the one cached a few minutes ago.
+    ? { model, event_id: eventId, ...(pinnedVersion?.event_id === eventId ? { version: pinnedVersion.version } : {}) }
     : model === 'uniform_sa1'
     ? { model, sa1_g: Number($('sa1').value) }
     : { model, magnitude: Number($('magnitude').value), epicentre_x: Number($('epicentre-x').value), epicentre_y: Number($('epicentre-y').value) };
@@ -944,6 +988,8 @@ async function runQuery() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Query failed');
     lastResult = result;
+    shownShakemap = result.shakemap || null;
+    if (shownShakemap) $('notices').querySelector('[data-kind="revision"]')?.remove();
     showResult(result);
   } catch (error) {
     $('status').className = 'status error';

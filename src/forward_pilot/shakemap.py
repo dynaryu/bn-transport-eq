@@ -284,6 +284,10 @@ def _summary_from_grid_header(path: Path, event_id: str) -> dict[str, Any]:
             "lat": _float(attr("lat")), "lon": _float(attr("lon")), "source": "shakecast"}
 
 
+def _product_version(product: dict[str, Any]) -> int:
+    return int(float(product.get("properties", {}).get("version", 1)))
+
+
 class ComcatSource:
     """The USGS earthquake catalogue, with downloads cached in ShakeCast's layout."""
 
@@ -338,11 +342,13 @@ class ComcatSource:
         return events
 
     def directory(self, event_id: str, version: int | None = None) -> Path:
-        """Folder holding the event's preferred ShakeMap, downloading it if not cached.
+        """Folder holding one of the event's ShakeMaps, downloading it if not cached.
 
         With no ``version``, the catalogue is asked which version is current, so
         a revised ShakeMap replaces an older cached one. If the catalogue cannot
-        be reached, the newest cached version is used instead.
+        be reached, the newest cached version is used instead. An older
+        ``version`` is fetched from the catalogue's superseded products: USGS
+        keeps every version, so none needs archiving here.
         """
         cached = _version_dirs(self.cache_dir / event_id)
         if version is not None:
@@ -361,23 +367,46 @@ class ComcatSource:
         if not products:
             raise ShakeMapError(f"USGS has no ShakeMap for event {event_id!r}")
         product = products[0]            # ComCat lists the preferred product first
-        current = int(float(product.get("properties", {}).get("version", 1)))
+        current = _product_version(product)
         if version is not None and int(version) != current:
-            raise ShakeMapError(f"USGS serves version {current} of {event_id!r}; version {version} is not cached")
-        target = self.cache_dir / event_id / f"{event_id}-{current}"
+            product = self._superseded(event_id, product, int(version))
+        return self._save(event_id, product)
+
+    def current_version(self, event_id: str) -> int:
+        """The version of the event's preferred ShakeMap, asked of the catalogue now."""
+        detail = self._get_json({"eventid": event_id, "format": "geojson"})
+        products = detail.get("properties", {}).get("products", {}).get("shakemap") or []
+        if not products:
+            raise ShakeMapError(f"USGS has no ShakeMap for event {event_id!r}")
+        return _product_version(products[0])
+
+    def _superseded(self, event_id: str, preferred: dict[str, Any], version: int) -> dict[str, Any]:
+        """An earlier version of the preferred ShakeMap (same contributing network and code)."""
+        detail = self._get_json({"eventid": event_id, "format": "geojson", "includesuperseded": "true"})
+        products = [p for p in detail.get("properties", {}).get("products", {}).get("shakemap") or []
+                    if p.get("source") == preferred.get("source") and p.get("code") == preferred.get("code")]
+        for product in products:
+            if _product_version(product) == version:
+                return product
+        known = sorted({_product_version(p) for p in products})
+        raise ShakeMapError(f"USGS has versions {known} of the ShakeMap for {event_id!r}, not {version}")
+
+    def _save(self, event_id: str, product: dict[str, Any]) -> Path:
+        version = _product_version(product)
+        target = self.cache_dir / event_id / f"{event_id}-{version}"
         if (target / "grid.xml").is_file():
             return target
-
         contents = product.get("contents", {})
         if "download/grid.xml" not in contents:
-            raise ShakeMapError(f"the ShakeMap for {event_id!r} has no grid.xml")
+            raise ShakeMapError(f"version {version} of the ShakeMap for {event_id!r} has no grid.xml")
         target.mkdir(parents=True, exist_ok=True)
-        for name in ("grid.xml", "uncertainty.xml"):
+        # grid.xml last: its presence is what marks a cached version complete.
+        for name in ("uncertainty.xml", "grid.xml"):
             entry = contents.get(f"download/{name}")
             if entry:
                 self._download(entry["url"], target / name)
         (target / "info.json").write_text(json.dumps({
-            "event_id": event_id, "version": current, "source": product.get("source"),
+            "event_id": event_id, "version": version, "source": product.get("source"),
             "code": product.get("code"), "update_time": product.get("updateTime"),
             "retrieved_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }, indent=2) + "\n", encoding="utf-8")

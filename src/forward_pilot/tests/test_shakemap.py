@@ -162,6 +162,31 @@ def test_comcat_source_downloads_into_the_shakecast_layout(tmp_path, monkeypatch
     assert shakemap.ShakeCastSource(tmp_path / "cache").directory("ev9") == folder
 
 
+def test_an_earlier_version_is_fetched_from_the_catalogues_superseded_products(tmp_path, monkeypatch):
+    def product(version, code="ev9", source="us"):
+        upstream = write_grid(tmp_path / "upstream" / f"{source}{version}", "ev9", version)
+        return {"source": source, "code": code, "updateTime": version, "properties": {"version": str(version)},
+                "contents": {f"download/{n}": {"url": (upstream / n).as_uri()} for n in ("grid.xml", "uncertainty.xml")}}
+
+    current = product(3)
+    history = [current, product(2), product(1), product(2, code="other", source="at")]
+    calls = []
+
+    def catalogue(params):
+        calls.append(params)
+        return {"properties": {"products": {"shakemap": history if params.get("includesuperseded") else [current]}}}
+
+    source = shakemap.ComcatSource(cache_dir=tmp_path / "cache")
+    monkeypatch.setattr(source, "_get_json", catalogue)
+    folder = source.directory("ev9", version=2)
+    assert folder == tmp_path / "cache" / "ev9" / "ev9-2"
+    assert json.loads((folder / "info.json").read_text())["source"] == "us"   # the preferred network's v2
+    assert [c.get("includesuperseded") for c in calls] == [None, "true"]
+    assert source.directory("ev9", version=2) == folder and len(calls) == 2   # cached now
+    with pytest.raises(shakemap.ShakeMapError, match=r"versions \[1, 2, 3\].*not 5"):
+        source.directory("ev9", version=5)
+
+
 def test_comcat_falls_back_to_the_cache_when_offline(tmp_path, monkeypatch):
     write_grid(tmp_path / "cache" / "ev9" / "ev9-2", "ev9", 2)
     source = shakemap.ComcatSource(cache_dir=tmp_path / "cache")
@@ -398,3 +423,78 @@ def test_prompt_lists_nearby_events_only_when_given_them(hebei):
     prompt = chat.system_prompt(hebei, events)
     assert "shakemap_event_id" in prompt and "iscgem849480: 1966-03-22, M6.8" in prompt
     assert "iscgem849480" not in chat.system_prompt(hebei)
+
+
+# ---- what the page asks the server ---------------------------------------------
+
+
+@pytest.fixture
+def pilot_server():
+    """The page's server on a free port, over the real packages. Yields a GET/POST helper."""
+    import threading
+    from http.server import ThreadingHTTPServer
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    from src.forward_pilot import server as pilot
+
+    pilot._recent_cache.clear()
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), pilot.PilotHandler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{httpd.server_address[1]}"
+
+    def call(path, body=None):
+        request = Request(base + path, data=None if body is None else json.dumps(body).encode(),
+                          headers={"Content-Type": "application/json"})
+        try:
+            with urlopen(request, timeout=60) as response:
+                return response.status, json.loads(response.read())
+        except HTTPError as exc:
+            return exc.code, json.loads(exc.read())
+
+    yield call
+    httpd.shutdown()
+    httpd.server_close()
+    pilot._recent_cache.clear()
+
+
+def test_recent_earthquakes_come_from_usgs_with_the_networks_they_concern(pilot_server, monkeypatch):
+    def search(self, bbox, start="1900-01-01", end=None, min_magnitude=None):
+        lon_min, _, lon_max, _ = bbox
+        assert min_magnitude == 4.0
+        hebei_box = lon_min < 115 < lon_max
+        return [{"event_id": "hb1", "magnitude": 4.6, "time": "2026-10-10T00:00:00+00:00", "place": "Hebei"},
+                {"event_id": "hb2", "magnitude": 5.1, "time": "2026-10-12T00:00:00+00:00", "place": "Hebei"},
+                ] if hebei_box else [
+                {"event_id": "ma1", "magnitude": 4.2, "time": "2026-10-11T00:00:00+00:00", "place": "Boston"}]
+
+    monkeypatch.setattr(shakemap.ComcatSource, "search", search)
+    status, data = pilot_server("/api/recent-earthquakes")
+    assert status == 200 and data["days"] == 30
+    assert [(e["event_id"], e["packages"]) for e in data["events"]] == [
+        ("hb2", ["hebei-transport"]), ("ma1", ["ema-highway"]), ("hb1", ["hebei-transport"])]
+
+
+def test_recent_earthquakes_report_an_unreachable_usgs(pilot_server, monkeypatch):
+    def offline(self, *args, **kwargs):
+        raise shakemap.ShakeMapError("could not reach the USGS catalogue")
+
+    monkeypatch.setattr(shakemap.ComcatSource, "search", offline)
+    status, data = pilot_server("/api/recent-earthquakes")
+    assert status == 502 and "could not reach" in data["error"]
+
+
+def test_the_page_can_ask_for_the_current_shakemap_version(pilot_server, monkeypatch):
+    monkeypatch.setattr(shakemap.ComcatSource, "current_version", lambda self, event_id: 4)
+    assert pilot_server("/api/shakemap-version/us7000cc4d") == (200, {"event_id": "us7000cc4d", "version": 4})
+
+
+def test_a_shakemap_result_says_which_version_it_used(pilot_server, shakecast_dir):
+    shakemap._resolved.clear()
+    write_grid(shakecast_dir / "ev5" / "ev5-3", "ev5", 3)
+    status, result = pilot_server("/api/query", {
+        "package_id": "hebei-transport", "query_type": "population_accessibility",
+        "origins": ["n1"], "destinations": ["n2"], "samples": 200, "seed": 1,
+        "hazard": {"model": "shakemap", "event_id": "ev5"}})
+    assert status == 200, result
+    assert result["shakemap"] == {"event_id": "ev5", "version": 3}
