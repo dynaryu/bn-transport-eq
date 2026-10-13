@@ -40,14 +40,22 @@ def main() -> None:
     watch.add_argument("--samples", type=int, default=5000)
     watch.add_argument("--state-dir", type=Path, help="where state, results and the heartbeat are kept")
     watch.add_argument("--packages", type=Path, default=DEFAULT_OUTPUT)
+    watch.add_argument("--fetch-only", action="store_true",
+                       help="poll once, only archiving new ShakeMaps (as the Lambda does); run no BN")
     beat = shake_sub.add_parser("heartbeat", help="exit 0 if the watcher is alive and well, 1 if not")
     beat.add_argument("--max-age-minutes", type=float, default=10)
     beat.add_argument("--state-dir", type=Path)
+    zip_ = shake_sub.add_parser("lambda-zip", help="build the feed watcher's AWS Lambda zip")
+    zip_.add_argument("--output", type=Path, default=Path("dist/feedwatch-lambda.zip"))
+    zip_.add_argument("--packages", type=Path, default=DEFAULT_OUTPUT)
+    sync = shake_sub.add_parser("sync", help="copy the feed watcher's archive from S3 into the local folders")
+    sync.add_argument("s3_url", help="s3://bucket or s3://bucket/prefix")
     serve = sub.add_parser("serve", help="serve the local stakeholder UI")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
     serve.add_argument("--packages", type=Path, default=DEFAULT_OUTPUT)
     serve.add_argument("--open", action="store_true", help="open the UI in the default browser")
+    serve.add_argument("--sync", metavar="S3_URL", help="keep the feed watcher's archive synced from S3")
     args = parser.parse_args()
 
     if args.command == "build":
@@ -66,16 +74,46 @@ def main() -> None:
     elif args.command == "shakemap":
         from . import shakemap
 
-        if args.action in ("watch", "heartbeat"):
+        if args.action in ("watch", "heartbeat", "lambda-zip", "sync"):
             import sys
 
+            from . import feedwatch
             from . import watch as watcher
 
+            if args.action == "lambda-zip":
+                import zipfile
+
+                found = watcher.regions(args.packages)
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                with zipfile.ZipFile(args.output, "w", zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(feedwatch.__file__, "feedwatch.py")
+                    zf.writestr("regions.json", json.dumps(found, indent=2) + "\n")
+                print(f"{args.output}: handler feedwatch.lambda_handler, regions {', '.join(found)}")
+                return
+            if args.action == "sync":
+                try:
+                    watcher.sync_from_s3(args.s3_url)
+                except watcher.WatchError as exc:
+                    print(exc)
+                    sys.exit(1)
+                print(watcher.check_heartbeat(watcher.DEFAULT_STATE_DIR)[1])
+                return
             state_dir = args.state_dir or watcher.DEFAULT_STATE_DIR
             if args.action == "heartbeat":
                 ok, message = watcher.check_heartbeat(state_dir, args.max_age_minutes)
                 print(message)
                 sys.exit(0 if ok else 1)
+            if args.fetch_only:
+                store = feedwatch.DirStore({"shakemaps": shakemap.DEFAULT_CACHE, "watch": state_dir})
+                try:
+                    beat = feedwatch.poll(store, watcher.regions(args.packages), feed=args.feed,
+                                          min_magnitude=args.min_magnitude)
+                except feedwatch.WatchError as exc:
+                    print(f"poll failed: {exc}")
+                    sys.exit(1)
+                print(f"{beat['status']}: {beat['events_in_feed']} event(s) in feed, "
+                      f"{beat['events_matched']} near a package, {len(beat['fetched'])} ShakeMap(s) saved")
+                return
             options = dict(feed=args.feed, state_dir=state_dir, packages_root=args.packages,
                            min_magnitude=args.min_magnitude, samples=args.samples)
             if not args.once:
@@ -106,7 +144,7 @@ def main() -> None:
     else:
         from .server import serve
 
-        serve(args.host, args.port, args.packages, open_browser=args.open)
+        serve(args.host, args.port, args.packages, open_browser=args.open, sync_url=args.sync)
 
 
 if __name__ == "__main__":

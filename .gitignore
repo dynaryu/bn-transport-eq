@@ -9,3 +9,4 @@ experiments/*/results/
 experiments/forward-bn-pilot/shakemaps/
 # Watcher state, results and heartbeat (src/forward_pilot/watch.py); runtime data
 experiments/forward-bn-pilot/watch/
+dist/

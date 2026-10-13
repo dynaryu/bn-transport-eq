@@ -248,11 +248,28 @@ class PilotHandler(BaseHTTPRequestHandler):
         print(f"[forward-pilot] {self.address_string()} {format % args}")
 
 
+def _sync_loop(sync_url: str, minutes: float) -> None:
+    """Keep the feed watcher's archive and heartbeat current while the page is open,
+    so the Recent earthquakes panel shows the watcher as it is, not as last synced."""
+    import time
+
+    from . import watch
+
+    while True:
+        try:
+            watch.sync_from_s3(sync_url)
+        except watch.WatchError as exc:
+            print(f"[forward-pilot] sync from {sync_url} failed: {exc}", flush=True)
+        time.sleep(minutes * 60)
+
+
 def serve(
     host: str = "127.0.0.1",
     port: int = 8765,
     packages_root: Path = DEFAULT_OUTPUT,
     open_browser: bool = False,
+    sync_url: str | None = None,
+    sync_minutes: float = 2,
 ) -> None:
     if not packages_root.exists() or not any(packages_root.iterdir()):
         assemble_all(packages_root)
@@ -268,6 +285,8 @@ def serve(
 
     threading.Thread(target=lambda: print(f"[forward-pilot] {chat.preload_ollama()}", flush=True)
                      if chat.provider() == "ollama" else None, daemon=True).start()
+    if sync_url:
+        threading.Thread(target=_sync_loop, args=(sync_url, sync_minutes), daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -168,10 +168,88 @@ A minimal deployment on a Linux instance is two cron lines:
 */10 * * * * cd /path/to/bn-on-demand-pilot && .venv/bin/python -m src.forward_pilot shakemap heartbeat || <your alert command>
 ```
 
-On AWS Lambda the state directory must persist between runs (EFS, for example),
-because Lambda's `/tmp` does not. The watcher downloads straight from the USGS
-catalogue, into the same cache and folder layout the `auto` source reads, so the
-UI and the chat panel see the same maps.
+**The feed-only watcher, on AWS Lambda.** The always-on part does not need the
+BN. `feedwatch.py` polls the same feed and saves every new ShakeMap version
+near a package, but runs nothing. Its only dependencies are the standard library
+and boto3 (part of the Lambda runtime). Results are computed on your machine
+when you click an event, using the saved map. It keeps every version as it is
+issued, while the catalogue serves only the current one. `shakemap watch
+--fetch-only` runs the same poll locally.
+
+The bucket is laid out like `experiments/forward-bn-pilot/`:
+`shakemaps/<id>/<id>-<version>/` (the catalogue cache) and `watch/`
+(`state.json`, `heartbeat.json`). A sync puts each where the pilot already reads
+it. In the Recent earthquakes panel, these events show as "ShakeMap saved, click
+to run".
+
+One-time setup, from a shell with the AWS CLI logged in (`aws sso login`).
+Region `ap-southeast-2`; replace `<you@example.com>`:
+
+```bash
+export AWS_REGION=ap-southeast-2
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+BUCKET=bn-pilot-watch-$ACCOUNT
+aws s3 mb s3://$BUCKET
+
+# 1. The code: feedwatch.py plus each package's region, in one zip.
+python -m src.forward_pilot shakemap lambda-zip            # -> dist/feedwatch-lambda.zip
+
+# 2. A role allowed to log, write the bucket, and report its health.
+aws iam create-role --role-name bn-pilot-feedwatch --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+aws iam attach-role-policy --role-name bn-pilot-feedwatch \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+aws iam put-role-policy --role-name bn-pilot-feedwatch --policy-name feedwatch --policy-document "{
+  \"Version\": \"2012-10-17\", \"Statement\": [
+  {\"Effect\": \"Allow\", \"Action\": \"s3:ListBucket\", \"Resource\": \"arn:aws:s3:::$BUCKET\"},
+  {\"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::$BUCKET/*\"},
+  {\"Effect\": \"Allow\", \"Action\": \"cloudwatch:PutMetricData\", \"Resource\": \"*\",
+   \"Condition\": {\"StringEquals\": {\"cloudwatch:namespace\": \"BNPilot\"}}}]}"
+sleep 10                                                    # a new role takes a moment to be usable
+
+# 3. The function. One poll at a time (reserved concurrency 1); 256 MB and 5 min
+#    are ample for streaming a 30 MB grid to S3.
+aws lambda create-function --function-name bn-pilot-feedwatch --runtime python3.13 \
+  --handler feedwatch.lambda_handler --zip-file fileb://dist/feedwatch-lambda.zip \
+  --role arn:aws:iam::$ACCOUNT:role/bn-pilot-feedwatch --memory-size 256 --timeout 300 \
+  --environment "Variables={FEEDWATCH_BUCKET=$BUCKET}"
+aws lambda put-function-concurrency --function-name bn-pilot-feedwatch --reserved-concurrent-executions 1
+aws lambda invoke --function-name bn-pilot-feedwatch out.json && cat out.json   # expect "status": "ok"
+
+# 4. Every 2 minutes.
+aws events put-rule --name bn-pilot-feedwatch --schedule-expression "rate(2 minutes)"
+aws lambda add-permission --function-name bn-pilot-feedwatch --statement-id schedule \
+  --action lambda:InvokeFunction --principal events.amazonaws.com \
+  --source-arn arn:aws:events:$AWS_REGION:$ACCOUNT:rule/bn-pilot-feedwatch
+aws events put-targets --rule bn-pilot-feedwatch \
+  --targets "Id=1,Arn=arn:aws:lambda:$AWS_REGION:$ACCOUNT:function:bn-pilot-feedwatch"
+
+# 5. An email when no healthy poll has been reported for 10 minutes: polls
+#    failing, or the schedule stopped. Confirm the subscription email.
+TOPIC=$(aws sns create-topic --name bn-pilot-feedwatch --query TopicArn --output text)
+aws sns subscribe --topic-arn $TOPIC --protocol email --notification-endpoint <you@example.com>
+aws cloudwatch put-metric-alarm --alarm-name bn-pilot-feedwatch-down \
+  --namespace BNPilot --metric-name WatcherHealthy --statistic Maximum --period 300 \
+  --evaluation-periods 2 --threshold 1 --comparison-operator LessThanThreshold \
+  --treat-missing-data breaching --alarm-actions $TOPIC --ok-actions $TOPIC
+```
+
+Then, on your machine:
+
+```bash
+python -m src.forward_pilot shakemap sync s3://$BUCKET      # once: copy what was saved
+python -m src.forward_pilot serve --sync s3://$BUCKET       # or keep it synced while the page is open
+```
+
+`--sync` re-syncs every 2 minutes, so the panel's watcher status is current, not
+as of the last copy. It uses the AWS CLI's login. After changing a package's
+network, rebuild the zip and run `aws lambda update-function-code --function-name
+bn-pilot-feedwatch --zip-file fileb://dist/feedwatch-lambda.zip`. Settings are
+environment variables: `FEEDWATCH_FEED` (default `2.5_day`),
+`FEEDWATCH_MIN_MAGNITUDE` (default 4), and `FEEDWATCH_PREFIX` to share a bucket.
+Expected cost is a few cents a month (about 22,000 short invocations, inside
+Lambda's free tier, plus S3 storage and one custom metric with an alarm). Check
+current AWS pricing for your account.
 
 **Limits to keep in mind** — every result states these in its warnings:
 

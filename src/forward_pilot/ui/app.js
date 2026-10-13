@@ -107,7 +107,7 @@ async function boot() {
 }
 
 /* ══ RECENT EARTHQUAKES ═════════════════════════════════════════════════════
- * What the ShakeMap watcher has already computed, newest first. Clicking one
+ * What the ShakeMap watcher has computed or saved, newest first. Clicking one
  * loads its package and runs the same ShakeMap here, so it can be explored and
  * asked about. The card stays hidden where the watcher has never run. */
 async function loadRecentEvents() {
@@ -133,9 +133,15 @@ async function loadRecentEvents() {
     const why = /outside the ShakeMap/.test(e.reason || '')
       ? 'its ShakeMap does not cover the whole network'
       : (e.reason || '').split(/[.:]/)[0];
+    // 'fetched': the feed watcher archived the ShakeMap but runs no BN; it runs here on click.
+    const versions = (e.versions || []).length > 1 ? `versions ${e.versions.join(', ')}` : `v${e.version}`;
     const res = e.status === 'computed'
       ? `${esc(title)}: highest-risk bridge ${esc(e.summary.highest_risk_bridge.edge)}, P(unusable) ${pct(e.summary.highest_risk_bridge.p_unusable, 1)}`
-      : `${esc(title)}: not computed, ${esc(why)}`;
+      : e.status === 'fetched'
+        ? `${esc(title)}: ShakeMap ${esc(versions)} saved, click to run`
+        : e.status === 'error'
+          ? `${esc(title)}: ShakeMap not saved yet, ${esc(why)}`
+          : `${esc(title)}: not computed, ${esc(why)}`;
     const tip = known.has(e.package)
       ? `ShakeMap ${e.event_id} v${e.version}. ${e.reason || 'Click to load and run it here.'}`
       : 'This package is not loaded here';

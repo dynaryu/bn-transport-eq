@@ -23,9 +23,11 @@ Every poll ends by writing ``heartbeat.json``, whether it succeeded or not, so
 a watcher that has died or keeps failing is visible *before* an earthquake.
 ``check_heartbeat`` turns that file into an exit code for cron or an alarm.
 
-Run it once per minute from cron, a systemd timer or a scheduled Lambda
-(``--once``), or as a long-running loop (``--interval``). A lock file keeps two
-polls from overlapping.
+Run it once per minute from cron or a systemd timer (``--once``), or as a
+long-running loop (``--interval``). A lock file keeps two polls from
+overlapping. ``feedwatch`` is the lighter variant that only archives the
+ShakeMaps (the one deployed as a Lambda); both write the same state and
+heartbeat, so the page reads either.
 """
 
 from __future__ import annotations
@@ -37,25 +39,18 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
-from urllib.request import Request, urlopen
 
 from . import shakemap
 from .engine import ForwardQueryError, run_forward_query
+from .feedwatch import DEFAULT_FEED, DEFAULT_MIN_MAGNITUDE, WatchError, _inside, fetch_feed
 from .package import DEFAULT_OUTPUT, ROOT, load_package
 
-FEED_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/{feed}.geojson"
-DEFAULT_FEED = "2.5_day"          # a day of history, so a watcher that was down a while catches up
 DEFAULT_STATE_DIR = Path(
     os.environ.get("FORWARD_PILOT_WATCH_DIR") or ROOT / "experiments" / "forward-bn-pilot" / "watch"
 )
-DEFAULT_MIN_MAGNITUDE = 4.0       # below this no bridge is at risk, and New England fires M2.5s weekly
 DEFAULT_SAMPLES = 5000
 SEED = 20261004                   # the chat and the packages use the same seed
 LOCK_STALE_SECONDS = 30 * 60
-
-
-class WatchError(RuntimeError):
-    """A poll could not complete."""
 
 
 class PollInProgress(WatchError):
@@ -82,15 +77,6 @@ def _read_json(path: Path, default: Any) -> Any:
         return default
 
 
-def fetch_feed(feed: str = DEFAULT_FEED, timeout: float = 30) -> dict[str, Any]:
-    url = FEED_URL.format(feed=feed)
-    try:
-        with urlopen(Request(url, headers={"User-Agent": shakemap.USER_AGENT}), timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except (OSError, ValueError) as exc:
-        raise WatchError(f"could not read the USGS feed {url}: {exc}") from exc
-
-
 def watched_packages(packages_root: Path) -> dict[str, dict[str, Any]]:
     """Packages that can take a ShakeMap, with the box events are matched against."""
     out = {}
@@ -103,11 +89,6 @@ def watched_packages(packages_root: Path) -> dict[str, dict[str, Any]]:
         except shakemap.ShakeMapError:
             continue                      # offers the model but has no coordinates: nothing to match
     return out
-
-
-def _inside(bbox: tuple[float, float, float, float], lon: float, lat: float) -> bool:
-    lon_min, lat_min, lon_max, lat_max = bbox
-    return lat_min <= lat <= lat_max and lon_min <= lon <= lon_max
 
 
 @contextmanager
@@ -268,19 +249,32 @@ def run_forever(interval: float, **kwargs: Any) -> None:
 
 
 def recent_results(state_dir: Path = DEFAULT_STATE_DIR, limit: int = 20) -> list[dict[str, Any]]:
-    """The watcher's runs, one row per event and package, newest event first."""
+    """One row per event and package, newest event first.
+
+    A package the watcher ran has its result (``computed`` or ``not_computed``).
+    A package whose ShakeMap was only archived -- by ``feedwatch``, which runs no
+    BN -- is ``fetched``, or ``error`` when the ShakeMap could not be saved.
+    """
     state = _read_json(Path(state_dir) / "state.json", {"events": {}})
     rows = []
     for event_id, record in state.get("events", {}).items():
-        for package, run in record.get("runs", {}).items():
-            rows.append({
-                "event_id": event_id, "package": package, "version": run.get("version"),
-                "status": run.get("status"), "summary": run.get("summary"), "reason": run.get("reason"),
-                "computed_utc": run.get("computed_utc"), "magnitude": record.get("magnitude"),
-                "place": record.get("place"),
-                "time": (datetime.fromtimestamp(record["time"] / 1000, timezone.utc).isoformat(timespec="seconds")
-                         if record.get("time") else None),
-            })
+        when = (datetime.fromtimestamp(record["time"] / 1000, timezone.utc).isoformat(timespec="seconds")
+                if record.get("time") else None)
+        event = {"event_id": event_id, "magnitude": record.get("magnitude"), "place": record.get("place"),
+                 "time": when}
+        runs = record.get("runs", {})
+        for package, run in runs.items():
+            rows.append({**event, "package": package, "version": run.get("version"),
+                         "status": run.get("status"), "summary": run.get("summary"), "reason": run.get("reason"),
+                         "computed_utc": run.get("computed_utc")})
+        for package in record.get("packages", []):
+            if package in runs:
+                continue
+            fetched = record.get("version") is not None
+            rows.append({**event, "package": package, "version": record.get("version"),
+                         "versions": record.get("versions", []), "status": "fetched" if fetched else "error",
+                         "summary": None, "reason": None if fetched else record.get("error"),
+                         "computed_utc": None})
     rows.sort(key=lambda r: (r["time"] or r["computed_utc"] or ""), reverse=True)
     return rows[:limit]
 
@@ -302,3 +296,34 @@ def check_heartbeat(state_dir: Path = DEFAULT_STATE_DIR, max_age_minutes: float 
         return False, f"last poll failed: {'; '.join(beat.get('errors', []))[:300]}"
     note = f", {len(beat['errors'])} event error(s)" if beat.get("errors") else ""
     return True, f"ok: last poll {age:.1f} min ago, status {beat['status']}{note}"
+
+
+# ---- the feed watcher's side: its regions in, its archive back -------------------
+
+
+def regions(packages_root: Path = DEFAULT_OUTPUT) -> dict[str, list[float]]:
+    """Each ShakeMap-capable package's box, for ``feedwatch`` (which has no packages)."""
+    return {name: [round(v, 4) for v in p["bbox"]] for name, p in watched_packages(packages_root).items()}
+
+
+def sync_from_s3(s3_url: str, state_dir: Path = DEFAULT_STATE_DIR,
+                 cache_dir: Path | None = None, timeout: float = 600) -> None:
+    """Copy what the feed watcher archived into this machine's folders.
+
+    ``s3_url`` is ``s3://bucket`` or ``s3://bucket/prefix``. Uses the AWS CLI and
+    its credentials (``aws sso login``). Only new and changed files are copied.
+    """
+    import subprocess
+
+    base = s3_url.rstrip("/")
+    if not base.startswith("s3://"):
+        raise WatchError(f"{s3_url!r} is not an s3:// URL")
+    for remote, local in ((f"{base}/shakemaps", cache_dir or shakemap.DEFAULT_CACHE),
+                          (f"{base}/watch", state_dir)):
+        try:
+            done = subprocess.run(["aws", "s3", "sync", remote, str(local), "--only-show-errors",
+                                   "--exclude", "*.part"], capture_output=True, text=True, timeout=timeout)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise WatchError(f"could not run the AWS CLI: {exc}") from exc
+        if done.returncode:
+            raise WatchError(f"aws s3 sync {remote} failed: {(done.stderr or done.stdout).strip()[:300]}")
