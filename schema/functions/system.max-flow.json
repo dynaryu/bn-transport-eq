@@ -1,10 +1,10 @@
 {
   "$schema": "../meta/function.schema.json",
   "id": "system.max-flow",
-  "label": "Maximum flow over open links",
-  "version": "0.1.0",
+  "label": "Maximum flow over open links, and whether it meets its threshold",
+  "version": "0.2.0",
   "role": "system",
-  "per": "ODPair",
+  "per": "SystemEvent",
   "inputs": [
     {
       "name": "open",
@@ -17,11 +17,17 @@
     {
       "name": "max_flow",
       "quantity": "MaxFlow"
+    },
+    {
+      "name": "state",
+      "quantity": "SystemState",
+      "description": "1 if max flow >= min_flow, else 0."
     }
   ],
   "attributes": [
     "origin",
-    "destination"
+    "destination",
+    "min_flow"
   ],
   "tables": [
     "Node",
@@ -33,5 +39,5 @@
   "capabilities": [
     "SampleForward"
   ],
-  "description": "Origin-to-destination max flow, with Edge.capacity on each open link and 0 on a closed one. Parallel links add their capacities; an undirected link carries its capacity in each direction."
+  "description": "Origin-to-destination max flow, with Edge.capacity on each open link and 0 on a closed one; the event survives if it reaches min_flow. Parallel links add their capacities; an undirected link carries its capacity in each direction."
 }

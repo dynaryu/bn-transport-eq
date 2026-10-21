@@ -77,7 +77,7 @@ def cmd_query(args: argparse.Namespace) -> int:
             query["targets"] = args.target
         if args.event:
             events = []
-            for text in args.event:          # "TravelTime::n1>n22<=60"; OD ids contain ">", so split at the last op
+            for text in args.event:          # "TravelTime::n1>n22:time<=60"; event ids contain ">", so split at the last op
                 for op in ("<=", ">=", "==", "!=", "<", ">"):
                     node, found, value = text.rpartition(op)
                     if found:
@@ -186,8 +186,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("query", help="answer a probabilistic query")
     p.add_argument("assembly", nargs="?", help="e.g. ema-highway/gmm (or give --json)")
-    p.add_argument("--target", action="append", help="node id or pattern, e.g. 'TravelTime::*>n22'")
-    p.add_argument("--event", action="append", help="e.g. 'TravelTime::n1>n22<=60' or 'LinkOpen::*==0'")
+    p.add_argument("--target", action="append", help="node id or pattern, e.g. 'TravelTime::*>n22:time'")
+    p.add_argument("--event", action="append", help="e.g. 'SystemState::*>n22:*==0' or 'LinkOpen::*==0'")
     p.add_argument("--set", action="append", help="row.attr=value or function.param=value, e.g. ema-reference.mw=7")
     p.add_argument("--use", action="append", help="function=parameter-set, swapping a parameter set")
     p.add_argument("--json", help="a whole query, as a file or inline JSON (overrides the options above)")

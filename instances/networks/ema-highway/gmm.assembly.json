@@ -29,10 +29,16 @@
     },
     {
       "function": "system.shortest-path",
-      "parameter_set": "speed.uniform-80kph"
+      "parameter_set": "speed.uniform-80kph",
+      "where": {
+        "analysis": "shortest-path"
+      }
     },
     {
-      "function": "system.max-flow"
+      "function": "system.max-flow",
+      "where": {
+        "analysis": "max-flow"
+      }
     }
   ]
 }

@@ -121,7 +121,11 @@ silently: the check names the bridges and the IM they do have.
   `functions/hazard.gmm.json`. If it needs Vs30, add `vs30` to `Bridge` and list it
   under `attributes`.
 - **Curves on another IM**: a parameter set for `fragility.lognormal` with that `imt`.
-- **A system function**: a function `per: ODPair` reading `LinkOpen` via `*`.
+- **A system function**: a function `per: SystemEvent` reading `LinkOpen` via `*`,
+  producing its metric and a `SystemState`, and reading its threshold as a
+  `SystemEvent` attribute. Bind it with `where: {"analysis": ...}`.
+- **A system event**: a `SystemEvent` row in the network, with its `analysis`,
+  `origin`, `destination` and threshold.
 - **A kernel** lives in `src/builder/kernels/`. It gets a `Call` (rows, input
   arrays, θ) and returns `(n_samples, n_rows)` arrays, one per output port.
 

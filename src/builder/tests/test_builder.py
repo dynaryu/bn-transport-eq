@@ -74,7 +74,7 @@ def test_few_parameter_sets_describe_every_bridge(lib):
 def test_system_nodes_share_link_parents(lib):
     c = _compile(lib, "ema-highway/gmm")
     nodes = {n["id"]: n for n in c.nodes()}
-    tt, mf = nodes["TravelTime::n1>n22"], nodes["MaxFlow::n1>n22"]
+    tt, mf = nodes["TravelTime::n1>n22:time"], nodes["MaxFlow::n1>n22:flow"]
     assert tt["parents"] == mf["parents"]
     assert len(tt["parents"]) == 129 and tt["parents"][0].startswith("LinkOpen::")
 
@@ -287,7 +287,8 @@ def _diamond(lib, open_states):
         {"id": "bt2", "source": "b", "target": "t", "directed": False, "length_km": 160.0, "capacity": 1},
     ]
     ids = [e["id"] for e in edges]
-    rows = [{"id": "s>t", "origin": "s", "destination": "t"}, {"id": "t>s", "origin": "t", "destination": "s"}]
+    rows = [{"id": "s>t", "origin": "s", "destination": "t", "travel_time_tolerance": 1.0, "min_flow": 2},
+            {"id": "t>s", "origin": "t", "destination": "s", "travel_time_tolerance": 1.0, "min_flow": 2}]
     opened = np.asarray(open_states)
     return _call(lib, {"open": [opened, opened]}, rows, {"speed_kph": 80.0},
                  parents={"open": [ids, ids]}, tables={"Node": nodes, "Edge": edges})
@@ -295,11 +296,22 @@ def _diamond(lib, open_states):
 
 def test_shortest_path_and_max_flow_on_a_diamond(lib):
     call = _diamond(lib, [[1, 1, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 0, 1], [0, 1, 0, 1, 1]])
-    minutes = ShortestPath().sample_forward(call)["travel_time"]
-    assert minutes[:, 0].tolist() == [60.0, 120.0, 180.0, np.inf]
-    assert np.array_equal(minutes[:, 0], minutes[:, 1])          # undirected: both ways alike
-    flow = MaxFlow().sample_forward(call)["max_flow"][:, 0]
-    assert flow.tolist() == [4.0, 3.0, 1.0, 0.0]                 # parallel b-t links add up
+    path = ShortestPath().sample_forward(call)
+    assert path["travel_time"][:, 0].tolist() == [60.0, 120.0, 180.0, np.inf]
+    assert np.array_equal(path["travel_time"][:, 0], path["travel_time"][:, 1])   # undirected: both ways alike
+    assert path["state"][:, 0].tolist() == [1, 1, 0, 0]          # within 2 x the intact 60 min; no route fails
+    flow = MaxFlow().sample_forward(call)
+    assert flow["max_flow"][:, 0].tolist() == [4.0, 3.0, 1.0, 0.0]   # parallel b-t links add up
+    assert flow["state"][:, 0].tolist() == [1, 1, 0, 0]          # min_flow 2
+    assert not call.warnings
+
+
+def test_an_event_that_fails_even_intact_says_so(lib):
+    call = _diamond(lib, [[1, 1, 1, 1, 1]])
+    for row in call.rows:
+        row["min_flow"] = 10                                      # the intact network carries 4
+    assert MaxFlow().sample_forward(call)["state"].tolist() == [[0, 0]]
+    assert "cannot reach min_flow even with every link open" in call.warnings[0]
 
 
 def test_shakemap_kernel_samples_and_refuses_outside(lib, monkeypatch):

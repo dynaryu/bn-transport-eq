@@ -16,7 +16,8 @@
     "functionality": "Moved out of the data: the usable-from-damage parameter set the assembly binds (policy.closed-at-extensive) states it.",
     "capacity": "1 per link, assumed: the dataset gives no capacities, so max flow counts link-disjoint routes.",
     "event": "Epicentre from the pilot's schematic (x=1.0, y=10.0) by an affine fit of node x/y to lat/lon; depth 10 km assumed. Distances are now real kilometres, so shaking is lower than the pilot's, which read schematic units as km.",
-    "bridge_location": "Each bridge sits at the midpoint of its link's end nodes; bridge locations are not surveyed."
+    "bridge_location": "Each bridge sits at the midpoint of its link's end nodes; bridge locations are not surveyed.",
+    "system_events": "Each origin-destination pair has two events: a shortest-path event that survives if the journey takes at most 1.5 x its intact-network time (travel_time_tolerance 0.5), and a max-flow event that survives if at least 1 capacity unit gets through (min_flow 1). Both thresholds are assumptions, chosen for illustration."
   },
   "tables": {
     "Event": [
@@ -2488,726 +2489,2022 @@
         "hazus_class": "HWB11"
       }
     ],
-    "ODPair": [
+    "SystemEvent": [
       {
-        "id": "n1>n22",
+        "id": "n1>n22:time",
+        "analysis": "shortest-path",
         "origin": "n1",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n1>n66",
+        "id": "n1>n66:time",
+        "analysis": "shortest-path",
         "origin": "n1",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n2>n22",
+        "id": "n2>n22:time",
+        "analysis": "shortest-path",
         "origin": "n2",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n2>n66",
+        "id": "n2>n66:time",
+        "analysis": "shortest-path",
         "origin": "n2",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n3>n22",
+        "id": "n3>n22:time",
+        "analysis": "shortest-path",
         "origin": "n3",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n3>n66",
+        "id": "n3>n66:time",
+        "analysis": "shortest-path",
         "origin": "n3",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n4>n22",
+        "id": "n4>n22:time",
+        "analysis": "shortest-path",
         "origin": "n4",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n4>n66",
+        "id": "n4>n66:time",
+        "analysis": "shortest-path",
         "origin": "n4",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n5>n22",
+        "id": "n5>n22:time",
+        "analysis": "shortest-path",
         "origin": "n5",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n5>n66",
+        "id": "n5>n66:time",
+        "analysis": "shortest-path",
         "origin": "n5",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n6>n22",
+        "id": "n6>n22:time",
+        "analysis": "shortest-path",
         "origin": "n6",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n6>n66",
+        "id": "n6>n66:time",
+        "analysis": "shortest-path",
         "origin": "n6",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n7>n22",
+        "id": "n7>n22:time",
+        "analysis": "shortest-path",
         "origin": "n7",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n7>n66",
+        "id": "n7>n66:time",
+        "analysis": "shortest-path",
         "origin": "n7",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n8>n22",
+        "id": "n8>n22:time",
+        "analysis": "shortest-path",
         "origin": "n8",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n8>n66",
+        "id": "n8>n66:time",
+        "analysis": "shortest-path",
         "origin": "n8",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n9>n22",
+        "id": "n9>n22:time",
+        "analysis": "shortest-path",
         "origin": "n9",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n9>n66",
+        "id": "n9>n66:time",
+        "analysis": "shortest-path",
         "origin": "n9",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n10>n22",
+        "id": "n10>n22:time",
+        "analysis": "shortest-path",
         "origin": "n10",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n10>n66",
+        "id": "n10>n66:time",
+        "analysis": "shortest-path",
         "origin": "n10",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n11>n22",
+        "id": "n11>n22:time",
+        "analysis": "shortest-path",
         "origin": "n11",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n11>n66",
+        "id": "n11>n66:time",
+        "analysis": "shortest-path",
         "origin": "n11",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n12>n22",
+        "id": "n12>n22:time",
+        "analysis": "shortest-path",
         "origin": "n12",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n12>n66",
+        "id": "n12>n66:time",
+        "analysis": "shortest-path",
         "origin": "n12",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n13>n22",
+        "id": "n13>n22:time",
+        "analysis": "shortest-path",
         "origin": "n13",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n13>n66",
+        "id": "n13>n66:time",
+        "analysis": "shortest-path",
         "origin": "n13",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n14>n22",
+        "id": "n14>n22:time",
+        "analysis": "shortest-path",
         "origin": "n14",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n14>n66",
+        "id": "n14>n66:time",
+        "analysis": "shortest-path",
         "origin": "n14",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n15>n22",
+        "id": "n15>n22:time",
+        "analysis": "shortest-path",
         "origin": "n15",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n15>n66",
+        "id": "n15>n66:time",
+        "analysis": "shortest-path",
         "origin": "n15",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n16>n22",
+        "id": "n16>n22:time",
+        "analysis": "shortest-path",
         "origin": "n16",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n16>n66",
+        "id": "n16>n66:time",
+        "analysis": "shortest-path",
         "origin": "n16",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n17>n22",
+        "id": "n17>n22:time",
+        "analysis": "shortest-path",
         "origin": "n17",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n17>n66",
+        "id": "n17>n66:time",
+        "analysis": "shortest-path",
         "origin": "n17",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n18>n22",
+        "id": "n18>n22:time",
+        "analysis": "shortest-path",
         "origin": "n18",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n18>n66",
+        "id": "n18>n66:time",
+        "analysis": "shortest-path",
         "origin": "n18",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n19>n22",
+        "id": "n19>n22:time",
+        "analysis": "shortest-path",
         "origin": "n19",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n19>n66",
+        "id": "n19>n66:time",
+        "analysis": "shortest-path",
         "origin": "n19",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n20>n22",
+        "id": "n20>n22:time",
+        "analysis": "shortest-path",
         "origin": "n20",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n20>n66",
+        "id": "n20>n66:time",
+        "analysis": "shortest-path",
         "origin": "n20",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n21>n22",
+        "id": "n21>n22:time",
+        "analysis": "shortest-path",
         "origin": "n21",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n21>n66",
+        "id": "n21>n66:time",
+        "analysis": "shortest-path",
         "origin": "n21",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n23>n22",
+        "id": "n23>n22:time",
+        "analysis": "shortest-path",
         "origin": "n23",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n23>n66",
+        "id": "n23>n66:time",
+        "analysis": "shortest-path",
         "origin": "n23",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n24>n22",
+        "id": "n24>n22:time",
+        "analysis": "shortest-path",
         "origin": "n24",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n24>n66",
+        "id": "n24>n66:time",
+        "analysis": "shortest-path",
         "origin": "n24",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n25>n22",
+        "id": "n25>n22:time",
+        "analysis": "shortest-path",
         "origin": "n25",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n25>n66",
+        "id": "n25>n66:time",
+        "analysis": "shortest-path",
         "origin": "n25",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n26>n22",
+        "id": "n26>n22:time",
+        "analysis": "shortest-path",
         "origin": "n26",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n26>n66",
+        "id": "n26>n66:time",
+        "analysis": "shortest-path",
         "origin": "n26",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n27>n22",
+        "id": "n27>n22:time",
+        "analysis": "shortest-path",
         "origin": "n27",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n27>n66",
+        "id": "n27>n66:time",
+        "analysis": "shortest-path",
         "origin": "n27",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n28>n22",
+        "id": "n28>n22:time",
+        "analysis": "shortest-path",
         "origin": "n28",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n28>n66",
+        "id": "n28>n66:time",
+        "analysis": "shortest-path",
         "origin": "n28",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n29>n22",
+        "id": "n29>n22:time",
+        "analysis": "shortest-path",
         "origin": "n29",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n29>n66",
+        "id": "n29>n66:time",
+        "analysis": "shortest-path",
         "origin": "n29",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n30>n22",
+        "id": "n30>n22:time",
+        "analysis": "shortest-path",
         "origin": "n30",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n30>n66",
+        "id": "n30>n66:time",
+        "analysis": "shortest-path",
         "origin": "n30",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n31>n22",
+        "id": "n31>n22:time",
+        "analysis": "shortest-path",
         "origin": "n31",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n31>n66",
+        "id": "n31>n66:time",
+        "analysis": "shortest-path",
         "origin": "n31",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n32>n22",
+        "id": "n32>n22:time",
+        "analysis": "shortest-path",
         "origin": "n32",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n32>n66",
+        "id": "n32>n66:time",
+        "analysis": "shortest-path",
         "origin": "n32",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n33>n22",
+        "id": "n33>n22:time",
+        "analysis": "shortest-path",
         "origin": "n33",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n33>n66",
+        "id": "n33>n66:time",
+        "analysis": "shortest-path",
         "origin": "n33",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n34>n22",
+        "id": "n34>n22:time",
+        "analysis": "shortest-path",
         "origin": "n34",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n34>n66",
+        "id": "n34>n66:time",
+        "analysis": "shortest-path",
         "origin": "n34",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n35>n22",
+        "id": "n35>n22:time",
+        "analysis": "shortest-path",
         "origin": "n35",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n35>n66",
+        "id": "n35>n66:time",
+        "analysis": "shortest-path",
         "origin": "n35",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n36>n22",
+        "id": "n36>n22:time",
+        "analysis": "shortest-path",
         "origin": "n36",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n36>n66",
+        "id": "n36>n66:time",
+        "analysis": "shortest-path",
         "origin": "n36",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n37>n22",
+        "id": "n37>n22:time",
+        "analysis": "shortest-path",
         "origin": "n37",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n37>n66",
+        "id": "n37>n66:time",
+        "analysis": "shortest-path",
         "origin": "n37",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n38>n22",
+        "id": "n38>n22:time",
+        "analysis": "shortest-path",
         "origin": "n38",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n38>n66",
+        "id": "n38>n66:time",
+        "analysis": "shortest-path",
         "origin": "n38",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n39>n22",
+        "id": "n39>n22:time",
+        "analysis": "shortest-path",
         "origin": "n39",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n39>n66",
+        "id": "n39>n66:time",
+        "analysis": "shortest-path",
         "origin": "n39",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n40>n22",
+        "id": "n40>n22:time",
+        "analysis": "shortest-path",
         "origin": "n40",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n40>n66",
+        "id": "n40>n66:time",
+        "analysis": "shortest-path",
         "origin": "n40",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n41>n22",
+        "id": "n41>n22:time",
+        "analysis": "shortest-path",
         "origin": "n41",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n41>n66",
+        "id": "n41>n66:time",
+        "analysis": "shortest-path",
         "origin": "n41",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n42>n22",
+        "id": "n42>n22:time",
+        "analysis": "shortest-path",
         "origin": "n42",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n42>n66",
+        "id": "n42>n66:time",
+        "analysis": "shortest-path",
         "origin": "n42",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n43>n22",
+        "id": "n43>n22:time",
+        "analysis": "shortest-path",
         "origin": "n43",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n43>n66",
+        "id": "n43>n66:time",
+        "analysis": "shortest-path",
         "origin": "n43",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n44>n22",
+        "id": "n44>n22:time",
+        "analysis": "shortest-path",
         "origin": "n44",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n44>n66",
+        "id": "n44>n66:time",
+        "analysis": "shortest-path",
         "origin": "n44",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n45>n22",
+        "id": "n45>n22:time",
+        "analysis": "shortest-path",
         "origin": "n45",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n45>n66",
+        "id": "n45>n66:time",
+        "analysis": "shortest-path",
         "origin": "n45",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n46>n22",
+        "id": "n46>n22:time",
+        "analysis": "shortest-path",
         "origin": "n46",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n46>n66",
+        "id": "n46>n66:time",
+        "analysis": "shortest-path",
         "origin": "n46",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n47>n22",
+        "id": "n47>n22:time",
+        "analysis": "shortest-path",
         "origin": "n47",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n47>n66",
+        "id": "n47>n66:time",
+        "analysis": "shortest-path",
         "origin": "n47",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n48>n22",
+        "id": "n48>n22:time",
+        "analysis": "shortest-path",
         "origin": "n48",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n48>n66",
+        "id": "n48>n66:time",
+        "analysis": "shortest-path",
         "origin": "n48",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n49>n22",
+        "id": "n49>n22:time",
+        "analysis": "shortest-path",
         "origin": "n49",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n49>n66",
+        "id": "n49>n66:time",
+        "analysis": "shortest-path",
         "origin": "n49",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n50>n22",
+        "id": "n50>n22:time",
+        "analysis": "shortest-path",
         "origin": "n50",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n50>n66",
+        "id": "n50>n66:time",
+        "analysis": "shortest-path",
         "origin": "n50",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n51>n22",
+        "id": "n51>n22:time",
+        "analysis": "shortest-path",
         "origin": "n51",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n51>n66",
+        "id": "n51>n66:time",
+        "analysis": "shortest-path",
         "origin": "n51",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n52>n22",
+        "id": "n52>n22:time",
+        "analysis": "shortest-path",
         "origin": "n52",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n52>n66",
+        "id": "n52>n66:time",
+        "analysis": "shortest-path",
         "origin": "n52",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n53>n22",
+        "id": "n53>n22:time",
+        "analysis": "shortest-path",
         "origin": "n53",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n53>n66",
+        "id": "n53>n66:time",
+        "analysis": "shortest-path",
         "origin": "n53",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n54>n22",
+        "id": "n54>n22:time",
+        "analysis": "shortest-path",
         "origin": "n54",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n54>n66",
+        "id": "n54>n66:time",
+        "analysis": "shortest-path",
         "origin": "n54",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n55>n22",
+        "id": "n55>n22:time",
+        "analysis": "shortest-path",
         "origin": "n55",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n55>n66",
+        "id": "n55>n66:time",
+        "analysis": "shortest-path",
         "origin": "n55",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n56>n22",
+        "id": "n56>n22:time",
+        "analysis": "shortest-path",
         "origin": "n56",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n56>n66",
+        "id": "n56>n66:time",
+        "analysis": "shortest-path",
         "origin": "n56",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n57>n22",
+        "id": "n57>n22:time",
+        "analysis": "shortest-path",
         "origin": "n57",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n57>n66",
+        "id": "n57>n66:time",
+        "analysis": "shortest-path",
         "origin": "n57",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n58>n22",
+        "id": "n58>n22:time",
+        "analysis": "shortest-path",
         "origin": "n58",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n58>n66",
+        "id": "n58>n66:time",
+        "analysis": "shortest-path",
         "origin": "n58",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n59>n22",
+        "id": "n59>n22:time",
+        "analysis": "shortest-path",
         "origin": "n59",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n59>n66",
+        "id": "n59>n66:time",
+        "analysis": "shortest-path",
         "origin": "n59",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n60>n22",
+        "id": "n60>n22:time",
+        "analysis": "shortest-path",
         "origin": "n60",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n60>n66",
+        "id": "n60>n66:time",
+        "analysis": "shortest-path",
         "origin": "n60",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n61>n22",
+        "id": "n61>n22:time",
+        "analysis": "shortest-path",
         "origin": "n61",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n61>n66",
+        "id": "n61>n66:time",
+        "analysis": "shortest-path",
         "origin": "n61",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n62>n22",
+        "id": "n62>n22:time",
+        "analysis": "shortest-path",
         "origin": "n62",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n62>n66",
+        "id": "n62>n66:time",
+        "analysis": "shortest-path",
         "origin": "n62",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n63>n22",
+        "id": "n63>n22:time",
+        "analysis": "shortest-path",
         "origin": "n63",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n63>n66",
+        "id": "n63>n66:time",
+        "analysis": "shortest-path",
         "origin": "n63",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n64>n22",
+        "id": "n64>n22:time",
+        "analysis": "shortest-path",
         "origin": "n64",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n64>n66",
+        "id": "n64>n66:time",
+        "analysis": "shortest-path",
         "origin": "n64",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n65>n22",
+        "id": "n65>n22:time",
+        "analysis": "shortest-path",
         "origin": "n65",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n65>n66",
+        "id": "n65>n66:time",
+        "analysis": "shortest-path",
         "origin": "n65",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n67>n22",
+        "id": "n67>n22:time",
+        "analysis": "shortest-path",
         "origin": "n67",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n67>n66",
+        "id": "n67>n66:time",
+        "analysis": "shortest-path",
         "origin": "n67",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n68>n22",
+        "id": "n68>n22:time",
+        "analysis": "shortest-path",
         "origin": "n68",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n68>n66",
+        "id": "n68>n66:time",
+        "analysis": "shortest-path",
         "origin": "n68",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n69>n22",
+        "id": "n69>n22:time",
+        "analysis": "shortest-path",
         "origin": "n69",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n69>n66",
+        "id": "n69>n66:time",
+        "analysis": "shortest-path",
         "origin": "n69",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n70>n22",
+        "id": "n70>n22:time",
+        "analysis": "shortest-path",
         "origin": "n70",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n70>n66",
+        "id": "n70>n66:time",
+        "analysis": "shortest-path",
         "origin": "n70",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n71>n22",
+        "id": "n71>n22:time",
+        "analysis": "shortest-path",
         "origin": "n71",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n71>n66",
+        "id": "n71>n66:time",
+        "analysis": "shortest-path",
         "origin": "n71",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n72>n22",
+        "id": "n72>n22:time",
+        "analysis": "shortest-path",
         "origin": "n72",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n72>n66",
+        "id": "n72>n66:time",
+        "analysis": "shortest-path",
         "origin": "n72",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n73>n22",
+        "id": "n73>n22:time",
+        "analysis": "shortest-path",
         "origin": "n73",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n73>n66",
+        "id": "n73>n66:time",
+        "analysis": "shortest-path",
         "origin": "n73",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n74>n22",
+        "id": "n74>n22:time",
+        "analysis": "shortest-path",
         "origin": "n74",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
       },
       {
-        "id": "n74>n66",
+        "id": "n74>n66:time",
+        "analysis": "shortest-path",
         "origin": "n74",
-        "destination": "n66"
+        "destination": "n66",
+        "travel_time_tolerance": 0.5
+      },
+      {
+        "id": "n1>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n1",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n1>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n1",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n2>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n2",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n2>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n2",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n3>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n3",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n3>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n3",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n4>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n4",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n4>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n4",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n5>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n5",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n5>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n5",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n6>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n6",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n6>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n6",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n7>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n7",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n7>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n7",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n8>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n8",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n8>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n8",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n9>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n9",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n9>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n9",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n10>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n10",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n10>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n10",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n11>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n11",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n11>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n11",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n12>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n12",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n12>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n12",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n13>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n13",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n13>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n13",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n14>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n14",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n14>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n14",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n15>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n15",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n15>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n15",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n16>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n16",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n16>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n16",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n17>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n17",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n17>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n17",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n18>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n18",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n18>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n18",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n19>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n19",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n19>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n19",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n20>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n20",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n20>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n20",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n21>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n21",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n21>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n21",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n23>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n23",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n23>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n23",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n24>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n24",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n24>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n24",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n25>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n25",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n25>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n25",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n26>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n26",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n26>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n26",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n27>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n27",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n27>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n27",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n28>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n28",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n28>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n28",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n29>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n29",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n29>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n29",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n30>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n30",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n30>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n30",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n31>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n31",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n31>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n31",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n32>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n32",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n32>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n32",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n33>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n33",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n33>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n33",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n34>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n34",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n34>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n34",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n35>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n35",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n35>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n35",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n36>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n36",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n36>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n36",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n37>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n37",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n37>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n37",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n38>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n38",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n38>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n38",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n39>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n39",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n39>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n39",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n40>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n40",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n40>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n40",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n41>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n41",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n41>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n41",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n42>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n42",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n42>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n42",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n43>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n43",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n43>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n43",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n44>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n44",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n44>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n44",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n45>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n45",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n45>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n45",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n46>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n46",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n46>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n46",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n47>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n47",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n47>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n47",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n48>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n48",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n48>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n48",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n49>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n49",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n49>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n49",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n50>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n50",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n50>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n50",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n51>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n51",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n51>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n51",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n52>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n52",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n52>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n52",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n53>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n53",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n53>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n53",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n54>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n54",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n54>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n54",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n55>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n55",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n55>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n55",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n56>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n56",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n56>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n56",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n57>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n57",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n57>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n57",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n58>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n58",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n58>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n58",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n59>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n59",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n59>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n59",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n60>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n60",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n60>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n60",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n61>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n61",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n61>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n61",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n62>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n62",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n62>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n62",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n63>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n63",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n63>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n63",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n64>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n64",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n64>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n64",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n65>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n65",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n65>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n65",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n67>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n67",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n67>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n67",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n68>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n68",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n68>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n68",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n69>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n69",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n69>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n69",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n70>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n70",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n70>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n70",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n71>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n71",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n71>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n71",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n72>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n72",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n72>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n72",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n73>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n73",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n73>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n73",
+        "destination": "n66",
+        "min_flow": 1
+      },
+      {
+        "id": "n74>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n74",
+        "destination": "n22",
+        "min_flow": 1
+      },
+      {
+        "id": "n74>n66:flow",
+        "analysis": "max-flow",
+        "origin": "n74",
+        "destination": "n66",
+        "min_flow": 1
       }
     ]
   }

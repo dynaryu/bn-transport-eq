@@ -1,10 +1,10 @@
 {
   "$schema": "../meta/function.schema.json",
   "id": "system.shortest-path",
-  "label": "Shortest travel time over open links",
-  "version": "0.1.0",
+  "label": "Shortest travel time over open links, and whether it stays within tolerance",
+  "version": "0.2.0",
   "role": "system",
-  "per": "ODPair",
+  "per": "SystemEvent",
   "inputs": [
     {
       "name": "open",
@@ -17,11 +17,17 @@
     {
       "name": "travel_time",
       "quantity": "TravelTime"
+    },
+    {
+      "name": "state",
+      "quantity": "SystemState",
+      "description": "1 if travel time <= (1 + travel_time_tolerance) x the intact network's, else 0."
     }
   ],
   "attributes": [
     "origin",
-    "destination"
+    "destination",
+    "travel_time_tolerance"
   ],
   "tables": [
     "Node",
@@ -46,5 +52,5 @@
   "capabilities": [
     "SampleForward"
   ],
-  "description": "Dijkstra on Edge.length_km / speed over the open links, from each origin. Joint across the ODPair plate: every pair reads the same link states in the same sample."
+  "description": "Dijkstra on Edge.length_km / speed over the open links. The event survives if its travel time is within its tolerance of the intact network's (every link open); no route means failure. Joint across the SystemEvent plate: every event reads the same link states in the same sample."
 }

@@ -103,16 +103,37 @@
       "description": "A bridge, where it is and what kind it is. Its location is what every hazard function reads, so ground motion is one node per bridge."
     },
     {
-      "id": "ODPair",
-      "label": "Origin-destination pair",
+      "id": "SystemEvent",
+      "label": "System event",
       "attributes": {
+        "analysis": {
+          "type": "string",
+          "description": "Which system function defines the event: shortest-path or max-flow. Assemblies bind each function to its events with where."
+        },
         "origin": {
           "ref": "Node"
         },
         "destination": {
           "ref": "Node"
+        },
+        "travel_time_tolerance": {
+          "type": "number",
+          "unit": "fraction",
+          "required": false,
+          "description": "shortest-path: survives if travel time <= (1 + this) x the intact network's. 0.5 allows a journey 50% longer."
+        },
+        "min_flow": {
+          "type": "number",
+          "unit": "Edge.capacity units",
+          "required": false,
+          "description": "max-flow: survives if the max flow is at least this."
+        },
+        "description": {
+          "type": "string",
+          "required": false
         }
-      }
+      },
+      "description": "One origin-destination performance requirement, defined in the network: which analysis, between which nodes, and what counts as surviving. Each becomes a SystemState node, alongside the travel time or flow it is judged on."
     }
   ]
 }

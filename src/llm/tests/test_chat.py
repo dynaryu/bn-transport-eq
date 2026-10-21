@@ -92,7 +92,7 @@ def test_a_model_that_never_stops_calling_tools_is_cut_off(monkeypatch):
 
 def test_the_prompt_describes_the_actual_bn():
     prompt = chat.system_prompt(engine.describe("ema-highway/gmm"))
-    assert "TravelTime on ODPair (144 nodes" in prompt
+    assert prompt.count("SystemState on SystemEvent (144 nodes") == 2       # one line per analysis
     assert '"ema-reference": {"mw"' in prompt
     assert "forward-only" in prompt and "Never estimate" in prompt
 

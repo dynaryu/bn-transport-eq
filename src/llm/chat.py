@@ -351,7 +351,10 @@ def _examples(menu: Mapping[str, Any]) -> list[str]:
                    f"= P(no open route for {node.partition('::')[2]})")
         out.append(f'{{"targets": ["{node}"]}}  = the distribution of that travel time')
     if "MaxFlow" in by_id:
-        out.append('{"targets": ["MaxFlow::*"]}  = max flow for every OD pair')
+        out.append('{"targets": ["MaxFlow::*"]}  = max flow for every max-flow event')
+    if "SystemState" in by_id:
+        out.append('{"events": [{"node": "SystemState::*", "op": "==", "value": 0}]}  '
+                   '= P(each system event fails, by its own definition)')
     if "LinkOpen" in by_id:
         out.append('{"events": [{"node": "LinkOpen::*", "op": "==", "value": 0}]}  = P(each link closed)')
     return out

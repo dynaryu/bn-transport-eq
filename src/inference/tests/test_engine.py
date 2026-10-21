@@ -70,16 +70,16 @@ def test_interventions_change_the_answer_in_the_right_direction():
 def test_a_lower_magnitude_lowers_the_chance_of_losing_a_route():
     def p(mw):
         r = answer({"assembly": EMA, "rows": {"ema-reference": {"mw": mw}}, "samples": 1500, "seed": 3,
-                    "events": [{"node": "TravelTime::n1>n66", "op": "==", "value": "inf"}]})
+                    "events": [{"node": "SystemState::n1>n66:time", "op": "==", "value": 0}]})
         return r["events"][0]["p"]
 
     assert p(6.0) <= p(8.0)
 
 
 def test_statement_reads_back_the_query():
-    s = statement({"assembly": SHAKEMAP, "events": [{"node": "TravelTime::n1>n22", "op": "<=", "value": 600}],
+    s = statement({"assembly": SHAKEMAP, "events": [{"node": "TravelTime::n1>n22:time", "op": "<=", "value": 600}],
                    "parameters": {"hazard.shakemap": {"event_id": "us7000abcd"}}})
-    assert s.startswith("P(TravelTime[n1>n22] ≤ 600) | do(hazard.shakemap.event_id = us7000abcd)")
+    assert s.startswith("P(TravelTime[n1>n22:time] ≤ 600) | do(hazard.shakemap.event_id = us7000abcd)")
 
 
 @pytest.mark.parametrize("query, message", [

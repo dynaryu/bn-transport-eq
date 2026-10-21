@@ -42,7 +42,7 @@ def test_view_data_has_the_schema_and_every_bn():
     links = {(x["from"], x["to"]) for x in views["library"]["links"]}
     for hazard in ("hazard.gmm", "hazard.shakemap"):
         assert (hazard, "fragility.lognormal") in links          # alternatives, all type-compatible
-    assert views["ema-highway/gmm"]["n_nodes"] == 805
+    assert views["ema-highway/gmm"]["n_nodes"] == 1093           # 805 + one SystemState per event
     assert views["ema-highway/gmm"]["menu"]["settable"]["rows"]
 
 
@@ -69,8 +69,8 @@ def test_the_page_and_its_data_are_served(base_url):
 
 def test_a_query_is_answered_and_a_bad_one_explained(base_url):
     status, body = post(base_url + "/api/query", {"assembly": "ema-highway/gmm",
-                                                  "targets": ["TravelTime::n1>n22"], "samples": 200})
-    assert status == 200 and body["targets"][0]["node"] == "TravelTime::n1>n22"
+                                                  "targets": ["TravelTime::n1>n22:time"], "samples": 200})
+    assert status == 200 and body["targets"][0]["node"] == "TravelTime::n1>n22:time"
     status, body = post(base_url + "/api/query", {"assembly": "ema-highway/gmm",
                                                   "targets": ["SA(1.0)::*"], "evidence": {"x": 1}})
     assert status == 400 and "forward inference only" in body["error"]

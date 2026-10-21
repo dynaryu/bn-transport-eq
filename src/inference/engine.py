@@ -60,7 +60,7 @@ def node_label(node: str) -> str:
 
 
 def statement(query: Mapping[str, Any]) -> str:
-    """The query as a probability expression, e.g. P(TravelTime[n1>n22] ≤ 60 | do(...))."""
+    """The query as a probability expression, e.g. P(SystemState[n1>n22:time] = 0 | do(...))."""
     asked = [f"P({node_label(e['node'])} {_OP_TEXT.get(e['op'], e['op'])} {e['value']})"
              for e in query.get("events", [])]
     asked += [f"distribution of {node_label(t)}" for t in query.get("targets", [])]

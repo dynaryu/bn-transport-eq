@@ -38,7 +38,7 @@ Set up once, with either conda or uv:
 ```bash
 python -m src check                          # 1-3: validate everything, compile every assembly
 python -m src compile ema-highway/gmm        # 3: what one assembly expands to, binding by binding
-python -m src query ema-highway/gmm --event "TravelTime::*>n66==inf" --set ema-reference.mw=7
+python -m src query ema-highway/gmm --event "SystemState::*>n66:time==0" --set ema-reference.mw=7
 python -m src ask ema-highway/gmm "Would n1 still reach n66 after an M7?"             # 5: needs a model
 python -m src serve --open                   # 6: the page, at http://127.0.0.1:8765
 python -m src export --open                  # 6: its drawings as one file, no server (.cache/schema.html)
@@ -58,6 +58,10 @@ python -m pytest -q                          # the tests
   produce an IM on `Bridge`, from each bridge's own lat/lon, so swapping one for the other is one line.
   Which GMM is chosen by where the network is, and the IM itself is left open:
   `PGA`, `SA(0.3)`, `SA(1.0)`... wire only to curves on the same IM.
+- **A system event is defined in the network**: each `SystemEvent` row names its
+  analysis (shortest path or max flow), its origin and destination, and what counts
+  as surviving (a travel time within `travel_time_tolerance` of the intact network's,
+  or a max flow of at least `min_flow`). Each becomes a binary `SystemState` node.
 - **A query is a probability statement**: targets and threshold events, under
   `do()`-style settings of rows and parameters. Evidence is refused: the engine is
   forward-only.
@@ -71,17 +75,18 @@ The schema's design and how to add to it: [`schema/README.md`](schema/README.md)
 ```json
 {
   "assembly": "ema-highway/gmm",
-  "events": [{"node": "TravelTime::*>n66", "op": "==", "value": "inf"}],
+  "events": [{"node": "SystemState::*>n66:time", "op": "==", "value": 0}],
   "rows": {"ema-reference": {"mw": 7.0}},
   "parameter_sets": {"functionality.usable-from-damage": "policy.closed-at-moderate"},
   "samples": 2000
 }
 ```
 
-reads back as `P(TravelTime[*>n66] = inf) | do(ema-reference.mw = 7.0,
-functionality.usable-from-damage with policy.closed-at-moderate)`. The answer gives
-one probability per matching OD pair, with a 95% interval, and runs only the
-bindings those nodes depend on (max flow is skipped here).
+reads back as `P(SystemState[*>n66:time] = 0) | do(ema-reference.mw = 7.0,
+functionality.usable-from-damage with policy.closed-at-moderate)`: the chance that each
+journey to n66 fails its event, i.e. takes more than 1.5 × its intact time or finds no
+route. The answer gives one probability per matching event, with a 95% interval, and
+runs only the bindings those nodes depend on (max flow is skipped here).
 
 ## Language models
 

@@ -144,6 +144,16 @@
         null
       ],
       "description": "In whatever unit the network's Edge.capacity is stated in; the network's assumptions name it."
+    },
+    {
+      "id": "SystemState",
+      "label": "System event survives",
+      "kind": "discrete",
+      "states": [
+        0,
+        1
+      ],
+      "description": "0 failed, 1 survived, by the event's own definition: a travel time within its tolerance of the intact network's, or a max flow at or above its threshold. The binary node a system-reliability analysis is about."
     }
   ]
 }

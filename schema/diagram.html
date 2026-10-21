@@ -340,6 +340,17 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
    ],
    "description": "In whatever unit the network's Edge.capacity is stated in; the network's assumptions name it.",
    "type": "Edge.capacity units"
+  },
+  "SystemState": {
+   "id": "SystemState",
+   "label": "System event survives",
+   "kind": "discrete",
+   "states": [
+    0,
+    1
+   ],
+   "description": "0 failed, 1 survived, by the event's own definition: a travel time within its tolerance of the intact network's, or a max flow at or above its threshold. The binary node a system-reliability analysis is about.",
+   "type": "{0,1}"
   }
  },
  "entities": [
@@ -445,16 +456,37 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
    "description": "A bridge, where it is and what kind it is. Its location is what every hazard function reads, so ground motion is one node per bridge."
   },
   {
-   "id": "ODPair",
-   "label": "Origin-destination pair",
+   "id": "SystemEvent",
+   "label": "System event",
    "attributes": {
+    "analysis": {
+     "type": "string",
+     "description": "Which system function defines the event: shortest-path or max-flow. Assemblies bind each function to its events with where."
+    },
     "origin": {
      "ref": "Node"
     },
     "destination": {
      "ref": "Node"
+    },
+    "travel_time_tolerance": {
+     "type": "number",
+     "unit": "fraction",
+     "required": false,
+     "description": "shortest-path: survives if travel time <= (1 + this) x the intact network's. 0.5 allows a journey 50% longer."
+    },
+    "min_flow": {
+     "type": "number",
+     "unit": "Edge.capacity units",
+     "required": false,
+     "description": "max-flow: survives if the max flow is at least this."
+    },
+    "description": {
+     "type": "string",
+     "required": false
     }
-   }
+   },
+   "description": "One origin-destination performance requirement, defined in the network: which analysis, between which nodes, and what counts as surviving. Each becomes a SystemState node, alongside the travel time or flow it is judged on."
   }
  ],
  "views": [
@@ -951,9 +983,9 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     {
      "key": "system.max-flow",
      "function": "system.max-flow",
-     "label": "Maximum flow over open links",
+     "label": "Maximum flow over open links, and whether it meets its threshold",
      "role": "system",
-     "per": "ODPair",
+     "per": "SystemEvent",
      "inputs": [
       {
        "name": "open",
@@ -975,11 +1007,21 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
         "MaxFlow"
        ],
        "template": null
+      },
+      {
+       "name": "state",
+       "quantity": "SystemState",
+       "description": "1 if max flow >= min_flow, else 0.",
+       "choices": [
+        "SystemState"
+       ],
+       "template": null
       }
      ],
      "attributes": [
       "origin",
-      "destination"
+      "destination",
+      "min_flow"
      ],
      "tables": [
       "Node",
@@ -992,16 +1034,16 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "capabilities": [
       "SampleForward"
      ],
-     "description": "Origin-to-destination max flow, with Edge.capacity on each open link and 0 on a closed one. Parallel links add their capacities; an undirected link carries its capacity in each direction.",
+     "description": "Origin-to-destination max flow, with Edge.capacity on each open link and 0 on a closed one; the event survives if it reaches min_flow. Parallel links add their capacities; an undirected link carries its capacity in each direction.",
      "parameter_sets": [],
      "n_parameter_sets": 0
     },
     {
      "key": "system.shortest-path",
      "function": "system.shortest-path",
-     "label": "Shortest travel time over open links",
+     "label": "Shortest travel time over open links, and whether it stays within tolerance",
      "role": "system",
-     "per": "ODPair",
+     "per": "SystemEvent",
      "inputs": [
       {
        "name": "open",
@@ -1023,11 +1065,21 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
         "TravelTime"
        ],
        "template": null
+      },
+      {
+       "name": "state",
+       "quantity": "SystemState",
+       "description": "1 if travel time <= (1 + travel_time_tolerance) x the intact network's, else 0.",
+       "choices": [
+        "SystemState"
+       ],
+       "template": null
       }
      ],
      "attributes": [
       "origin",
-      "destination"
+      "destination",
+      "travel_time_tolerance"
      ],
      "tables": [
       "Node",
@@ -1040,7 +1092,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "capabilities": [
       "SampleForward"
      ],
-     "description": "Dijkstra on Edge.length_km / speed over the open links, from each origin. Joint across the ODPair plate: every pair reads the same link states in the same sample.",
+     "description": "Dijkstra on Edge.length_km / speed over the open links. The event survives if its travel time is within its tolerance of the intact network's (every link open); no route means failure. Joint across the SystemEvent plate: every event reads the same link states in the same sample.",
      "parameter_sets": [
       {
        "id": "speed.uniform-80kph",

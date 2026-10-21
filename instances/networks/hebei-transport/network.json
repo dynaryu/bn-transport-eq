@@ -16,7 +16,8 @@
     "functionality": "Moved out of the data: the usable-from-damage parameter set the assembly binds (policy.closed-at-extensive) states it.",
     "length_km": "Great-circle distance between a link's end nodes; the dataset gives no lengths.",
     "capacity": "The dataset's highest capacity state per arc (unitless capacity levels).",
-    "bridge_location": "Each bridge sits at the midpoint of its link's end nodes; bridge locations are not surveyed."
+    "bridge_location": "Each bridge sits at the midpoint of its link's end nodes; bridge locations are not surveyed.",
+    "system_events": "Each origin-destination pair has two events: a shortest-path event that survives if the journey takes at most 1.5 x its intact-network time (travel_time_tolerance 0.5), and a max-flow event that survives if at least 1 capacity unit gets through (min_flow 1). Both thresholds are assumptions, chosen for illustration."
   },
   "tables": {
     "Node": [
@@ -644,11 +645,20 @@
         "hazus_class": "HWB11"
       }
     ],
-    "ODPair": [
+    "SystemEvent": [
       {
-        "id": "n1>n22",
+        "id": "n1>n22:time",
+        "analysis": "shortest-path",
         "origin": "n1",
-        "destination": "n22"
+        "destination": "n22",
+        "travel_time_tolerance": 0.5
+      },
+      {
+        "id": "n1>n22:flow",
+        "analysis": "max-flow",
+        "origin": "n1",
+        "destination": "n22",
+        "min_flow": 1
       }
     ]
   }
