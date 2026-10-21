@@ -2,6 +2,7 @@
   "case_id": "ema-highway",
   "query_type": "population_accessibility",
   "inference": "forward_monte_carlo",
+  "backend": "analytic",
   "hazard": {
     "model": "ema_reference_scenario",
     "magnitude": 8.0,
@@ -943,7 +944,7 @@
       "to": "n35",
       "bridge_class": "HWB4",
       "p_unusable": 0.03140921068295431,
-      "sa1_g": 0.2409046235019635
+      "sa1_g": 0.24090462350196348
     },
     {
       "edge_id": "e0072",
@@ -1655,7 +1656,7 @@
       "to": "n4",
       "bridge_class": "HWB11",
       "p_unusable": 0.004638792879431898,
-      "sa1_g": 0.11647992387733716
+      "sa1_g": 0.11647992387733715
     },
     {
       "edge_id": "e0025",
@@ -1777,6 +1778,6 @@
   "population_accessibility": {
     "expected_fraction": 0.9982787555071216,
     "monte_carlo_standard_error": 4.549264629528572e-05,
-    "population_in_scope": 63056.47838000001
+    "population_in_scope": 63056.47837999997
   }
 }

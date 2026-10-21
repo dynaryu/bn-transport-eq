@@ -9,18 +9,23 @@ Massachusetts highway network, and access to Handan on a Hebei transport network
 
 ## Run it
 
-```powershell
-conda env create -f environment.yml
-conda activate dra
-python -m src.forward_pilot serve --open
-```
+Set up once, with either conda or uv:
 
-That opens the pilot at `http://127.0.0.1:8765`. Nothing else is needed — the two
-cases ship as self-contained packages.
+| | conda | uv |
+|---|---|---|
+| Set up | `conda env create -f environment.yml` | `uv sync` |
+| Each session | `conda activate dra` | (nothing; prefix commands with `uv run`) |
+| Start the pilot | `python -m src.forward_pilot serve --open` | `uv run python -m src.forward_pilot serve --open` |
+| Update after a `git pull` | `conda env update -f environment.yml --prune` | `uv sync` |
+| Includes | everything: the Claude SDK, the tbnpy/torch backend, the conformance checks | the pilot only (no torch). Add `--extra anthropic` for Claude |
 
-```powershell
-python -m src.conformance.check    # every asset against its declared contract
-python -m pytest -q                # 210 tests
+That opens the pilot at `http://127.0.0.1:8765`. Nothing else is needed: the two
+cases ship as self-contained packages. The commands below are written for conda,
+as `python -m ...`; with uv, run each as `uv run python -m ...`.
+
+```bash
+python -m pytest -q                # the tests
+python -m src.conformance.check    # every asset against its declared contract (conda set-up)
 ```
 
 ## The workflow, in the order it happens
@@ -77,15 +82,167 @@ The EMA network is 331 variables across 260 nodes.
 
 ## Optional extras
 
-- **Ask in words.** With an Anthropic credential a chat panel appears: Claude picks
-  the scenario parameters, the engine computes the numbers, and every answer shows
-  the query it ran. Claude is never asked to estimate a probability. Setting up the
-  credential is its own section below.
+- **Ask in words.** With a local [Ollama](https://ollama.com) server (free), a
+  Gemini key (free tier) or a Claude credential, a chat panel appears: the language model picks the scenario
+  parameters, the engine computes the numbers, and every answer shows the query it
+  ran. The model is never asked to estimate a probability. Setting up a backend is
+  its own section below.
 - **tbnpy and torch** build the Bayesian network. Without them a closed-form
   backend runs instead, and an equivalence test holds the two together.
 - **Rebuilding packages** from the raw datasets needs a `network-datasets`
   checkout and `NETWORK_DATASETS_ROOT`. Only needed to change a case, not to run
   one.
+
+## Real earthquakes: USGS ShakeMap
+
+Both packages can take the ground motion of a real earthquake instead of an
+analyst-set intensity. Choose **USGS ShakeMap** as the hazard representation in
+the UI, then pick an event: the list is the USGS events with a ShakeMap around the
+network. Each bridge then gets the ShakeMap's median SA(1 s) and its uncertainty
+at the arc midpoint, and the forward query runs as usual. The chat tool takes
+`shakemap_event_id` too, so "what if the 1966 Xingtai earthquake happened again?"
+works.
+
+```bash
+python -m src.forward_pilot shakemap search --case hebei-transport --min-magnitude 6
+python -m src.forward_pilot shakemap fetch iscgem849480      # Xingtai 1966, M6.8
+```
+
+Query JSON: `"hazard": {"model": "shakemap", "event_id": "iscgem849480"}`, with
+optional `"version"` and `"source"`.
+
+**Where the maps come from** (`FORWARD_PILOT_SHAKEMAP_SOURCE`):
+
+- `auto` (the default): ShakeCast first, then the USGS catalogue. A running
+  ShakeCast server's events are read from local disk. Anything it lacks is
+  fetched from the catalogue: events outside its group regions, events older
+  than its `keep_eq_for` retention, or a version it hasn't received. Without a
+  ShakeCast directory this is simply the catalogue. Event lists merge both
+  sources. Each result says which one supplied the map, because ShakeCast can
+  trail the catalogue by a version.
+- `shakecast`: only the data directory of a USGS ShakeCast server
+  (`SHAKECAST_USER_DIRECTORY`, default `~/.shakecast`). ShakeCast keeps an event
+  only if its epicentre lies inside one of its group regions, so a shared server
+  needs a group covering each network. A group with no facilities and no
+  notification settings is enough: it gets the ShakeMap downloaded without
+  emails or reports.
+- `comcat`: only the USGS catalogue. Downloads are cached in
+  `experiments/forward-bn-pilot/shakemaps/`, which is gitignored, using
+  ShakeCast's folder layout. A grid is about 30 MB. With no network connection,
+  the newest cached version is used. Any earlier version (`"version": 2`) is
+  fetched from the catalogue too, which keeps every one.
+
+**Watching for new earthquakes.** `shakemap watch` is the part of ShakeCast the
+pilot needs. It polls the USGS real-time feed and keeps events that have a
+ShakeMap, at or above M4 by default, with the epicentre around a package. It
+downloads each new ShakeMap version and runs that package's forward query. No
+language model is involved. A revised map is fetched and run again; an unchanged
+one is not.
+
+```bash
+python -m src.forward_pilot shakemap watch --once          # one poll, for cron or a scheduled job
+python -m src.forward_pilot shakemap watch --interval 120  # or keep polling every 2 minutes
+python -m src.forward_pilot shakemap heartbeat             # exit 0 if alive and well, 1 if not
+```
+
+Everything goes under `experiments/forward-bn-pilot/watch/`, which is gitignored
+(`--state-dir` or `FORWARD_PILOT_WATCH_DIR` to move it):
+
+- `results/<event>/<event>-<version>/<package>.json`: the query, a summary, and
+  the full result.
+- `state.json`: what has been seen and run.
+- `heartbeat.json`: written on every poll, successful or not.
+
+`heartbeat` fails when the last poll is older than `--max-age-minutes` (default
+10) or failed outright. Run it from a second cron entry or an alarm, so a dead
+watcher is noticed before an earthquake rather than during one. One bad event
+marks the poll `degraded` and does not stop the others. A lock file keeps
+overlapping polls from running.
+
+The page has a **Recent earthquakes** panel above the controls, filled straight
+from USGS. It lists events of the last 30 days, M4 or more, with a ShakeMap near
+a network, and checks again every 2 minutes while the page is open. No watcher
+is needed for it. An event that appears after the page was opened, such as an
+aftershock, is marked NEW, announced at the top of the page, and counted in the
+tab title. While a ShakeMap result is on screen, the page also checks whether
+USGS has revised that ShakeMap. If it has, a notice offers to re-run with the
+new version. Clicking an event loads its package and runs that ShakeMap, ready
+for the chat. The ShakeMap event picker uses the same M4 floor.
+
+A minimal deployment on a Linux instance is two cron lines. `PY` is the
+environment's interpreter: `.venv/bin/python` with uv, or the output of `which
+python` with the conda environment active.
+
+```
+PY=/path/to/python
+* * * * *    cd /path/to/bn-on-demand-pilot && $PY -m src.forward_pilot shakemap watch --once >> watch.log 2>&1
+*/10 * * * * cd /path/to/bn-on-demand-pilot && $PY -m src.forward_pilot shakemap heartbeat || <your alert command>
+```
+
+**Email when an earthquake happens: the feed watcher on AWS Lambda.** The page
+only sees new events while it is open. `feedwatch.py` runs without it. It polls
+the same feed every 2 minutes and emails you once per earthquake near a network,
+when the event's first ShakeMap appears. The email gives the magnitude, place,
+time, the networks concerned, the USGS event id and its page. Events found in
+the same poll share one email, so an aftershock sequence does not arrive as a
+flood. Revised ShakeMaps are not emailed; the open page shows those. The watcher
+downloads no grid and runs no BN. Its only dependencies are the standard library
+and boto3 (part of the Lambda runtime). `shakemap watch --fetch-only` runs the
+same poll locally, without email.
+
+Deploy it with one script, from WSL or Linux with the AWS CLI logged in (`aws
+sso login`). Run it inside the uv project or with the conda environment active;
+it uses that Python to build the zip:
+
+```bash
+bash scripts/deploy-feedwatch.sh you@example.com    # subscribes this address; confirm the email AWS sends
+```
+
+It creates:
+- an S3 bucket, `bn-pilot-watch-<account>` in `ap-southeast-2`;
+- an SNS topic for the emails;
+- the zip (`shakemap lambda-zip`);
+- a role limited to logs, the bucket, the topic and the health metric;
+- the function, with reserved concurrency 1 so polls never overlap;
+- a schedule that runs it every 2 minutes;
+- an alarm that emails the same topic when no healthy poll has been reported for
+  10 minutes, because polls are failing or the schedule has stopped.
+
+It finishes with one test poll. It is safe to re-run: existing pieces are kept,
+and the function gets fresh code. That is also how to update it after a
+package's network changes. The script's header lists its overrides (region,
+bucket, names).
+
+The bucket holds two small files under `watch/`. `state.json` records each
+event, its networks, its ShakeMap versions, and whether it has been emailed.
+`heartbeat.json` records the last poll. A Lambda keeps nothing between runs, so
+they live in S3. Nothing needs syncing to your machine: the page asks USGS
+itself. A failed email is retried on the next poll.
+
+The function's settings are environment variables, set in the Lambda console;
+re-running the script keeps them. They are `FEEDWATCH_MIN_MAGNITUDE` (default
+4), `FEEDWATCH_FEED` (default `2.5_day`), `FEEDWATCH_TOPIC_ARN` (set by the
+script) and `FEEDWATCH_PREFIX` to share a bucket. Expected cost is well under
+US$1 a month: about 22,000 one-second invocations (inside Lambda's free tier),
+two small S3 writes per poll, one custom metric with an alarm, and a few
+emails. Check current AWS pricing for your account.
+
+**Limits to keep in mind** — every result states these in its warnings:
+
+- Hebei's lat/lon are georeferenced from a schematic figure: city coordinates
+  for labelled nodes, and about ±22 km for junctions. EMA's are fitted to town
+  centres, about ±7 km. See each dataset's PROVENANCE.md. Bridge positions are arc midpoints, not surveyed sites.
+- Historical Chinese events are ShakeMap Atlas reconstructions, mostly without
+  station recordings, so their shaking is a ground-motion-model estimate with a
+  large sigma.
+- Sites are independent given the map: the spatial correlation of ground motion
+  is not represented.
+- A bridge outside the map's extent is refused, not treated as unshaken.
+
+EMA's lat/lon are fitted to the town of each node, named in the source benchmark
+(held-out error about 7 km). New England's recorded events are small: the 2020 M3.6
+in Buzzards Bay (`us7000cc4d`) covers the network, but peaks at 0.003 g. EMA's
+reference scenario still reads x/y as kilometres, but one unit is about 1.81 real km.
 
 ## Asking in words
 
@@ -93,7 +250,7 @@ The chat panel takes a question in plain language: *"How reliable is access to
 Handan if the whole network shakes at 0.7 g?"* becomes a tool call carrying the
 scenario parameters, `run_forward_query` runs exactly as it does for the form
 controls, and the reply reports the numbers that came back under the query that
-produced them. Claude is never asked to estimate a probability.
+produced them. The model is never asked to estimate a probability.
 
 The reply is built in the order the work is done. First the query, written as a
 probability statement in the model's own variables — `P(S::o = 1 | Mw = 7,
@@ -103,9 +260,9 @@ the engine computed for it. Then the prose. `/api/ask` streams these as one JSON
 object per line (`query`, `computed` or `not_computed`, `answer`) so the page can
 show each as it happens.
 
-The panel stays hidden until the **server process** holds a credential.
+The panel stays hidden until the **server process** can reach a model.
 `chat.available()` decides, `/api/chat-status` reports the reason, and the page
-asks once on load — so set the credential first, start the server, then reload
+asks once on load — so start Ollama or set the credential first, then the server, then reload
 the page. To check without hunting for the panel:
 
 ```powershell
@@ -115,9 +272,88 @@ curl http://127.0.0.1:8765/api/chat-status
 `{"available": true, ...}` means the panel will appear; otherwise `reason` names
 what is missing.
 
-### Getting a credential
+### Choosing a backend
 
-**Either route below works, and neither is a Claude subscription.** API access
+Pick the model behind the panel when starting the server with `--llm`. Add
+`--model` to use a model of that backend other than its default.
+
+| Backend | Costs | Setup | Start |
+|---|---|---|---|
+| Ollama (default) | free, runs locally | install Ollama, `ollama pull qwen3:8b` | `python -m src.forward_pilot serve` |
+| Gemini | free tier, hosted | a key from aistudio.google.com/apikey in `GEMINI_API_KEY` | `python -m src.forward_pilot serve --llm gemini` |
+| Claude | paid API credit, hosted | `ant auth login` or `ANTHROPIC_API_KEY`. The SDK comes with the conda environment; with uv, `uv sync --extra anthropic` | `python -m src.forward_pilot serve --llm anthropic` |
+
+For example, Claude with an API key:
+
+```bash
+# conda
+conda activate dra
+export ANTHROPIC_API_KEY="sk-ant-..."      # PowerShell: $env:ANTHROPIC_API_KEY = "sk-ant-..."
+python -m src.forward_pilot serve --llm anthropic --open
+
+# uv
+uv sync --extra anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+uv run python -m src.forward_pilot serve --llm anthropic --open
+```
+
+Keep the key out of the repository.
+
+On startup the server prints which backend and model it is using, and either
+"ready" or what is missing. The default models are `qwen3:8b`,
+`gemini-3.8-flash` and `claude-opus-5-5`. `FORWARD_PILOT_LLM` and
+`FORWARD_PILOT_MODEL` do the same as the flags, for a shell profile.
+
+### Ollama: free, local (the default)
+
+The model runs on your own machine and nothing leaves it. The server talks to
+Ollama's HTTP API with the standard library, so there is no Python package to add.
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh   # Linux / WSL; Windows and macOS installers at ollama.com
+ollama serve                                     # if the installer did not start it as a service
+ollama pull qwen3:8b                             # ~5 GB; needs a model with tool support
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `--model` | `qwen3:8b` | Any pulled model with tool support, e.g. `llama3.1:8b`, `mistral-small` |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Where the Ollama server listens |
+| `OLLAMA_THINK` | off | `1` turns on the model's thinking mode: slower (about 2× in a test with qwen3:8b), rarely needed to pick parameters |
+| `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps the model loaded after a question. The server also loads it at startup, so the first question does not wait for it |
+
+A small model is worse than Claude at turning a question into parameters: it may
+pick the wrong scenario or misread a place name. It cannot get the numbers wrong,
+because it never produces them, and the query it chose is shown before it runs —
+so check that line. On a CPU without a GPU each answer can take a minute or more;
+`OLLAMA_TIMEOUT` in `chat.py` caps a single call. On WSL, run Ollama inside WSL,
+alongside the server; a Windows-side Ollama is not on WSL's `localhost` unless
+mirrored networking is enabled.
+
+### Gemini: hosted, with a free tier
+
+Google's Gemini models, through their OpenAI-compatible endpoint. No Python
+package is needed; the server calls the API with the standard library.
+
+1. Create a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. Start the server with the key in its environment:
+
+   ```bash
+   export GEMINI_API_KEY="..."             # keep it out of the repository
+   python -m src.forward_pilot serve --llm gemini
+   ```
+
+The free tier is rate-limited, and Google may use free-tier prompts to improve
+its products. Check the current terms before sending anything sensitive. A
+rate-limit error appears in the panel as a sentence, not a traceback. Gemini is generally
+more reliable than a local 8B model at choosing parameters and at quoting the tool's
+numbers accurately. The numbers still come only from the engine.
+
+### Anthropic: Claude, with a credential
+
+Start the server with `--llm anthropic`. The SDK is already in the conda
+environment; with uv, run `uv sync --extra anthropic` first. Then get a
+credential. **Either route below works, and neither is a Claude subscription.** API access
 bills to an Anthropic Console account with its own credits; a Claude Pro or Max
 plan, or a Claude Code login, does not grant it. Signing up as an individual is
 enough — the Console calls your account an *organisation* and creates one for
@@ -176,8 +412,9 @@ at Claude Opus 5 rates ($5 per million input tokens, $25 per million output).
 For the handful of questions a demonstration needs, the console's minimum credit
 top-up is the real cost, not the usage.
 
-The panel calls `claude-opus-5`, set as `chat.MODEL` — one line to change if you
-want a cheaper model, and the only place the model appears.
+With the Anthropic backend the panel calls `claude-opus-5`, set as
+`chat.ANTHROPIC_MODEL` — one line to change if you want a cheaper model. The
+Ollama backend costs nothing per question.
 
 The engine itself is free: the Monte Carlo sampling behind every number in this
 repository costs nothing but your own CPU, and the form controls reach all of it

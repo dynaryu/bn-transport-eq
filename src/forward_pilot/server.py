@@ -1,8 +1,9 @@
 """Local HTTP server for the forward-inference pilot UI.
 
-Standard-library only, with one optional exception: the natural-language panel
-needs the `anthropic` package and a credential. Both are checked at request time,
-so the pilot runs unchanged when neither is present.
+Standard-library only. The natural-language panel needs a model backend: a local
+Ollama server by default, or the `anthropic` package and a credential when
+FORWARD_PILOT_LLM=anthropic. Either is checked at request time, so the pilot runs
+unchanged when neither is present.
 """
 
 from __future__ import annotations
@@ -50,6 +51,11 @@ def _readable_api_error(exc: Exception) -> str:
     return _API_ERRORS.get(name, f"The request failed ({name}). See the server log for detail.")
 
 
+RECENT_DAYS = 30
+RECENT_TTL = 60.0                 # seconds; the page asks every 2 minutes, USGS's feed updates every minute
+_recent_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+
+
 class PilotHandler(BaseHTTPRequestHandler):
     packages_root = DEFAULT_OUTPUT
 
@@ -69,6 +75,36 @@ class PilotHandler(BaseHTTPRequestHandler):
             for path in self.packages_root.iterdir()
             if path.is_dir() and (path / "network.json").is_file()
         )
+
+    def _recent_earthquakes(self) -> list[dict[str, Any]]:
+        """Events of the last ``RECENT_DAYS`` with a ShakeMap around any package,
+        newest first, each with the packages it concerns."""
+        import time
+        from datetime import datetime, timedelta, timezone
+
+        from . import shakemap
+        from .feedwatch import DEFAULT_MIN_MAGNITUDE
+
+        key = str(self.packages_root)
+        hit = _recent_cache.get(key)
+        if hit and time.monotonic() - hit[0] < RECENT_TTL:
+            return hit[1]
+        start = (datetime.now(timezone.utc) - timedelta(days=RECENT_DAYS)).strftime("%Y-%m-%d")
+        source = shakemap.ComcatSource()
+        events: dict[str, dict[str, Any]] = {}
+        for package_id in self._package_ids():
+            network = load_package(self.packages_root / package_id)
+            if "shakemap" not in network.get("hazard_models", ()):
+                continue
+            try:
+                bbox = shakemap.network_bbox(network)
+            except shakemap.ShakeMapError:
+                continue                  # offers ShakeMaps but has no coordinates
+            for event in source.search(bbox, start=start, min_magnitude=DEFAULT_MIN_MAGNITUDE):
+                events.setdefault(event["event_id"], {**event, "packages": []})["packages"].append(package_id)
+        found = sorted(events.values(), key=lambda e: e.get("time") or "", reverse=True)
+        _recent_cache[key] = (time.monotonic(), found)
+        return found
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         path = urlparse(self.path).path
@@ -110,9 +146,46 @@ class PilotHandler(BaseHTTPRequestHandler):
             limit = int((query.get("edges") or ["3"])[0])
             network = load_package(self.packages_root / package_id)
             return self._json(structure(network, edge_limit=max(1, min(6, limit))))
+        if path.startswith("/api/shakemap-events/"):
+            package_id = path.removeprefix("/api/shakemap-events/")
+            if package_id not in self._package_ids():
+                return self._json({"error": "package not found"}, HTTPStatus.NOT_FOUND)
+            from . import shakemap
+
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                source = shakemap.get_source((query.get("source") or [None])[0])
+                from .feedwatch import DEFAULT_MIN_MAGNITUDE
+
+                # The same floor as the watcher, so anything it emails can also be picked here.
+                events = shakemap.search_events(
+                    load_package(self.packages_root / package_id), source.name,
+                    min_magnitude=float((query.get("min_magnitude") or [DEFAULT_MIN_MAGNITUDE])[0]),
+                )
+            except shakemap.ShakeMapError as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return self._json({"source": source.name, "events": events})
+        if path == "/api/recent-earthquakes":
+            # Straight from USGS, so the page sees new events and aftershocks without the watcher.
+            from . import shakemap
+
+            try:
+                return self._json({"days": RECENT_DAYS, "events": self._recent_earthquakes()})
+            except shakemap.ShakeMapError as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+        if path.startswith("/api/shakemap-version/"):
+            from . import shakemap
+
+            event_id = path.removeprefix("/api/shakemap-version/")
+            try:
+                version = shakemap.ComcatSource().current_version(event_id)
+            except shakemap.ShakeMapError as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return self._json({"event_id": event_id, "version": version})
         if path == "/api/chat-status":
             ok, reason = chat.available()
-            return self._json({"available": ok, "reason": reason, "model": chat.MODEL})
+            return self._json({"available": ok, "reason": reason,
+                               "provider": chat.provider(), "model": chat.model_name()})
         if path in {"/", "/index.html"}:
             return self._static("index.html", "text/html; charset=utf-8")
         if path == "/app.js":
@@ -144,7 +217,16 @@ class PilotHandler(BaseHTTPRequestHandler):
             try:
                 request = self._read_request()
                 network = self._network_for(request.pop("package_id"))
-                self._json(run_forward_query(network, request))
+                result = run_forward_query(network, request)
+                hazard = request.get("hazard") or {}
+                if hazard.get("model") == "shakemap":
+                    # Which version ran, so the page can tell when USGS has revised it.
+                    # The grid is already loaded: this reads the in-process cache.
+                    from . import shakemap
+
+                    grid = shakemap.load(hazard["event_id"], hazard.get("source"), hazard.get("version"))
+                    result["shakemap"] = {"event_id": grid.event_id, "version": shakemap._int(grid.version)}
+                self._json(result)
             except KeyError as exc:
                 self._json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
             except (ForwardQueryError, ValueError, json.JSONDecodeError) as exc:
@@ -161,7 +243,7 @@ class PilotHandler(BaseHTTPRequestHandler):
 
         The page has to show the probabilistic query before the value exists, so
         the reply cannot be one body written at the end: ``query`` goes out when
-        Claude picks the scenario, ``computed`` when the engine returns, and
+        the agent picks the scenario, ``computed`` when the engine returns, and
         ``answer`` last. The response has no Content-Length and ends when the
         connection closes, which HTTP/1.0 -- this handler's default -- allows.
 
@@ -185,7 +267,7 @@ class PilotHandler(BaseHTTPRequestHandler):
                 self.wfile.flush()
             except OSError:
                 # The reader went away. This runs inside the tool call, so letting
-                # it raise would be reported to Claude as the query having failed.
+                # it raise would be reported to the agent as the query having failed.
                 pass
 
         def fail(message: str, status: int) -> None:
@@ -202,6 +284,7 @@ class PilotHandler(BaseHTTPRequestHandler):
                 request.get("question", ""),
                 request.get("history") or [],
                 on_event=send,
+                scenario=request.get("scenario"),
             )
             send({"type": "answer", **reply})
         except KeyError as exc:
@@ -229,8 +312,16 @@ def serve(
     server = ThreadingHTTPServer((host, port), handler)
     print(f"Forward BN pilot: http://{host}:{port}")
     print(f"Packages: {packages_root}")
+    ok, reason = chat.available()
+    print(f"Chat: {chat.provider()} ({chat.model_name()}), " + ("ready" if ok else f"not available. {reason}"))
     if open_browser:
         webbrowser.open(f"http://{host}:{port}")
+    # Load the local model in the background, so the first question does not
+    # also pay for reading several GB from disk. No-op for hosted backends.
+    import threading
+
+    threading.Thread(target=lambda: print(f"[forward-pilot] {chat.preload_ollama()}", flush=True)
+                     if chat.provider() == "ollama" else None, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

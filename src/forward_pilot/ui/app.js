@@ -102,6 +102,111 @@ async function boot() {
   }));
   addEventListener('resize', debounce(() => { drawBnGraph(); drawNetwork(lastResult); drawRiskChart(lastResult); }, 160));
   await loadCase();
+  loadRecentEvents();
+  setInterval(loadRecentEvents, RECENT_EVERY_MS);
+}
+
+/* ══ RECENT EARTHQUAKES ═════════════════════════════════════════════════════
+ * Events of the last 30 days with a ShakeMap near any package, asked of USGS
+ * every 2 minutes while the page is open. One that appears after the page was
+ * opened -- an aftershock, say -- is marked new and announced. Clicking a row
+ * loads its package and runs that ShakeMap. While a ShakeMap result is shown,
+ * the same check notices when USGS revises that map. */
+const RECENT_EVERY_MS = 120000;
+let recentSeen = null;                 // event ids already listed; null until the first answer
+const recentNew = new Set();           // listed since the page opened, not yet clicked
+let shownShakemap = null;              // {event_id, version} of the ShakeMap result on screen
+let pinnedVersion = null;              // {event_id, version} a re-run asks for explicitly
+
+async function loadRecentEvents() {
+  let data;
+  try {
+    const response = await fetch('./api/recent-earthquakes');
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'USGS did not answer');
+  } catch (error) {
+    $('recent-status').textContent = 'USGS not reachable; retrying';
+    $('recent-status').title = error.message;
+    return;
+  }
+  const status = $('recent-status');
+  status.textContent = `last ${data.days} days, M4+ · checked ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  status.title = 'Asked of the USGS catalogue every 2 minutes while this page is open.';
+
+  const arrived = recentSeen ? data.events.filter((e) => !recentSeen.has(e.event_id)) : [];
+  recentSeen = new Set(data.events.map((e) => e.event_id));
+  arrived.forEach((e) => recentNew.add(e.event_id));
+  if (arrived.length) {
+    const e = arrived[0];
+    notice('new-event', `${arrived.length > 1 ? `${arrived.length} new earthquakes` : 'New earthquake'}: M${e.magnitude ?? '?'} ${e.place || e.event_id}`,
+      'Show', () => showRecentEvent(e.packages.find((p) => known(p)) || e.packages[0], e.event_id));
+  }
+  updateTitle();
+
+  $('recent-list').innerHTML = data.events.length ? data.events.flatMap((e) => e.packages.map((p) => {
+    const title = catalog.find((c) => c.case_id === p)?.title || p;
+    const isNew = recentNew.has(e.event_id);
+    return `<li><button type="button" data-package="${esc(p)}" data-event="${esc(e.event_id)}"
+        title="${known(p) ? `ShakeMap for ${esc(e.event_id)}. Click to load and run it here.` : 'This package is not loaded here'}"
+        ${known(p) ? '' : 'disabled'}>
+      <span class="ev"><span>${isNew ? '<em class="new-tag">NEW</em>' : ''}M${e.magnitude ?? '?'} · ${esc(e.place || e.event_id)}</span>
+        <small>${esc((e.time || '').slice(0, 10))}</small></span>
+      <span class="res">${esc(title)} · ${esc(e.event_id)}</span></button></li>`;
+  })).join('') : `<li class="empty">No M4+ earthquakes with a ShakeMap near these networks in the last ${data.days} days.</li>`;
+
+  $('recent-list').querySelectorAll('button[data-event]').forEach((b) => b.addEventListener('click', () =>
+    showRecentEvent(b.dataset.package, b.dataset.event)));
+  checkShakemapRevision();
+}
+
+const known = (packageId) => catalog.some((c) => c.case_id === packageId);
+
+function updateTitle() {
+  const base = document.title.replace(/^\(\d+\) /, '');
+  document.title = recentNew.size ? `(${recentNew.size}) ${base}` : base;
+}
+
+/** One notice per kind at the top of the page; a newer one of the same kind replaces it. */
+function notice(kind, text, actionLabel, action) {
+  $('notices').querySelector(`[data-kind="${kind}"]`)?.remove();
+  const item = document.createElement('div');
+  item.className = 'notice';
+  item.dataset.kind = kind;
+  item.innerHTML = `<span>${esc(text)}</span>${actionLabel ? `<button type="button" class="act">${esc(actionLabel)}</button>` : ''}
+    <button type="button" class="close" aria-label="Dismiss">×</button>`;
+  item.querySelector('.act')?.addEventListener('click', () => { item.remove(); action(); });
+  item.querySelector('.close').addEventListener('click', () => item.remove());
+  $('notices').append(item);
+}
+
+/** Tell the reader when the ShakeMap behind the result on screen has a newer version. */
+async function checkShakemapRevision() {
+  if (!shownShakemap) return;
+  const { event_id: eventId, version } = shownShakemap;
+  let data;
+  try {
+    data = await (await fetch(`./api/shakemap-version/${encodeURIComponent(eventId)}`)).json();
+  } catch { return; }
+  if (!data.version || data.version <= version || shownShakemap?.event_id !== eventId) return;
+  notice('revision', `USGS has revised the ShakeMap for ${eventId}: version ${data.version} is out; the results shown use version ${version}.`,
+    `Re-run with version ${data.version}`, () => {
+      pinnedVersion = { event_id: eventId, version: data.version };
+      runQuery();
+    });
+}
+
+async function showRecentEvent(packageId, eventId) {
+  recentNew.delete(eventId);
+  updateTitle();
+  $('notices').querySelector('[data-kind="new-event"]')?.remove();
+  if ($('case-select').value !== packageId) {
+    $('case-select').value = packageId;
+    await loadCase();
+  }
+  $('hazard-model').value = 'shakemap';
+  renderScenarioFields();
+  $('shakemap-id').value = eventId;     // typed id wins over the picker, so this exact event runs
+  runQuery();
 }
 
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
@@ -117,7 +222,7 @@ async function loadCase() {
   $('case-meta').textContent =
     `${Object.keys(n.nodes).length} nodes · ${Object.keys(n.edges).length} ${n.directed ? 'directed arcs' : 'undirected links'}. ${n.description}`;
   $('hazard-model').innerHTML = n.hazard_models
-    .map((m) => `<option value="${esc(m)}">${m === 'uniform_sa1' ? 'Uniform SA(1 s)' : 'EMA reference scenario'}</option>`).join('');
+    .map((m) => `<option value="${esc(m)}">${HAZARD_LABELS[m] || esc(m)}</option>`).join('');
   $('hazard-model').value = n.default_hazard.model;
 
   const origins = n.default_origins;
@@ -136,14 +241,28 @@ async function loadCase() {
   drawNetwork();
   drawRiskChart(null);
   resetMetrics();
-  if (!$('chat-card').hidden) { chat.history = []; renderExamples(); }
+  if (!$('chat-card').hidden) { chat.history = []; chat.transcript = []; $('chat-download').disabled = true; renderExamples(); }
   $('status').className = 'status';
   $('status').textContent = 'Package loaded. Adjust the earthquake and run forward inference.';
 }
 
+const HAZARD_LABELS = {
+  uniform_sa1: 'Uniform SA(1 s)',
+  ema_reference_scenario: 'EMA reference scenario',
+  shakemap: 'USGS ShakeMap (recorded event)',
+};
+
 function renderScenarioFields() {
   const model = $('hazard-model').value;
   const d = current.network.default_hazard;
+  if (model === 'shakemap') {
+    $('scenario-fields').innerHTML = `<label for="shakemap-event">Event with a ShakeMap</label>
+      <select id="shakemap-event"><option value="">Searching USGS…</option></select>
+      <label for="shakemap-id">or USGS event id</label>
+      <input id="shakemap-id" type="text" spellcheck="false" placeholder="e.g. iscgem849480">`;
+    loadShakemapEvents();
+    return;
+  }
   $('scenario-fields').innerHTML = model === 'uniform_sa1'
     ? `<label for="sa1">SA(1 s), g</label><input id="sa1" type="number" min="0" max="5" step="0.05" value="${d.sa1_g ?? 0.30}">`
     : `<label for="magnitude">Magnitude, Mw</label><input id="magnitude" type="number" min="4" max="9.5" step="0.1" value="${d.magnitude ?? 8}">
@@ -151,6 +270,22 @@ function renderScenarioFields() {
          <div><label for="epicentre-x">Epicentre X</label><input id="epicentre-x" type="number" step="1" value="${d.epicentre_x ?? 1}"></div>
          <div><label for="epicentre-y">Epicentre Y</label><input id="epicentre-y" type="number" step="1" value="${d.epicentre_y ?? 10}"></div>
        </div>`;
+}
+
+/* Events are searched around the package's own node coordinates, so the list
+ * only offers ShakeMaps that cover the network. A typed id overrides it. */
+async function loadShakemapEvents() {
+  const select = $('shakemap-event');
+  try {
+    const response = await fetch(`./api/shakemap-events/${current.network.case_id}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'search failed');
+    select.innerHTML = data.events.length
+      ? data.events.map((e) => `<option value="${esc(e.event_id)}">${esc((e.time || '').slice(0, 10))} · M${e.magnitude ?? '?'} · ${esc(e.place || e.event_id)}</option>`).join('')
+      : '<option value="">No ShakeMaps found near this network</option>';
+  } catch (err) {
+    select.innerHTML = `<option value="">${esc(`Could not search (${err.message}); type an id below`)}</option>`;
+  }
 }
 
 /* ══ 1. THE BAYESIAN NETWORK ═══════════════════════════════════════════════
@@ -737,30 +872,53 @@ function drawMapLegend(result) {
 }
 
 /* ══ 3. COMPONENT RISK DISTRIBUTION ════════════════════════════════════════ */
+/* Round tick values: steps of 1, 2 or 5 x 10^k, covering 0..max with about
+ * `target` intervals, so the axis reads in clean numbers (0 / 5 / 10 ...). */
+function niceTicks(max, target = 4, integer = false) {
+  if (!(max > 0)) return [0];
+  const raw = max / target;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  let step = [1, 2, 5, 10].map((f) => f * mag).find((s) => s >= raw);
+  if (integer) step = Math.max(1, Math.ceil(step));
+  const ticks = [];
+  for (let v = 0; v <= max + step * 1e-9; v += step) ticks.push(+v.toPrecision(12));
+  if (ticks.at(-1) < max) ticks.push(+(ticks.at(-1) + step).toPrecision(12));
+  return ticks;
+}
+
 function drawRiskChart(result) {
   const svg = $('risk-chart');
   if (!result) {
     svg.innerHTML = '';
-    svg.setAttribute('viewBox', '0 0 420 170');
+    svg.setAttribute('viewBox', '0 0 420 180');
     $('chart-sub').textContent = 'How the per-bridge risk is spread across the network.';
     return;
   }
   const values = result.components.map((c) => c.p_unusable);
-  const W = 420, H = 170, m = { t: 12, r: 10, b: 30, l: 34 };
+  // Left margin holds the count ticks and the rotated axis title.
+  const W = 420, H = 180, m = { t: 12, r: 12, b: 36, l: 46 };
   const nBins = 12;
-  const hi = Math.max(0.0001, Math.max(...values));
+  const peak = Math.max(0.0001, Math.max(...values));
+  // The x-axis ends on a round tick, and the bins span exactly that range.
+  const xTicks = niceTicks(peak, 4);
+  const hi = xTicks.at(-1);
   const edges = Array.from({ length: nBins + 1 }, (_, i) => (i / nBins) * hi);
   const bins = new Array(nBins).fill(0);
   for (const v of values) bins[Math.min(nBins - 1, Math.floor((v / hi) * nBins))]++;
-  const maxCount = Math.max(...bins);
-  const bw = (W - m.l - m.r) / nBins;
+  const yTicks = niceTicks(Math.max(...bins), 4, true);
+  const maxCount = yTicks.at(-1);
+  const plotW = W - m.l - m.r;
+  const bw = plotW / nBins;
+  const x = (p) => m.l + (p / hi) * plotW;
   const y = (c) => H - m.b - (c / maxCount) * (H - m.t - m.b);
+  // Enough decimals that neighbouring ticks never print the same label.
+  const xStep = xTicks[1] - xTicks[0];
+  const dp = Math.max(0, Math.ceil(-Math.log10(xStep * 100) + 1e-9));
 
   let g = '';
-  for (let i = 0; i <= 2; i++) {
-    const c = Math.round((maxCount * i) / 2);
+  for (const c of yTicks) {
     g += `<line class="grid" x1="${m.l}" y1="${y(c)}" x2="${W - m.r}" y2="${y(c)}"></line>
-          <text class="tick" x="${m.l - 7}" y="${y(c) + 3.5}" text-anchor="end">${c}</text>`;
+          <text class="tick" x="${m.l - 6}" y="${y(c) + 3.5}" text-anchor="end">${c}</text>`;
   }
   bins.forEach((c, i) => {
     if (!c) return;
@@ -772,15 +930,20 @@ function drawRiskChart(result) {
             ><title>${c} bridge${c === 1 ? '' : 's'} at ${pct(edges[i], 1)}–${pct(edges[i + 1], 1)}</title></rect>`;
   });
   g += `<line class="axis" x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}"></line>`;
-  g += `<text class="tick" x="${m.l}" y="${H - 10}">0%</text>`;
-  g += `<text class="tick" x="${W - m.r}" y="${H - 10}" text-anchor="end">${pct(hi, 0)}</text>`;
-  g += `<text class="axis-title" x="${m.l}" y="${H - 10}" dx="${(W - m.l - m.r) / 2}" text-anchor="middle">P(bridge unusable)</text>`;
+  xTicks.forEach((p, i) => {
+    const anchor = i === 0 ? 'start' : i === xTicks.length - 1 ? 'end' : 'middle';
+    g += `<line class="axis" x1="${x(p)}" y1="${H - m.b}" x2="${x(p)}" y2="${H - m.b + 3}"></line>
+          <text class="tick" x="${x(p)}" y="${H - m.b + 13}" text-anchor="${anchor}">${pct(p, dp)}</text>`;
+  });
+  g += `<text class="axis-title" x="${m.l + plotW / 2}" y="${H - 6}" text-anchor="middle">P(bridge unusable)</text>`;
+  g += `<text class="axis-title" transform="translate(12 ${m.t + (H - m.t - m.b) / 2}) rotate(-90)"
+          text-anchor="middle">Number of bridges</text>`;
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = g;
 
   const over = values.filter((v) => v >= 0.35).length;
-  $('chart-sub').textContent = `${values.length} bridges. Highest ${pct(hi, 1)}; ${over} at or above 35%.`;
+  $('chart-sub').textContent = `${values.length} bridges. Highest ${pct(peak, 1)}; ${over} at or above 35%.`;
 }
 
 /* ══ query ════════════════════════════════════════════════════════════════ */
@@ -788,7 +951,11 @@ function queryPayload() {
   const model = $('hazard-model').value;
   const destinations = [...$('destination-list').querySelectorAll('input:checked')].map((x) => x.value);
   const origin = $('origin-select').value;
-  const hazard = model === 'uniform_sa1'
+  const eventId = $('shakemap-id')?.value.trim() || $('shakemap-event')?.value;
+  const hazard = model === 'shakemap'
+    // A re-run after a revision names the version, so it does not get the one cached a few minutes ago.
+    ? { model, event_id: eventId, ...(pinnedVersion?.event_id === eventId ? { version: pinnedVersion.version } : {}) }
+    : model === 'uniform_sa1'
     ? { model, sa1_g: Number($('sa1').value) }
     : { model, magnitude: Number($('magnitude').value), epicentre_x: Number($('epicentre-x').value), epicentre_y: Number($('epicentre-y').value) };
   return {
@@ -821,6 +988,8 @@ async function runQuery() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Query failed');
     lastResult = result;
+    shownShakemap = result.shakemap || null;
+    if (shownShakemap) $('notices').querySelector('[data-kind="revision"]')?.remove();
     showResult(result);
   } catch (error) {
     $('status').className = 'status error';
@@ -887,16 +1056,18 @@ function resetMetrics() {
 }
 
 /* ══ 4. ASK IN WORDS ═══════════════════════════════════════════════════════
- * The panel is additive: with no credentials configured the endpoint reports
+ * The panel is additive: with no model backend available the endpoint reports
  * unavailable and the card stays hidden, leaving the pilot exactly as it was.
  *
- * Claude never supplies a number here. It picks the scenario, the engine runs,
+ * The model never supplies a number here. It picks the scenario, the engine runs,
  * and the server returns both the answer and the full result - which is why the
- * reply can redraw the map: the page is showing the same run Claude described.
+ * reply can redraw the map: the page is showing the same run the model described.
  *
  * The reply is a stream, so each step shows as it happens: the probabilistic
  * query first, then the values the engine computed for it, then the answer. */
-const chat = { history: [], busy: false };
+// `history` is what the agent is sent back (text only); `transcript` is the full
+// record of each turn -- queries and engine values included -- for the download.
+const chat = { history: [], transcript: [], busy: false };
 
 const EXAMPLES = {
   'ema-highway': [
@@ -920,7 +1091,50 @@ async function initChat() {
   $('chat-card').hidden = false;
   $('chat-model').textContent = status.model;
   $('chat-form').addEventListener('submit', (evt) => { evt.preventDefault(); askQuestion(); });
+  $('chat-download').addEventListener('click', downloadConversation);
   renderExamples();
+}
+
+/* The agent has no way to write files, so saving a conversation happens here,
+ * in the browser, from what the page already holds: each question, every query
+ * as stated with the engine's values, and the answer. */
+function conversationText() {
+  const n = current.network;
+  const lines = [
+    `# Forward BN pilot - conversation`,
+    '',
+    `- Package: ${n.title} (${n.case_id})`,
+    `- Model: ${$('chat-model').textContent}`,
+    `- Saved: ${new Date().toISOString()}`,
+    '',
+  ];
+  chat.transcript.forEach((turn, i) => {
+    lines.push(`## ${i + 1}. ${turn.question}`, '');
+    turn.queries.forEach((q, j) => {
+      lines.push(`**Probabilistic query ${j + 1}** (${q.state})`, '');
+      q.targets.forEach((t, k) => {
+        const v = q.values?.[k];
+        lines.push(`- \`${t.expr}\`${v ? ` = ${pct(v.value)} (${v.note})` : ''} - ${[t.over && `for ${t.over}`, t.meaning, t.how].filter(Boolean).join(' · ')}`);
+      });
+      if (q.reason) lines.push(`- Not computed: ${q.reason}`);
+      lines.push('');
+    });
+    lines.push(turn.answer ? `**Answer:** ${turn.answer}` : `**No answer:** ${turn.error || 'interrupted'}`, '');
+  });
+  return lines.join('\n');
+}
+
+function downloadConversation() {
+  if (!chat.transcript.length) return;
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  const blob = new Blob([conversationText()], { type: 'text/markdown;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `chat-${current.network.case_id}-${stamp}.md`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 function renderExamples() {
@@ -984,26 +1198,43 @@ async function askQuestion() {
   const pending = chatBubble('assistant',
     '<div class="steps"></div><div class="answer" hidden></div><span class="thinking"></span>');
   const steps = pending.querySelector('.steps');
+  // Elapsed seconds tick beside each stage, so a slow model reads as working
+  // rather than stuck: a hosted model can take a while, a local one longer.
+  const started = Date.now();
+  let stageText = '';
+  const showStage = () => {
+    const el = pending.querySelector('.thinking');
+    if (el) el.textContent = `${stageText} ${Math.round((Date.now() - started) / 1000)} s`;
+  };
+  const ticker = setInterval(showStage, 1000);
   const stage = (text) => {
-    pending.querySelector('.thinking').textContent = text;
+    stageText = text;
+    showStage();
     $('chat-log').scrollTop = $('chat-log').scrollHeight;
   };
   stage('Translating the question into a probabilistic query…');
 
   let block = null;       // the query currently being calculated
   let answered = false;
+  const turn = { question, queries: [], answer: null, error: null };
+  chat.transcript.push(turn);
 
   // The bubble fills top to bottom in the order the work is done: the query,
   // then its values, then the prose. The query comes first so the translation
   // from question to parameters is read before the answer, not after it.
   const onEvent = (evt) => {
     if (evt.type === 'query') {
+      turn.queries.push({ targets: evt.statement.targets, state: 'not run', values: null, reason: null });
       block = queryBlock(steps.children.length + 1, evt.statement);
       steps.append(block);
-      stage(`Calculating · ${evt.query.samples.toLocaleString()} forward samples through the network…`);
+      stage(evt.reused
+        ? 'Reusing the result of the identical query run earlier…'
+        : `Calculating · ${evt.query.samples.toLocaleString()} forward samples through the network…`);
     } else if (evt.type === 'computed') {
       block.className = 'pq';
-      block.querySelector('.pq-state').textContent = 'computed';
+      // Same query, same seed: the stored result is what a rerun would compute.
+      block.querySelector('.pq-state').textContent = evt.reused ? 'reused from an earlier run' : 'computed';
+      Object.assign(turn.queries.at(-1), { state: evt.reused ? 'reused from an earlier run' : 'computed', values: evt.values });
       block.querySelectorAll('.pq-value').forEach((slot, i) => {
         const v = evt.values[i];
         if (v) slot.innerHTML = `= ${pct(v.value)} <small>${esc(v.note)}</small>`;
@@ -1012,10 +1243,12 @@ async function askQuestion() {
     } else if (evt.type === 'not_computed') {
       block.className = 'pq is-refused';
       block.querySelector('.pq-state').textContent = 'not computed';
+      Object.assign(turn.queries.at(-1), { state: 'not computed', reason: evt.reason });
       block.insertAdjacentHTML('beforeend', `<p class="pq-reason">${esc(evt.reason)}</p>`);
       stage('Writing the answer…');
     } else if (evt.type === 'answer') {
       answered = true;
+      turn.answer = evt.answer;
       pending.querySelector('.thinking').remove();
       const answer = pending.querySelector('.answer');
       answer.innerHTML = esc(evt.answer).replace(/\n/g, '<br>');
@@ -1040,13 +1273,16 @@ async function askQuestion() {
   try {
     const response = await fetch('./api/ask', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ package_id: current.network.case_id, question, history: chat.history }),
+      // The scenario set in the page goes along, so "given the scenario" means this one.
+      body: JSON.stringify({ package_id: current.network.case_id, question, history: chat.history,
+                             scenario: queryPayload().hazard }),
     });
     // A failure before the stream starts is an ordinary JSON error with a status.
     if (!response.ok) throw new Error((await response.json()).error || 'The request failed.');
     await readEvents(response, onEvent);
     if (!answered) throw new Error('The connection closed before an answer arrived.');
   } catch (error) {
+    turn.error = error.message;
     if (steps.children.length) {
       // Keep the queries that were stated and run; only the reply is missing.
       pending.querySelector('.thinking')?.remove();
@@ -1060,6 +1296,8 @@ async function askQuestion() {
       pending.textContent = error.message;
     }
   } finally {
+    clearInterval(ticker);
+    $('chat-download').disabled = false;
     chat.busy = false;
     $('chat-send').disabled = false;
     input.focus();

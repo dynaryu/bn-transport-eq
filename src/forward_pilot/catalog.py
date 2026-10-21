@@ -23,15 +23,21 @@ CATALOG: dict[str, dict[str, Any]] = {
         "directed": False,
         "destinations": ["n22", "n66"],
         "default_origins": "all_except_destinations",
-        "hazard_models": ["ema_reference_scenario", "uniform_sa1"],
+        "hazard_models": ["ema_reference_scenario", "uniform_sa1", "shakemap"],
         "default_hazard": {
             "model": "ema_reference_scenario",
             "magnitude": 8.0,
             "epicentre_x": 1.0,
             "epicentre_y": 10.0,
         },
+        # Fitted to town centres (held-out error ~7 km); see the dataset's PROVENANCE.md.
+        "geo_file": "nodes_geo.json",
         "bridge_class_policy": "Use each edge's fragility_type; use HWB11 only if absent.",
-        "coordinate_note": "Schematic planar coordinates interpreted as kilometres by the source scenario script.",
+        "coordinate_note": (
+            "x/y are schematic planar units that the reference scenario reads as kilometres; "
+            "georeferencing shows one unit is about 1.81 real km. lat/lon are fitted to town "
+            "centres (about +/-7 km) and are what a ShakeMap is read at, at arc midpoints."
+        ),
     },
     "hebei-transport": {
         "title": "Hebei directed transport network",
@@ -40,10 +46,17 @@ CATALOG: dict[str, dict[str, Any]] = {
         "directed": True,
         "destinations": ["n22"],
         "default_origins": ["n1"],
-        "hazard_models": ["uniform_sa1"],
+        "hazard_models": ["uniform_sa1", "shakemap"],
         "default_hazard": {"model": "uniform_sa1", "sa1_g": 0.70},
+        # Approximate WGS84 positions georeferenced from the figure; see the
+        # dataset's PROVENANCE.md. They make a ShakeMap usable, nothing more.
+        "geo_file": "nodes_geo.json",
         "bridge_class_policy": "Pilot assumption: each arc is one ordinary HWB11 bridge.",
-        "coordinate_note": "Digitised figure coordinates are unitless; no spatial GMPE is applied.",
+        "coordinate_note": (
+            "x/y are unitless figure coordinates, so no spatial GMPE is applied. lat/lon are "
+            "georeferenced from the figure: city coordinates for labelled nodes, fitted "
+            "positions (about +/-22 km) for junctions. ShakeMap shaking is read at arc midpoints."
+        ),
     },
 }
 
@@ -81,6 +94,20 @@ def load_case(case_id: str) -> dict[str, Any]:
 
     nodes = _read_json(source_dir / "nodes.json")
     edges = _read_json(source_dir / "edges.json")
+    source_files = [source_dir / "nodes.json", source_dir / "edges.json"]
+
+    geo_file = cfg.get("geo_file")
+    if geo_file:
+        geo_path = source_dir / geo_file
+        if not geo_path.is_file():
+            raise FileNotFoundError(f"{case_id!r} expects geodetic node positions in {geo_path}")
+        geo = _read_json(geo_path)
+        for node_id, node in nodes.items():
+            node["lat"], node["lon"] = float(geo[node_id]["lat"]), float(geo[node_id]["lon"])
+            node["geo_method"] = geo[node_id].get("method")
+            if geo[node_id].get("zone"):
+                node["zone"] = geo[node_id]["zone"]
+        source_files.append(geo_path)
 
     clean_edges: dict[str, dict[str, Any]] = {}
     for edge_id, edge in edges.items():
@@ -113,5 +140,5 @@ def load_case(case_id: str) -> dict[str, Any]:
             "functionality": "A bridge is unusable when damage reaches Extensive or Complete.",
             "dependence": "Bridge states are sampled independently conditional on the hazard scenario.",
         },
-        "source_files": [source_dir / "nodes.json", source_dir / "edges.json"],
+        "source_files": source_files,
     }

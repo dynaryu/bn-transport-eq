@@ -1,7 +1,7 @@
 {
   "package_id": "hebei-transport",
   "title": "Hebei directed transport network",
-  "created_utc": "2026-10-04T16:18:34.310320+00:00",
+  "created_utc": "2026-10-12T00:29:09.315450+00:00",
   "schema_version": "0.1.0",
   "inference_scope": "forward_only",
   "network": {
@@ -11,18 +11,22 @@
   },
   "source_files": [
     {
-      "path": "C:\\Users\\bjieu\\git\\network-datasets\\datasets\\hebei_transport_liu2021\\v1\\data\\nodes.json",
-      "sha256": "893cb6492c5687177b307fe1b42155d024bbd959b606aa4aa2103ad3f5209f96"
+      "path": "/mnt/c/Projects/network-datasets/datasets/hebei_transport_liu2021/v1/data/nodes.json",
+      "sha256": "ff3fd3762975fd7145d188693c426e28b799edf89cd88ff31fe54b37f66bb8b8"
     },
     {
-      "path": "C:\\Users\\bjieu\\git\\network-datasets\\datasets\\hebei_transport_liu2021\\v1\\data\\edges.json",
-      "sha256": "354176b4ec2bc77e6cd8f930c9834454ad5729888ade8c4fefef52c171364af8"
+      "path": "/mnt/c/Projects/network-datasets/datasets/hebei_transport_liu2021/v1/data/edges.json",
+      "sha256": "1dee0b94e9cbd0367529a0a791ca7d9633ca63296cf4a76ce913394c45177eb4"
+    },
+    {
+      "path": "/mnt/c/Projects/network-datasets/datasets/hebei_transport_liu2021/v1/data/nodes_geo.json",
+      "sha256": "6c9b7947f0fa17bd2ef7b89706db72507c4f905b42dfd13e86eee4af5f4d4a0c"
     }
   ],
   "assumptions": {
     "bridge_representation": "Each network edge or arc is represented by one highway bridge.",
     "bridge_class": "Pilot assumption: each arc is one ordinary HWB11 bridge.",
-    "coordinates": "Digitised figure coordinates are unitless; no spatial GMPE is applied.",
+    "coordinates": "x/y are unitless figure coordinates, so no spatial GMPE is applied. lat/lon are georeferenced from the figure: city coordinates for labelled nodes, fitted positions (about +/-22 km) for junctions. ShakeMap shaking is read at arc midpoints.",
     "functionality": "A bridge is unusable when damage reaches Extensive or Complete.",
     "dependence": "Bridge states are sampled independently conditional on the hazard scenario."
   },
