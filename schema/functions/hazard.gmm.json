@@ -1,0 +1,159 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "hazard.gmm",
+  "label": "Ground-motion model",
+  "version": "0.2.0",
+  "role": "hazard",
+  "per": "Bridge",
+  "inputs": [
+    {
+      "name": "rupture",
+      "quantity": "Rupture",
+      "over": "Event",
+      "via": "*",
+      "description": "The one Event row: the global parameters every site shares."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "im",
+      "quantity": "{imt}"
+    }
+  ],
+  "attributes": [
+    "lat",
+    "lon"
+  ],
+  "parameters": {
+    "description": "One GMM per parameter set: its functional form, the IM it predicts, and that form's coefficients. A form is a kernel in src/builder/kernels/hazard.py (GMM_FORMS); a set of numbers for an existing form needs no code.",
+    "type": "object",
+    "required": [
+      "form",
+      "imt",
+      "sigma_epistemic",
+      "magnitude_range"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "form": {
+        "description": "The functional form these coefficients belong to.",
+        "enum": [
+          "campbell-2003"
+        ]
+      },
+      "imt": {
+        "description": "The intensity measure this set predicts.",
+        "enum": [
+          "PGA",
+          "PGV",
+          "SA(0.3)",
+          "SA(1.0)",
+          "SA(3.0)"
+        ]
+      },
+      "coefficients": {
+        "type": "object"
+      },
+      "sigma": {
+        "type": "object"
+      },
+      "sigma_epistemic": {
+        "type": "number",
+        "minimum": 0
+      },
+      "distance_metric": {
+        "enum": [
+          "hypocentral"
+        ]
+      },
+      "magnitude_range": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "number"
+        }
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "form": {
+              "const": "campbell-2003"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "coefficients",
+            "sigma",
+            "distance_metric"
+          ],
+          "properties": {
+            "coefficients": {
+              "type": "object",
+              "required": [
+                "c1",
+                "c2",
+                "c3",
+                "c4",
+                "c5",
+                "c6",
+                "c7",
+                "c8"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^c[1-8]$": {
+                  "type": "number"
+                }
+              }
+            },
+            "sigma": {
+              "description": "Aleatory ln standard deviation: a + b*Mw below m_break, sigma_above at or above it.",
+              "type": "object",
+              "required": [
+                "a",
+                "b",
+                "m_break",
+                "sigma_above"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "a": {
+                  "type": "number"
+                },
+                "b": {
+                  "type": "number"
+                },
+                "m_break": {
+                  "type": "number"
+                },
+                "sigma_above": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            "distance_metric": {
+              "enum": [
+                "hypocentral"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "implementation": "src.builder.kernels.hazard:Gmm",
+  "deterministic": false,
+  "drawKind": "Marginal",
+  "capabilities": [
+    "SampleForward"
+  ],
+  "source": {
+    "note": "Each parameter set cites its own model. The kernel holds the functional forms."
+  },
+  "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. Choose the set with parameter_set_by_location to use the model made for where the network is. Marginal: no spatial correlation yet; that needs the between- and within-event split of sigma."
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "system.shortest-path",
+  "label": "Shortest travel time over open links",
+  "version": "0.1.0",
+  "role": "system",
+  "per": "ODPair",
+  "inputs": [
+    {
+      "name": "open",
+      "quantity": "LinkOpen",
+      "over": "Edge",
+      "via": "*"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "travel_time",
+      "quantity": "TravelTime"
+    }
+  ],
+  "attributes": [
+    "origin",
+    "destination"
+  ],
+  "tables": [
+    "Node",
+    "Edge"
+  ],
+  "parameters": {
+    "type": "object",
+    "required": [
+      "speed_kph"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "speed_kph": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    }
+  },
+  "implementation": "src.builder.kernels.system:ShortestPath",
+  "deterministic": true,
+  "drawKind": "Joint",
+  "capabilities": [
+    "SampleForward"
+  ],
+  "description": "Dijkstra on Edge.length_km / speed over the open links, from each origin. Joint across the ODPair plate: every pair reads the same link states in the same sample."
+}

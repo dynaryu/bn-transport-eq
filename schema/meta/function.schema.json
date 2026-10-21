@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "function.schema.json",
+  "title": "Function",
+  "description": "One conditional distribution or simulator as a typed signature: outputs = f(inputs; attributes, parameters). Inputs are BN parents, attributes are fixed row data, parameters are the numbers shared by every row bound to one parameter set. The function is replicated over the rows of its `per` plate.",
+  "type": "object",
+  "required": [
+    "id",
+    "label",
+    "version",
+    "role",
+    "per",
+    "inputs",
+    "outputs",
+    "implementation",
+    "deterministic",
+    "drawKind",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z]+(\\.[a-z0-9-]+)+$"
+    },
+    "label": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "role": {
+      "description": "Where it sits in the hazard -> consequence chain. Used for layout and for reading, not for wiring.",
+      "enum": [
+        "scenario",
+        "hazard",
+        "fragility",
+        "functionality",
+        "link",
+        "system"
+      ]
+    },
+    "per": {
+      "description": "The plate: one instance of this function per row of this entity type.",
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z]*$"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/input"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/output"
+      }
+    },
+    "attributes": {
+      "description": "Attributes of the `per` row the implementation reads. Checked to exist on the entity type and to be present on every bound row.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tables": {
+      "description": "Whole entity tables read as fixed structure, e.g. a network's topology. They are not BN nodes.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Za-z]*$"
+      }
+    },
+    "parameters": {
+      "description": "JSON Schema every parameter set for this function must satisfy. Omit for a function with no parameters.",
+      "type": "object"
+    },
+    "implementation": {
+      "description": "\"python.module:callable\" taking one Call and returning {output name: array}.",
+      "type": "string",
+      "pattern": "^[A-Za-z_][\\w.]*:[A-Za-z_]\\w*$"
+    },
+    "deterministic": {
+      "type": "boolean"
+    },
+    "drawKind": {
+      "description": "Joint: one call returns dependent draws across the plate's rows. Marginal: rows are drawn independently given their parents; using it where a joint is needed silently imposes independence.",
+      "enum": [
+        "Joint",
+        "Marginal"
+      ]
+    },
+    "capabilities": {
+      "description": "Only what the implementation actually provides: each needs its method on the kernel (load.CAPABILITY_METHOD), and the check reports a missing one as OVERCLAIM.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "SampleForward",
+          "EvaluateDensity",
+          "EvaluateLikelihood",
+          "BatchClassify",
+          "Gradient",
+          "NormalisingConstant"
+        ]
+      }
+    },
+    "source": {
+      "description": "Provenance of the method (not of the numbers: those go on the parameter set).",
+      "type": "object"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "input": {
+      "type": "object",
+      "required": [
+        "name",
+        "quantity",
+        "over",
+        "via"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "quantity": {
+          "description": "A quantity id, or \"{param}\": the quantity named by that required parameter, whose values must all be quantity ids. A GMM declared with \"{imt}\" produces whichever intensity measure its parameter set says.",
+          "type": "string"
+        },
+        "over": {
+          "description": "Plate the parent variable lives on.",
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z]*$"
+        },
+        "via": {
+          "description": "Which rows of `over` are parents of one `per` row. self: the same row (over == per). <attr>: follow this foreign key on the per row, one parent. <Over>.<attr>: every `over` row whose foreign key <attr> points at this row, zero or more parents. *: every row of `over`.",
+          "type": "string",
+          "pattern": "^(self|\\*|[a-z][a-z0-9_]*|[A-Z][A-Za-z]*\\.[a-z][a-z0-9_]*)$"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": [
+        "name",
+        "quantity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "quantity": {
+          "description": "A quantity id, or \"{param}\": the quantity named by that required parameter, whose values must all be quantity ids. A GMM declared with \"{imt}\" produces whichever intensity measure its parameter set says.",
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

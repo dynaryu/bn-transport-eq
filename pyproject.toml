@@ -1,11 +1,11 @@
 [project]
 name = "bn-on-demand-pilot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Transport networks under seismic risk as Bayesian networks: schema, instances, builder, inference, language, app"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "networkx>=3.6.1",
+    "jsonschema>=4.0",
     "numpy>=2.4.6",
     "pip>=26.2.1",
     "pytest>=9.1.1",

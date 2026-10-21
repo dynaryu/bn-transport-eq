@@ -1,0 +1,149 @@
+{
+  "$schema": "meta/quantities.schema.json",
+  "quantities": [
+    {
+      "id": "Rupture",
+      "label": "Earthquake rupture (point source)",
+      "kind": "record",
+      "fields": {
+        "mw": {
+          "unit": "Mw",
+          "description": "Moment magnitude"
+        },
+        "lat": {
+          "unit": "deg",
+          "description": "Epicentre latitude"
+        },
+        "lon": {
+          "unit": "deg",
+          "description": "Epicentre longitude"
+        },
+        "depth_km": {
+          "unit": "km",
+          "description": "Hypocentral depth"
+        }
+      },
+      "description": "The global variable a ground-motion model conditions on. A BN node on the Event plate, so a fixed scenario and an uncertain one differ only in which function produces it."
+    },
+    {
+      "id": "PGA",
+      "label": "Peak ground acceleration",
+      "kind": "continuous",
+      "unit": "g",
+      "range": [
+        0,
+        null
+      ],
+      "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name."
+    },
+    {
+      "id": "PGV",
+      "label": "Peak ground velocity",
+      "kind": "continuous",
+      "unit": "cm/s",
+      "range": [
+        0,
+        null
+      ],
+      "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name."
+    },
+    {
+      "id": "SA(0.3)",
+      "label": "Spectral acceleration, T = 0.3 s, 5% damping",
+      "kind": "continuous",
+      "unit": "g",
+      "range": [
+        0,
+        null
+      ],
+      "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name."
+    },
+    {
+      "id": "SA(1.0)",
+      "label": "Spectral acceleration, T = 1.0 s, 5% damping",
+      "kind": "continuous",
+      "unit": "g",
+      "range": [
+        0,
+        null
+      ],
+      "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name."
+    },
+    {
+      "id": "SA(3.0)",
+      "label": "Spectral acceleration, T = 3.0 s, 5% damping",
+      "kind": "continuous",
+      "unit": "g",
+      "range": [
+        0,
+        null
+      ],
+      "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name."
+    },
+    {
+      "id": "GMResidual",
+      "label": "Normalised ground-motion residual at one bridge",
+      "kind": "continuous",
+      "unit": "standard deviations",
+      "range": [
+        null,
+        null
+      ],
+      "description": "epsilon in ln IM = ln median + sigma * epsilon. Standard normal at each bridge, correlated between bridges. A node of its own so the spatial dependence is explicit in the BN, where observations could later condition it."
+    },
+    {
+      "id": "DamageState.HazusBridge",
+      "label": "Hazus highway-bridge damage state",
+      "kind": "discrete",
+      "states": [
+        "none",
+        "slight",
+        "moderate",
+        "extensive",
+        "complete"
+      ]
+    },
+    {
+      "id": "Usable",
+      "label": "Component usable after the event",
+      "kind": "discrete",
+      "states": [
+        0,
+        1
+      ],
+      "description": "0 closed, 1 open."
+    },
+    {
+      "id": "LinkOpen",
+      "label": "Network link open to traffic",
+      "kind": "discrete",
+      "states": [
+        0,
+        1
+      ],
+      "description": "0 closed, 1 open. The one link-level state both system functions read."
+    },
+    {
+      "id": "TravelTime",
+      "label": "Shortest travel time, origin to destination",
+      "kind": "continuous",
+      "unit": "min",
+      "range": [
+        0,
+        null
+      ],
+      "description": "+inf when no open route exists, so P(connected) = P(TravelTime < inf)."
+    },
+    {
+      "id": "MaxFlow",
+      "label": "Maximum flow, origin to destination",
+      "kind": "continuous",
+      "unit": "Edge.capacity units",
+      "range": [
+        0,
+        null
+      ],
+      "description": "In whatever unit the network's Edge.capacity is stated in; the network's assumptions name it."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "system.max-flow",
+  "label": "Maximum flow over open links",
+  "version": "0.1.0",
+  "role": "system",
+  "per": "ODPair",
+  "inputs": [
+    {
+      "name": "open",
+      "quantity": "LinkOpen",
+      "over": "Edge",
+      "via": "*"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "max_flow",
+      "quantity": "MaxFlow"
+    }
+  ],
+  "attributes": [
+    "origin",
+    "destination"
+  ],
+  "tables": [
+    "Node",
+    "Edge"
+  ],
+  "implementation": "src.builder.kernels.system:MaxFlow",
+  "deterministic": true,
+  "drawKind": "Joint",
+  "capabilities": [
+    "SampleForward"
+  ],
+  "description": "Origin-to-destination max flow, with Edge.capacity on each open link and 0 on a closed one. Parallel links add their capacities; an undirected link carries its capacity in each direction."
+}

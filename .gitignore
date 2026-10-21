@@ -2,11 +2,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ipynb_checkpoints/
-experiments/*/results/
 *.zip
 
 # ShakeMap grids downloaded from USGS (~30 MB each); re-fetched on demand
-experiments/forward-bn-pilot/shakemaps/
-# Watcher state, results and heartbeat (src/forward_pilot/watch.py); runtime data
-experiments/forward-bn-pilot/watch/
+.cache/
 dist/

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "assembly.schema.json",
+  "title": "Assembly",
+  "description": "Which function, with which parameters, describes which rows of one network. Compiling an assembly replicates each binding over its rows and wires parents by quantity and plate; every (quantity, row) must end up with exactly one producer. Swapping a hazard model is swapping one binding.",
+  "type": "object",
+  "required": [
+    "id",
+    "label",
+    "network",
+    "bindings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+    },
+    "label": {
+      "type": "string"
+    },
+    "network": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
+    }
+  },
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "required": [
+        "function"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "function": {
+          "type": "string"
+        },
+        "where": {
+          "description": "Only rows whose attributes equal these values (or lie in a list of values).",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "array"
+            ]
+          }
+        },
+        "parameter_set": {
+          "description": "A parameter-set id. {attr} is replaced by the row's attribute, so \"hazus61.{hazus_class}\" picks each bridge's curve from its class.",
+          "type": "string"
+        },
+        "parameters": {
+          "description": "Inline values, for parameters specific to this assembly (e.g. which ShakeMap event).",
+          "type": "object"
+        },
+        "note": {
+          "type": "string"
+        },
+        "parameter_set_by_location": {
+          "description": "Parameter-set ids, in order of preference. Each row gets the first whose region contains its lat/lon, so a network is described by the models made for where it is; a row no listed region covers is an error.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "parameter_set"
+                ]
+              },
+              {
+                "required": [
+                  "parameters"
+                ]
+              },
+              {
+                "required": [
+                  "parameter_set_by_location"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "parameter_set"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "parameters"
+                ]
+              },
+              {
+                "required": [
+                  "parameter_set_by_location"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "parameters"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "parameter_set"
+                ]
+              },
+              {
+                "required": [
+                  "parameter_set_by_location"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "parameter_set_by_location"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "parameter_set"
+                ]
+              },
+              {
+                "required": [
+                  "parameters"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

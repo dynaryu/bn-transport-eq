@@ -1,0 +1,76 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "hazard.shakemap",
+  "label": "USGS ShakeMap, one IM at each bridge, from grid.xml and uncertainty.xml",
+  "version": "0.2.0",
+  "role": "hazard",
+  "per": "Bridge",
+  "inputs": [
+    {
+      "name": "epsilon",
+      "quantity": "GMResidual",
+      "over": "Bridge",
+      "via": "self",
+      "description": "This bridge's residual, from a field that carries the correlation between bridges."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "im",
+      "quantity": "{imt}"
+    }
+  ],
+  "attributes": [
+    "lat",
+    "lon"
+  ],
+  "parameters": {
+    "type": "object",
+    "required": [
+      "event_id",
+      "imt"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "event_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "version": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 1
+      },
+      "source": {
+        "enum": [
+          "auto",
+          "shakecast",
+          "comcat",
+          null
+        ]
+      },
+      "imt": {
+        "description": "Which of the map's grids: PGA, PGV, PSA03, PSA10 or PSA30, with STD<field> from uncertainty.xml.",
+        "enum": [
+          "PGA",
+          "PGV",
+          "SA(0.3)",
+          "SA(1.0)",
+          "SA(3.0)"
+        ]
+      }
+    }
+  },
+  "implementation": "src.builder.kernels.hazard:ShakeMap",
+  "deterministic": true,
+  "drawKind": "Marginal",
+  "capabilities": [
+    "SampleForward"
+  ],
+  "source": {
+    "citation": "USGS ShakeMap grid.xml and uncertainty.xml, PSA(1.0 s), read through src/builder/shakemap.py."
+  },
+  "description": "ln IM = ln median + sigma * epsilon, with the median from grid.xml (e.g. PSA10 for SA(1.0)) and sigma from uncertainty.xml (STDPSA10), both interpolated bilinearly on the log scale at the site. Deterministic given epsilon: the randomness, and the dependence between sites, live in the residual field. A bridge outside the map is an error, not zero shaking; a map without uncertainty.xml gives sigma = 0 and says so."
+}

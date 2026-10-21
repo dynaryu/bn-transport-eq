@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "quantities.schema.json",
+  "title": "Quantities",
+  "description": "The types that flow between functions. An output feeds an input only when both name the same quantity, so the state space, unit and meaning are checked once, here, not at every connection.",
+  "type": "object",
+  "required": [
+    "quantities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "quantities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/quantity"
+      }
+    }
+  },
+  "$defs": {
+    "quantity": {
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^([A-Z][A-Za-z0-9]*(\\.[A-Z][A-Za-z0-9]*)?|SA\\(\\d+(\\.\\d+)?\\))$",
+          "description": "A name, or for spectral acceleration the OpenQuake form SA(T) with T in seconds, e.g. SA(1.0)."
+        },
+        "label": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "continuous",
+            "discrete",
+            "record"
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "range": {
+          "description": "Closed support [min, max]; null for unbounded.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "states": {
+          "description": "Discrete states in CPD column order. A sample stores the index into this list.",
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          }
+        },
+        "fields": {
+          "description": "Named components of a record quantity, e.g. a rupture's magnitude and location.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "unit"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "unit": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "continuous"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "unit"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "states"
+                  ]
+                },
+                {
+                  "required": [
+                    "fields"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "discrete"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "states"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "range"
+                  ]
+                },
+                {
+                  "required": [
+                    "fields"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "record"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fields"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "states"
+                  ]
+                },
+                {
+                  "required": [
+                    "range"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

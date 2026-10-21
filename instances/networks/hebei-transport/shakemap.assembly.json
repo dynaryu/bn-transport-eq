@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../schema/meta/assembly.schema.json",
+  "id": "hebei-transport/shakemap",
+  "label": "Hebei transport: the 1966 Xingtai earthquake (M6.8) from USGS ShakeMap",
+  "network": "hebei-transport",
+  "description": "The 1966 Xingtai earthquake's USGS ShakeMap: its median and uncertainty at each bridge, with residuals correlated between bridges (Jayaram & Baker 2009, as OpenQuake applies to ShakeMaps). Sampling fetches the map (about 30 MB) unless it is cached.",
+  "bindings": [
+    {
+      "function": "hazard.spatial-correlation",
+      "parameter_set": "jayaram-baker-2009.sa1p0",
+      "note": "Its period matches the IM below. Swap for independent.any-im to see what the correlation changes."
+    },
+    {
+      "function": "hazard.shakemap",
+      "parameters": {
+        "event_id": "iscgem849480",
+        "imt": "SA(1.0)",
+        "version": null,
+        "source": null
+      }
+    },
+    {
+      "function": "fragility.lognormal",
+      "parameter_set": "hazus61.{hazus_class}"
+    },
+    {
+      "function": "functionality.usable-from-damage",
+      "parameter_set": "policy.closed-at-extensive"
+    },
+    {
+      "function": "link.series"
+    },
+    {
+      "function": "system.shortest-path",
+      "parameter_set": "speed.uniform-80kph"
+    },
+    {
+      "function": "system.max-flow"
+    }
+  ]
+}

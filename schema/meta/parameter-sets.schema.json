@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "parameter-sets.schema.json",
+  "title": "Parameter sets",
+  "description": "A collection of parameter sets for one function, e.g. the 28 Hazus bridge classes for one fragility function. Each set's `values` must satisfy that function's `parameters` schema; a few sets serve many rows, which is how a handful of curves describes every bridge.",
+  "type": "object",
+  "required": [
+    "function",
+    "source",
+    "sets"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "function": {
+      "type": "string"
+    },
+    "source": {
+      "description": "Provenance shared by every set in this file: citation, table, retrieval, verification.",
+      "type": "object"
+    },
+    "sets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "values"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+(\\.[A-Za-z0-9_-]+)+$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "values": {
+            "type": "object"
+          },
+          "source": {
+            "description": "Provenance specific to this set, overriding the file's.",
+            "type": "object"
+          },
+          "region": {
+            "description": "Where this set applies, for a binding that chooses by location: the first listed set whose polygon contains a row's lat/lon.",
+            "type": "object",
+            "required": [
+              "name",
+              "polygon"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "polygon": {
+                "description": "[lon, lat] vertices in degrees; the ring closes itself.",
+                "type": "array",
+                "minItems": 3,
+                "items": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": {
+                    "type": "number"
+                  }
+                }
+              },
+              "basis": {
+                "description": "Where the boundary comes from, e.g. the model's stated range, or an assumption.",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

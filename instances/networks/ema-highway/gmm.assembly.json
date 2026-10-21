@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../schema/meta/assembly.schema.json",
+  "id": "ema-highway/gmm",
+  "label": "EMA highways: scenario earthquake through a ground-motion model",
+  "network": "ema-highway",
+  "description": "The forward pilot's reference scenario, with both system functions reading the same link states.",
+  "bindings": [
+    {
+      "function": "hazard.scenario-fixed"
+    },
+    {
+      "function": "hazard.gmm",
+      "parameter_set_by_location": [
+        "campbell-2003.ema-script-sa1"
+      ],
+      "note": "Each bridge gets the first listed GMM whose region contains it. List others, in order of preference, as their coefficients are added."
+    },
+    {
+      "function": "fragility.lognormal",
+      "parameter_set": "hazus61.{hazus_class}",
+      "note": "Three parameter sets (HWB2, HWB4, HWB11) describe all 129 bridges."
+    },
+    {
+      "function": "functionality.usable-from-damage",
+      "parameter_set": "policy.closed-at-extensive"
+    },
+    {
+      "function": "link.series"
+    },
+    {
+      "function": "system.shortest-path",
+      "parameter_set": "speed.uniform-80kph"
+    },
+    {
+      "function": "system.max-flow"
+    }
+  ]
+}

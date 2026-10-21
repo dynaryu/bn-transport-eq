@@ -1,0 +1,66 @@
+{
+  "$schema": "../../schema/meta/parameter-sets.schema.json",
+  "function": "hazard.gmm",
+  "source": {
+    "transcribed_from": "The forward pilot's hazard.py (_GMPE, _aleatory_sigma) at commit 784e6cc, which reproduced the EMA dataset script's Campbell (2003) T = 1 s implementation.",
+    "verification": "Reproduces that script, not the paper: its far-distance terms reuse c7 and c8 where Campbell (2003) has separate coefficients. Not corrected here, because nothing in the repository supplies the paper's values.",
+    "retrieved": "2026-10-21"
+  },
+  "sets": [
+    {
+      "id": "campbell-2003.ema-script-sa1",
+      "label": "Campbell (2003) SA(1.0 s), as implemented by the EMA dataset script",
+      "values": {
+        "form": "campbell-2003",
+        "imt": "SA(1.0)",
+        "coefficients": {
+          "c1": -0.6104,
+          "c2": 0.451,
+          "c3": -0.209,
+          "c4": -1.158,
+          "c5": -0.00255,
+          "c6": 0.000141,
+          "c7": 0.299,
+          "c8": 0.503
+        },
+        "sigma": {
+          "a": 1.11,
+          "b": -0.0793,
+          "m_break": 7.16,
+          "sigma_above": 0.543
+        },
+        "sigma_epistemic": 0.3,
+        "distance_metric": "hypocentral",
+        "magnitude_range": [
+          4.0,
+          9.5
+        ]
+      },
+      "source": {
+        "note": "sigma_epistemic 0.3 is the dataset's placeholder, kept so results stay comparable with the forward pilot."
+      },
+      "region": {
+        "name": "Central and eastern North America",
+        "polygon": [
+          [
+            -105.0,
+            24.0
+          ],
+          [
+            -50.0,
+            24.0
+          ],
+          [
+            -50.0,
+            62.0
+          ],
+          [
+            -105.0,
+            62.0
+          ]
+        ],
+        "basis": "Campbell (2003) is a model for eastern North America. This box is the repository's approximation of that, an assumption, not a boundary taken from the paper."
+      }
+    }
+  ]
+}

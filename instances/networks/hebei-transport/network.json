@@ -1,0 +1,655 @@
+{
+  "$schema": "../../../schema/meta/network.schema.json",
+  "network": "hebei-transport",
+  "title": "Hebei directed transport network",
+  "description": "Earthquake connectivity through directed arcs to n22 (Handan).",
+  "source": {
+    "origin": "network-datasets, via the forward pilot's package hebei-transport (experiments/forward-bn-pilot/packages/hebei-transport/network.json at commit 784e6cc)",
+    "package_sha256": "260f2bd6cc701f96d2145704ece5b8beb09597d840331a965c2c401503e74fe9",
+    "note": "This file is now the source; the package it was generated from was removed."
+  },
+  "assumptions": {
+    "bridge_representation": "Each network edge or arc is represented by one highway bridge.",
+    "bridge_class": "Pilot assumption: each arc is one ordinary HWB11 bridge.",
+    "coordinates": "x/y are unitless figure coordinates, so no spatial GMPE is applied. lat/lon are georeferenced from the figure: city coordinates for labelled nodes, fitted positions (about +/-22 km) for junctions. ShakeMap shaking is read at arc midpoints.",
+    "dependence": "Bridge states are sampled independently conditional on the hazard scenario.",
+    "functionality": "Moved out of the data: the usable-from-damage parameter set the assembly binds (policy.closed-at-extensive) states it.",
+    "length_km": "Great-circle distance between a link's end nodes; the dataset gives no lengths.",
+    "capacity": "The dataset's highest capacity state per arc (unitless capacity levels).",
+    "bridge_location": "Each bridge sits at the midpoint of its link's end nodes; bridge locations are not surveyed."
+  },
+  "tables": {
+    "Node": [
+      {
+        "id": "n1",
+        "lat": 40.973889,
+        "lon": 117.932222,
+        "name": "Chengde"
+      },
+      {
+        "id": "n2",
+        "lat": 40.81078,
+        "lon": 114.88114,
+        "name": "Zhangjiakou"
+      },
+      {
+        "id": "n3",
+        "lat": 39.90403,
+        "lon": 116.407526,
+        "name": "Beijing"
+      },
+      {
+        "id": "n4",
+        "lat": 39.93978,
+        "lon": 119.58812,
+        "name": "Qinhuangdao"
+      },
+      {
+        "id": "n5",
+        "lat": 39.629444,
+        "lon": 118.173889,
+        "name": "Tangshan"
+      },
+      {
+        "id": "n6",
+        "lat": 39.2686,
+        "lon": 118.6738
+      },
+      {
+        "id": "n7",
+        "lat": 39.146667,
+        "lon": 117.205556,
+        "name": "Tianjin"
+      },
+      {
+        "id": "n8",
+        "lat": 39.12346,
+        "lon": 116.38596,
+        "name": "Bazhou"
+      },
+      {
+        "id": "n9",
+        "lat": 38.9894,
+        "lon": 114.2775
+      },
+      {
+        "id": "n10",
+        "lat": 38.86712,
+        "lon": 115.48452,
+        "name": "Baoding"
+      },
+      {
+        "id": "n11",
+        "lat": 38.37099,
+        "lon": 117.3329,
+        "name": "Huanghua"
+      },
+      {
+        "id": "n12",
+        "lat": 38.30369,
+        "lon": 116.84519,
+        "name": "Cangzhou"
+      },
+      {
+        "id": "n13",
+        "lat": 38.5117,
+        "lon": 115.9499
+      },
+      {
+        "id": "n14",
+        "lat": 37.73484,
+        "lon": 115.68599,
+        "name": "Hengshui"
+      },
+      {
+        "id": "n15",
+        "lat": 38.0425,
+        "lon": 114.51,
+        "name": "Shijiazhuang"
+      },
+      {
+        "id": "n16",
+        "lat": 38.3377,
+        "lon": 113.971
+      },
+      {
+        "id": "n17",
+        "lat": 37.2698,
+        "lon": 113.8927
+      },
+      {
+        "id": "n18",
+        "lat": 37.06594,
+        "lon": 114.47531,
+        "name": "Xingtai"
+      },
+      {
+        "id": "n19",
+        "lat": 37.1885,
+        "lon": 115.3169
+      },
+      {
+        "id": "n20",
+        "lat": 36.73,
+        "lon": 113.7039
+      },
+      {
+        "id": "n21",
+        "lat": 36.483,
+        "lon": 115.0031
+      },
+      {
+        "id": "n22",
+        "lat": 36.61161,
+        "lon": 114.48937,
+        "name": "Handan"
+      }
+    ],
+    "Edge": [
+      {
+        "id": "e01",
+        "source": "n1",
+        "target": "n2",
+        "directed": true,
+        "length_km": 257.0915,
+        "capacity": 2
+      },
+      {
+        "id": "e02",
+        "source": "n1",
+        "target": "n3",
+        "directed": true,
+        "length_km": 175.5002,
+        "capacity": 2
+      },
+      {
+        "id": "e03",
+        "source": "n1",
+        "target": "n4",
+        "directed": true,
+        "length_km": 181.2412,
+        "capacity": 2
+      },
+      {
+        "id": "e04",
+        "source": "n1",
+        "target": "n5",
+        "directed": true,
+        "length_km": 150.8935,
+        "capacity": 2
+      },
+      {
+        "id": "e05",
+        "source": "n2",
+        "target": "n3",
+        "directed": true,
+        "length_km": 163.9874,
+        "capacity": 2
+      },
+      {
+        "id": "e06",
+        "source": "n2",
+        "target": "n9",
+        "directed": true,
+        "length_km": 208.9702,
+        "capacity": 2
+      },
+      {
+        "id": "e07",
+        "source": "n3",
+        "target": "n7",
+        "directed": true,
+        "length_km": 108.5212,
+        "capacity": 2
+      },
+      {
+        "id": "e08",
+        "source": "n3",
+        "target": "n8",
+        "directed": true,
+        "length_km": 86.8151,
+        "capacity": 2
+      },
+      {
+        "id": "e09",
+        "source": "n3",
+        "target": "n10",
+        "directed": true,
+        "length_km": 139.9491,
+        "capacity": 2
+      },
+      {
+        "id": "e10",
+        "source": "n4",
+        "target": "n6",
+        "directed": true,
+        "length_km": 108.1919,
+        "capacity": 2
+      },
+      {
+        "id": "e11",
+        "source": "n5",
+        "target": "n6",
+        "directed": true,
+        "length_km": 58.7571,
+        "capacity": 2
+      },
+      {
+        "id": "e12",
+        "source": "n6",
+        "target": "n11",
+        "directed": true,
+        "length_km": 153.1533,
+        "capacity": 2
+      },
+      {
+        "id": "e13",
+        "source": "n7",
+        "target": "n8",
+        "directed": true,
+        "length_km": 70.7366,
+        "capacity": 2
+      },
+      {
+        "id": "e14",
+        "source": "n7",
+        "target": "n12",
+        "directed": true,
+        "length_km": 98.8101,
+        "capacity": 2
+      },
+      {
+        "id": "e15",
+        "source": "n8",
+        "target": "n13",
+        "directed": true,
+        "length_km": 77.811,
+        "capacity": 2
+      },
+      {
+        "id": "e16",
+        "source": "n9",
+        "target": "n10",
+        "directed": true,
+        "length_km": 105.2907,
+        "capacity": 2
+      },
+      {
+        "id": "e17",
+        "source": "n9",
+        "target": "n16",
+        "directed": true,
+        "length_km": 77.1974,
+        "capacity": 2
+      },
+      {
+        "id": "e18",
+        "source": "n10",
+        "target": "n13",
+        "directed": true,
+        "length_km": 56.5099,
+        "capacity": 2
+      },
+      {
+        "id": "e19",
+        "source": "n10",
+        "target": "n15",
+        "directed": true,
+        "length_km": 124.9326,
+        "capacity": 2
+      },
+      {
+        "id": "e20",
+        "source": "n11",
+        "target": "n12",
+        "directed": true,
+        "length_km": 43.1904,
+        "capacity": 2
+      },
+      {
+        "id": "e21",
+        "source": "n12",
+        "target": "n14",
+        "directed": true,
+        "length_km": 119.6333,
+        "capacity": 2
+      },
+      {
+        "id": "e22",
+        "source": "n13",
+        "target": "n14",
+        "directed": true,
+        "length_km": 89.4143,
+        "capacity": 2
+      },
+      {
+        "id": "e23",
+        "source": "n14",
+        "target": "n15",
+        "directed": true,
+        "length_km": 108.7213,
+        "capacity": 2
+      },
+      {
+        "id": "e24",
+        "source": "n14",
+        "target": "n19",
+        "directed": true,
+        "length_km": 68.9334,
+        "capacity": 2
+      },
+      {
+        "id": "e25",
+        "source": "n15",
+        "target": "n18",
+        "directed": true,
+        "length_km": 108.6316,
+        "capacity": 2
+      },
+      {
+        "id": "e26",
+        "source": "n15",
+        "target": "n17",
+        "directed": true,
+        "length_km": 101.6624,
+        "capacity": 2
+      },
+      {
+        "id": "e27",
+        "source": "n16",
+        "target": "n17",
+        "directed": true,
+        "length_km": 118.9441,
+        "capacity": 2
+      },
+      {
+        "id": "e28",
+        "source": "n17",
+        "target": "n20",
+        "directed": true,
+        "length_km": 62.3207,
+        "capacity": 2
+      },
+      {
+        "id": "e29",
+        "source": "n17",
+        "target": "n22",
+        "directed": true,
+        "length_km": 90.3785,
+        "capacity": 2
+      },
+      {
+        "id": "e30",
+        "source": "n18",
+        "target": "n22",
+        "directed": true,
+        "length_km": 50.5347,
+        "capacity": 2
+      },
+      {
+        "id": "e31",
+        "source": "n19",
+        "target": "n21",
+        "directed": true,
+        "length_km": 83.2705,
+        "capacity": 2
+      },
+      {
+        "id": "e32",
+        "source": "n20",
+        "target": "n22",
+        "directed": true,
+        "length_km": 71.2798,
+        "capacity": 2
+      },
+      {
+        "id": "e33",
+        "source": "n21",
+        "target": "n22",
+        "directed": true,
+        "length_km": 48.0681,
+        "capacity": 2
+      }
+    ],
+    "Bridge": [
+      {
+        "id": "bridge-e01",
+        "lat": 40.892335,
+        "lon": 116.406681,
+        "edge": "e01",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e02",
+        "lat": 40.438959,
+        "lon": 117.169874,
+        "edge": "e02",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e03",
+        "lat": 40.456834,
+        "lon": 118.760171,
+        "edge": "e03",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e04",
+        "lat": 40.301666,
+        "lon": 118.053055,
+        "edge": "e04",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e05",
+        "lat": 40.357405,
+        "lon": 115.644333,
+        "edge": "e05",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e06",
+        "lat": 39.90009,
+        "lon": 114.57932,
+        "edge": "e06",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e07",
+        "lat": 39.525348,
+        "lon": 116.806541,
+        "edge": "e07",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e08",
+        "lat": 39.513745,
+        "lon": 116.396743,
+        "edge": "e08",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e09",
+        "lat": 39.385575,
+        "lon": 115.946023,
+        "edge": "e09",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e10",
+        "lat": 39.60419,
+        "lon": 119.13096,
+        "edge": "e10",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e11",
+        "lat": 39.449022,
+        "lon": 118.423845,
+        "edge": "e11",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e12",
+        "lat": 38.819795,
+        "lon": 118.00335,
+        "edge": "e12",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e13",
+        "lat": 39.135064,
+        "lon": 116.795758,
+        "edge": "e13",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e14",
+        "lat": 38.725178,
+        "lon": 117.025373,
+        "edge": "e14",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e15",
+        "lat": 38.81758,
+        "lon": 116.16793,
+        "edge": "e15",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e16",
+        "lat": 38.92826,
+        "lon": 114.88101,
+        "edge": "e16",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e17",
+        "lat": 38.66355,
+        "lon": 114.12425,
+        "edge": "e17",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e18",
+        "lat": 38.68941,
+        "lon": 115.71721,
+        "edge": "e18",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e19",
+        "lat": 38.45481,
+        "lon": 114.99726,
+        "edge": "e19",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e20",
+        "lat": 38.33734,
+        "lon": 117.089045,
+        "edge": "e20",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e21",
+        "lat": 38.019265,
+        "lon": 116.26559,
+        "edge": "e21",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e22",
+        "lat": 38.12327,
+        "lon": 115.817945,
+        "edge": "e22",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e23",
+        "lat": 37.88867,
+        "lon": 115.097995,
+        "edge": "e23",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e24",
+        "lat": 37.46167,
+        "lon": 115.501445,
+        "edge": "e24",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e25",
+        "lat": 37.55422,
+        "lon": 114.492655,
+        "edge": "e25",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e26",
+        "lat": 37.65615,
+        "lon": 114.20135,
+        "edge": "e26",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e27",
+        "lat": 37.80375,
+        "lon": 113.93185,
+        "edge": "e27",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e28",
+        "lat": 36.9999,
+        "lon": 113.7983,
+        "edge": "e28",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e29",
+        "lat": 36.940705,
+        "lon": 114.191035,
+        "edge": "e29",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e30",
+        "lat": 36.838775,
+        "lon": 114.48234,
+        "edge": "e30",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e31",
+        "lat": 36.83575,
+        "lon": 115.16,
+        "edge": "e31",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e32",
+        "lat": 36.670805,
+        "lon": 114.096635,
+        "edge": "e32",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "bridge-e33",
+        "lat": 36.547305,
+        "lon": 114.746235,
+        "edge": "e33",
+        "hazus_class": "HWB11"
+      }
+    ],
+    "ODPair": [
+      {
+        "id": "n1>n22",
+        "origin": "n1",
+        "destination": "n22"
+      }
+    ]
+  }
+}

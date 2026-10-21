@@ -1,0 +1,30 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "link.series",
+  "label": "Link open only if every bridge on it is usable",
+  "version": "0.1.0",
+  "role": "link",
+  "per": "Edge",
+  "inputs": [
+    {
+      "name": "usable",
+      "quantity": "Usable",
+      "over": "Bridge",
+      "via": "Bridge.edge",
+      "description": "Every bridge whose `edge` is this link: zero, one or several parents."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "open",
+      "quantity": "LinkOpen"
+    }
+  ],
+  "implementation": "src.builder.kernels.link:Series",
+  "deterministic": true,
+  "drawKind": "Marginal",
+  "capabilities": [
+    "SampleForward"
+  ],
+  "description": "A link with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here."
+}

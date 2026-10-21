@@ -4,18 +4,11 @@ dependencies:
   - python=3.12
   - numpy
   - scipy
-  - networkx
   - pytest
   - pip
   - pip:
-      - rdflib>=7.0
-      - pyshacl>=0.26
-      # Validates each single-file asset against the schema derived from the ontology.
+      # Validates every file under schema/ and instances/ against schema/meta/.
       - jsonschema>=4.0
-      # Optional: only the forward pilot's natural-language panel needs this.
-      # Without it (or without a credential) the pilot runs unchanged.
+      # Optional: only the Anthropic backend of the language layer needs this.
+      # Without it (or without a credential) everything else runs unchanged.
       - anthropic>=1.0
-      # The forward pilot's Bayesian network. torch is a large dependency, so the
-      # pilot keeps a closed-form fallback and runs without either.
-      - torch>=2.0
-      - tbnpy>=0.2.0

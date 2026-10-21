@@ -1,0 +1,118 @@
+{
+  "$schema": "meta/entities.schema.json",
+  "entities": [
+    {
+      "id": "Event",
+      "label": "Earthquake event",
+      "singleton": true,
+      "attributes": {
+        "mw": {
+          "type": "number",
+          "unit": "Mw",
+          "required": false
+        },
+        "lat": {
+          "type": "number",
+          "unit": "deg",
+          "required": false
+        },
+        "lon": {
+          "type": "number",
+          "unit": "deg",
+          "required": false
+        },
+        "depth_km": {
+          "type": "number",
+          "unit": "km",
+          "required": false
+        },
+        "description": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "description": "The global plate. Values here are the scenario a fixed-scenario function reads; a ShakeMap assembly needs none of them."
+    },
+    {
+      "id": "Node",
+      "label": "Network node",
+      "attributes": {
+        "lat": {
+          "type": "number",
+          "unit": "deg"
+        },
+        "lon": {
+          "type": "number",
+          "unit": "deg"
+        },
+        "population": {
+          "type": "number",
+          "unit": "persons",
+          "required": false
+        },
+        "name": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "Edge",
+      "label": "Network link",
+      "attributes": {
+        "source": {
+          "ref": "Node"
+        },
+        "target": {
+          "ref": "Node"
+        },
+        "directed": {
+          "type": "boolean"
+        },
+        "length_km": {
+          "type": "number",
+          "unit": "km"
+        },
+        "capacity": {
+          "type": "integer",
+          "unit": "see the network's assumptions"
+        }
+      }
+    },
+    {
+      "id": "Bridge",
+      "label": "Bridge",
+      "attributes": {
+        "lat": {
+          "type": "number",
+          "unit": "deg"
+        },
+        "lon": {
+          "type": "number",
+          "unit": "deg"
+        },
+        "edge": {
+          "ref": "Edge",
+          "description": "The link this bridge carries. An edge with several bridges is open only if all are."
+        },
+        "hazus_class": {
+          "type": "string",
+          "description": "HWB1 ... HWB28; selects the fragility parameter set."
+        }
+      },
+      "description": "A bridge, where it is and what kind it is. Its location is what every hazard function reads, so ground motion is one node per bridge."
+    },
+    {
+      "id": "ODPair",
+      "label": "Origin-destination pair",
+      "attributes": {
+        "origin": {
+          "ref": "Node"
+        },
+        "destination": {
+          "ref": "Node"
+        }
+      }
+    }
+  ]
+}

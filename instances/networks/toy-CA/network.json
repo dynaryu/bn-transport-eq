@@ -1,0 +1,141 @@
+{
+    "$schema":  "../../../schema/meta/network.schema.json",
+    "network":  "toy-ca",
+    "title":  "Toy California network",
+    "description":  "Eight nodes and ten connections for a small worked example.",
+    "source":  {
+                   "coordinates":  "User-provided KML Point coordinates for N1 through N8, retained at supplied precision.",
+                   "connectivity":  "Ten node pairs supplied by the user."
+               },
+    "assumptions":  {
+                        "direction":  "All connections are treated as undirected.",
+                        "length_km":  "Great-circle distance between endpoint coordinates using a spherical Earth radius of 6371.0088 km; not road distance.",
+                        "capacity":  "Each edge has placeholder capacity 1 in arbitrary units; no measured capacities were supplied."
+                    },
+    "tables":  {
+                   "Node":  [
+                                {
+                                    "id":  "n1",
+                                    "lat":  36.2754377087278,
+                                    "lon":  -120.2697236285474
+                                },
+                                {
+                                    "id":  "n2",
+                                    "lat":  37.045064073401747,
+                                    "lon":  -120.97118297004261
+                                },
+                                {
+                                    "id":  "n3",
+                                    "lat":  36.830997163095773,
+                                    "lon":  -121.3875291153705
+                                },
+                                {
+                                    "id":  "n4",
+                                    "lat":  36.503900646277671,
+                                    "lon":  -121.12787887695561
+                                },
+                                {
+                                    "id":  "n5",
+                                    "lat":  36.177421034273841,
+                                    "lon":  -120.827670470779
+                                },
+                                {
+                                    "id":  "n6",
+                                    "lat":  36.112166613610789,
+                                    "lon":  -121.0225573012664
+                                },
+                                {
+                                    "id":  "n7",
+                                    "lat":  36.409971256183319,
+                                    "lon":  -121.3284746027899
+                                },
+                                {
+                                    "id":  "n8",
+                                    "lat":  36.666198517768862,
+                                    "lon":  -121.6458130936544
+                                }
+                            ],
+                   "Edge":  [
+                                {
+                                    "id":  "e1",
+                                    "source":  "n1",
+                                    "target":  "n2",
+                                    "directed":  false,
+                                    "length_km":  106.011906,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e2",
+                                    "source":  "n1",
+                                    "target":  "n5",
+                                    "directed":  false,
+                                    "length_km":  51.220587,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e3",
+                                    "source":  "n2",
+                                    "target":  "n3",
+                                    "directed":  false,
+                                    "length_km":  43.998194,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e4",
+                                    "source":  "n3",
+                                    "target":  "n4",
+                                    "directed":  false,
+                                    "length_km":  43.118452,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e5",
+                                    "source":  "n3",
+                                    "target":  "n8",
+                                    "directed":  false,
+                                    "length_km":  29.417095,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e6",
+                                    "source":  "n4",
+                                    "target":  "n5",
+                                    "directed":  false,
+                                    "length_km":  45.176621,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e7",
+                                    "source":  "n4",
+                                    "target":  "n7",
+                                    "directed":  false,
+                                    "length_km":  20.759042,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e8",
+                                    "source":  "n5",
+                                    "target":  "n6",
+                                    "directed":  false,
+                                    "length_km":  18.944186,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e9",
+                                    "source":  "n6",
+                                    "target":  "n7",
+                                    "directed":  false,
+                                    "length_km":  42.998648,
+                                    "capacity":  1
+                                },
+                                {
+                                    "id":  "e10",
+                                    "source":  "n7",
+                                    "target":  "n8",
+                                    "directed":  false,
+                                    "length_km":  40.193808,
+                                    "capacity":  1
+                                }
+                            ]
+               }
+}

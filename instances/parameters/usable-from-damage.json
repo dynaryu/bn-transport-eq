@@ -1,0 +1,31 @@
+{
+  "$schema": "../../schema/meta/parameter-sets.schema.json",
+  "function": "functionality.usable-from-damage",
+  "source": {
+    "basis": "Forward-pilot assumption, stated in each package manifest: a bridge is unusable when damage reaches Extensive or Complete.",
+    "verification": "A modelling policy, not a measured mapping."
+  },
+  "sets": [
+    {
+      "id": "policy.closed-at-extensive",
+      "label": "Closed at Extensive or Complete",
+      "values": {
+        "usable_states": [
+          "none",
+          "slight",
+          "moderate"
+        ]
+      }
+    },
+    {
+      "id": "policy.closed-at-moderate",
+      "label": "Closed at Moderate or worse (conservative)",
+      "values": {
+        "usable_states": [
+          "none",
+          "slight"
+        ]
+      }
+    }
+  ]
+}

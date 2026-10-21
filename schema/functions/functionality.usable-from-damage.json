@@ -1,0 +1,51 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "functionality.usable-from-damage",
+  "label": "Bridge usable unless damage reaches a closing state",
+  "version": "0.1.0",
+  "role": "functionality",
+  "per": "Bridge",
+  "inputs": [
+    {
+      "name": "damage",
+      "quantity": "DamageState.HazusBridge",
+      "over": "Bridge",
+      "via": "self"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "usable",
+      "quantity": "Usable"
+    }
+  ],
+  "parameters": {
+    "type": "object",
+    "required": [
+      "usable_states"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "usable_states": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "enum": [
+            "none",
+            "slight",
+            "moderate",
+            "extensive",
+            "complete"
+          ]
+        }
+      }
+    }
+  },
+  "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+  "deterministic": true,
+  "drawKind": "Marginal",
+  "capabilities": [
+    "SampleForward"
+  ]
+}

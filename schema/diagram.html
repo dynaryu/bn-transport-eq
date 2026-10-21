@@ -1,0 +1,1861 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seismic Transport BN</title>
+<style>
+:root {
+  --bg: #f6f6f7; --canvas: #fbfbfc; --grid: #dcdce1; --card: #ffffff; --card-line: #e3e3e8;
+  --head: #f3f3f5; --text: #1b1b1f; --muted: #6c6c78; --faint: #9a9aa5; --chip: #efeff2;
+  --wire: #a3a3ae; --hi: #0e9f6e; --hi-soft: rgba(14,159,110,.12); --warn: #b45309; --warn-soft: #fef3c7;
+  --bad: #b91c1c; --bad-soft: #fee2e2;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.05);
+  --r-scenario: #7c5cd6; --r-hazard: #e8752a; --r-fragility: #d9463b; --r-functionality: #c69214;
+  --r-link: #129a8b; --r-system: #2f6fdb;
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111112; --canvas: #151516; --grid: #2a2a2d; --card: #1d1d1f; --card-line: #303034;
+    --head: #252528; --text: #ececee; --muted: #a0a0a8; --faint: #6f6f78; --chip: #2a2a2e;
+    --wire: #5d5d66; --hi: #3ecf8e; --hi-soft: rgba(62,207,142,.14); --warn: #fbbf24; --warn-soft: #3a2c0b;
+    --bad: #fca5a5; --bad-soft: #3b1212;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111112; --canvas: #151516; --grid: #2a2a2d; --card: #1d1d1f; --card-line: #303034;
+  --head: #252528; --text: #ececee; --muted: #a0a0a8; --faint: #6f6f78; --chip: #2a2a2e;
+  --wire: #5d5d66; --hi: #3ecf8e; --hi-soft: rgba(62,207,142,.14); --warn: #fbbf24; --warn-soft: #3a2c0b;
+  --bad: #fca5a5; --bad-soft: #3b1212;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 13px/1.4 var(--sans); display: flex; flex-direction: column; overflow: hidden; }
+button, select, input, textarea { font: inherit; color: inherit; }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--card-line); background: var(--card); z-index: 3; }
+.brand { font-weight: 600; margin-right: 6px; }
+.bar select, .bar button, .side button, .side select, .side input, .side textarea {
+  background: var(--chip); border: 1px solid var(--card-line); border-radius: 6px; padding: 4px 9px; }
+.bar button, .side button { cursor: pointer; }
+.bar button:hover, .side button:hover { border-color: var(--faint); }
+.seg { display: inline-flex; border: 1px solid var(--card-line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+.seg button.on { background: var(--hi-soft) !important; color: var(--hi); font-weight: 600; }
+.seg button:disabled { opacity: .4; cursor: default; }
+.spacer { flex: 1; }
+#stats { color: var(--muted); font-size: 12px; }
+
+main { position: relative; flex: 1; min-height: 0; display: flex; }
+#canvas { position: relative; flex: 1; overflow: hidden; cursor: grab; touch-action: none;
+  background-color: var(--canvas);
+  background-image: radial-gradient(var(--grid) 1px, transparent 1px); background-size: 18px 18px; }
+#canvas.panning { cursor: grabbing; }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#wires { position: absolute; left: 0; top: 0; overflow: visible; width: 1px; height: 1px; pointer-events: none; }
+#wires path.wire { fill: none; stroke: var(--wire); stroke-width: 1.4; }
+#wires path.hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: help; }
+#wires path.end { fill: none; stroke: var(--wire); stroke-width: 1.4; }
+#wires path.wire.data { stroke-dasharray: 5 4; }
+#wires path.wire.fk { stroke-dasharray: 1.5 3.5; }
+#wires g.hot path.wire, #wires g.hot path.end { stroke: var(--hi); stroke-width: 2; }
+#wires g.dim { opacity: .25; }
+.wlabel { position: absolute; transform: translate(-50%, -50%); font: 10.5px/1 var(--mono); color: var(--muted);
+  background: var(--canvas); border: 1px solid var(--card-line); border-radius: 10px; padding: 3px 7px; white-space: nowrap; pointer-events: none; }
+.wlabel.hot { color: var(--hi); border-color: var(--hi); }
+.wlabel.dim { opacity: .25; }
+
+.card { position: absolute; width: 292px; background: var(--card); border: 1px solid var(--card-line); border-radius: 9px;
+  box-shadow: var(--shadow); user-select: none; cursor: default; }
+.card.sel { border-color: var(--hi); box-shadow: 0 0 0 3px var(--hi-soft), var(--shadow); }
+.card.ran .head::after { content: "computed"; margin-left: auto; font: 600 9.5px/1 var(--sans); letter-spacing: .05em;
+  text-transform: uppercase; color: var(--hi); }
+.card .head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--head); border-bottom: 1px solid var(--card-line);
+  border-radius: 9px 9px 0 0; cursor: move; }
+.card .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.card .fid { font: 600 12px/1.2 var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .sub { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 2px; }
+.chip { font-size: 10.5px; padding: 1px 6px; border-radius: 9px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+.chip.plate { color: var(--text); font-weight: 600; }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.sec { padding: 6px 10px 2px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+.row { display: flex; align-items: center; gap: 7px; padding: 3px 10px; min-height: 24px; font: 11.5px/1.2 var(--mono); }
+.row + .row { border-top: 1px solid var(--card-line); }
+.row .ico { width: 12px; text-align: center; color: var(--faint); flex: none; font-size: 10px; }
+.row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .ty { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; text-align: right; }
+.row.in .ico, .row.out .ico { color: var(--hi); }
+.row.dimrow { color: var(--muted); }
+.row.more { color: var(--faint); font-style: italic; }
+.card .foot { height: 6px; }
+
+.side { width: 400px; max-width: 94vw; border-left: 1px solid var(--card-line); background: var(--card); display: flex; flex-direction: column; z-index: 2; }
+.side .tabs { padding: 8px 12px; border-bottom: 1px solid var(--card-line); display: flex; gap: 8px; align-items: center; }
+.pane { flex: 1; overflow: auto; padding: 12px 16px 24px; }
+.pane[hidden] { display: none; }
+.pane h2 { font: 600 14px/1.3 var(--mono); margin: 0 0 2px; word-break: break-all; }
+.pane h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 16px 0 6px; }
+.pane p { margin: 6px 0; color: var(--muted); }
+.sig, .stmt { font: 11.5px/1.55 var(--mono); background: var(--chip); border-radius: 7px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; }
+.stmt { color: var(--text); border-left: 3px solid var(--hi); }
+.stmt.refused { border-left-color: var(--bad); }
+.pane table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pane td, .pane th { padding: 4px 4px; border-top: 1px solid var(--card-line); vertical-align: top; text-align: left; }
+.pane th { font-weight: 600; color: var(--muted); font-size: 11px; }
+.pane td.mono, .pane td:first-child { font-family: var(--mono); font-size: 11.5px; }
+.pane td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pane code, .pane pre { font-family: var(--mono); font-size: 11.5px; }
+.pane pre { background: var(--chip); border-radius: 7px; padding: 8px 10px; overflow: auto; margin: 4px 0; }
+.field { display: grid; grid-template-columns: 1fr 150px; gap: 6px; align-items: center; margin: 5px 0; }
+.field label { font: 11.5px/1.3 var(--mono); color: var(--muted); word-break: break-all; }
+.field input, .field select { width: 100%; min-width: 0; }
+.field.wide { grid-template-columns: 1fr; }
+.inline { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.inline > * { min-width: 0; }
+textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); resize: vertical; }
+.primary { background: var(--hi) !important; color: #fff !important; border-color: var(--hi) !important; font-weight: 600; }
+.note { font-size: 12px; color: var(--muted); }
+.err { color: var(--bad); background: var(--bad-soft); border-radius: 7px; padding: 8px 10px; font-size: 12px; white-space: pre-wrap; }
+.warnbox { color: var(--warn); background: var(--warn-soft); border-radius: 7px; padding: 6px 10px; font-size: 12px; margin: 6px 0; }
+.bubble { margin: 10px 0; }
+.bubble.user { background: var(--hi-soft); border-radius: 9px; padding: 8px 10px; }
+.bubble.answer { white-space: pre-wrap; }
+.bubble .stmt { margin: 6px 0; }
+#askform { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--card-line); }
+#askform textarea { flex: 1; min-height: 38px; height: 38px; resize: vertical; }
+#askform[hidden] { display: none; }
+
+#legend { position: absolute; left: 16px; bottom: 14px; background: var(--card); border: 1px solid var(--card-line); border-radius: 8px;
+  padding: 8px 10px; font-size: 11.5px; color: var(--muted); box-shadow: var(--shadow); display: grid; gap: 4px; max-width: calc(100% - 32px); }
+#legend .roles { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+#legend .roles span { display: inline-flex; align-items: center; gap: 5px; }
+#legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; }
+#legend svg { vertical-align: middle; }
+#banner { position: absolute; left: 16px; right: 16px; top: 12px; background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 12px;
+  font: 12px/1.45 var(--mono); white-space: pre-wrap; z-index: 2; }
+#banner[hidden] { display: none; }
+#tip { position: fixed; z-index: 10; max-width: 340px; background: var(--card); border: 1px solid var(--card-line); border-radius: 7px; padding: 7px 9px;
+  font-size: 12px; box-shadow: var(--shadow); pointer-events: none; }
+#tip[hidden] { display: none; }
+#tip b { font-family: var(--mono); }
+@media (max-width: 760px) {
+  main { flex-direction: column; }
+  .side { width: 100%; max-width: none; height: 55%; border-left: 0; border-top: 1px solid var(--card-line); }
+  #legend { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <span class="brand">Seismic transport BN</span>
+  <select id="view" aria-label="Bayesian network"></select>
+  <div class="seg" id="tabs">
+    <button data-tab="model" class="on" title="Functions and the tables they read, in one picture">Model</button>
+    <button data-tab="functions" title="Only the functions and the variables between them">Functions</button>
+    <button data-tab="plates" title="Only the tables and their foreign keys">Plates</button>
+  </div>
+  <span class="spacer"></span>
+  <span id="stats">Loading…</span>
+  <button id="fit" title="Fit to screen">Fit</button>
+  <button id="relayout" title="Discard dragged positions">Auto-layout</button>
+  <button id="theme" title="Toggle theme">Theme</button>
+</header>
+<main>
+  <div id="canvas">
+    <div id="world"><svg id="wires"></svg><div id="labels"></div><div id="cards"></div></div>
+    <div id="banner" hidden></div>
+    <div id="legend"></div>
+  </div>
+  <aside class="side">
+    <div class="tabs"><div class="seg" id="sidetabs">
+      <button data-pane="query" class="on">Query</button>
+      <button data-pane="ask">Ask</button>
+      <button data-pane="details">Details</button>
+    </div></div>
+    <section class="pane" id="pane-query"></section>
+    <section class="pane" id="pane-ask" hidden><div id="chatlog"></div></section>
+    <section class="pane" id="pane-details" hidden><p>Select a card to see its signature, parameter sets and an example node.</p></section>
+    <form id="askform" hidden><textarea id="question" placeholder="Ask in words, e.g. how likely is n1 to lose its route to n66 if the magnitude is 7?"></textarea><button class="primary">Ask</button></form>
+  </aside>
+  <div id="tip" hidden></div>
+</main>
+<script>window.BN_DATA = {
+ "quantities": {
+  "Rupture": {
+   "id": "Rupture",
+   "label": "Earthquake rupture (point source)",
+   "kind": "record",
+   "fields": {
+    "mw": {
+     "unit": "Mw",
+     "description": "Moment magnitude"
+    },
+    "lat": {
+     "unit": "deg",
+     "description": "Epicentre latitude"
+    },
+    "lon": {
+     "unit": "deg",
+     "description": "Epicentre longitude"
+    },
+    "depth_km": {
+     "unit": "km",
+     "description": "Hypocentral depth"
+    }
+   },
+   "description": "The global variable a ground-motion model conditions on. A BN node on the Event plate, so a fixed scenario and an uncertain one differ only in which function produces it.",
+   "type": "record(4)"
+  },
+  "PGA": {
+   "id": "PGA",
+   "label": "Peak ground acceleration",
+   "kind": "continuous",
+   "unit": "g",
+   "range": [
+    0,
+    null
+   ],
+   "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name.",
+   "type": "g"
+  },
+  "PGV": {
+   "id": "PGV",
+   "label": "Peak ground velocity",
+   "kind": "continuous",
+   "unit": "cm/s",
+   "range": [
+    0,
+    null
+   ],
+   "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name.",
+   "type": "cm/s"
+  },
+  "SA(0.3)": {
+   "id": "SA(0.3)",
+   "label": "Spectral acceleration, T = 0.3 s, 5% damping",
+   "kind": "continuous",
+   "unit": "g",
+   "range": [
+    0,
+    null
+   ],
+   "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name.",
+   "type": "g"
+  },
+  "SA(1.0)": {
+   "id": "SA(1.0)",
+   "label": "Spectral acceleration, T = 1.0 s, 5% damping",
+   "kind": "continuous",
+   "unit": "g",
+   "range": [
+    0,
+    null
+   ],
+   "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name.",
+   "type": "g"
+  },
+  "SA(3.0)": {
+   "id": "SA(3.0)",
+   "label": "Spectral acceleration, T = 3.0 s, 5% damping",
+   "kind": "continuous",
+   "unit": "g",
+   "range": [
+    0,
+    null
+   ],
+   "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name.",
+   "type": "g"
+  },
+  "GMResidual": {
+   "id": "GMResidual",
+   "label": "Normalised ground-motion residual at one bridge",
+   "kind": "continuous",
+   "unit": "standard deviations",
+   "range": [
+    null,
+    null
+   ],
+   "description": "epsilon in ln IM = ln median + sigma * epsilon. Standard normal at each bridge, correlated between bridges. A node of its own so the spatial dependence is explicit in the BN, where observations could later condition it.",
+   "type": "standard deviations"
+  },
+  "DamageState.HazusBridge": {
+   "id": "DamageState.HazusBridge",
+   "label": "Hazus highway-bridge damage state",
+   "kind": "discrete",
+   "states": [
+    "none",
+    "slight",
+    "moderate",
+    "extensive",
+    "complete"
+   ],
+   "type": "enum(5)"
+  },
+  "Usable": {
+   "id": "Usable",
+   "label": "Component usable after the event",
+   "kind": "discrete",
+   "states": [
+    0,
+    1
+   ],
+   "description": "0 closed, 1 open.",
+   "type": "{0,1}"
+  },
+  "LinkOpen": {
+   "id": "LinkOpen",
+   "label": "Network link open to traffic",
+   "kind": "discrete",
+   "states": [
+    0,
+    1
+   ],
+   "description": "0 closed, 1 open. The one link-level state both system functions read.",
+   "type": "{0,1}"
+  },
+  "TravelTime": {
+   "id": "TravelTime",
+   "label": "Shortest travel time, origin to destination",
+   "kind": "continuous",
+   "unit": "min",
+   "range": [
+    0,
+    null
+   ],
+   "description": "+inf when no open route exists, so P(connected) = P(TravelTime < inf).",
+   "type": "min"
+  },
+  "MaxFlow": {
+   "id": "MaxFlow",
+   "label": "Maximum flow, origin to destination",
+   "kind": "continuous",
+   "unit": "Edge.capacity units",
+   "range": [
+    0,
+    null
+   ],
+   "description": "In whatever unit the network's Edge.capacity is stated in; the network's assumptions name it.",
+   "type": "Edge.capacity units"
+  }
+ },
+ "entities": [
+  {
+   "id": "Event",
+   "label": "Earthquake event",
+   "singleton": true,
+   "attributes": {
+    "mw": {
+     "type": "number",
+     "unit": "Mw",
+     "required": false
+    },
+    "lat": {
+     "type": "number",
+     "unit": "deg",
+     "required": false
+    },
+    "lon": {
+     "type": "number",
+     "unit": "deg",
+     "required": false
+    },
+    "depth_km": {
+     "type": "number",
+     "unit": "km",
+     "required": false
+    },
+    "description": {
+     "type": "string",
+     "required": false
+    }
+   },
+   "description": "The global plate. Values here are the scenario a fixed-scenario function reads; a ShakeMap assembly needs none of them."
+  },
+  {
+   "id": "Node",
+   "label": "Network node",
+   "attributes": {
+    "lat": {
+     "type": "number",
+     "unit": "deg"
+    },
+    "lon": {
+     "type": "number",
+     "unit": "deg"
+    },
+    "population": {
+     "type": "number",
+     "unit": "persons",
+     "required": false
+    },
+    "name": {
+     "type": "string",
+     "required": false
+    }
+   }
+  },
+  {
+   "id": "Edge",
+   "label": "Network link",
+   "attributes": {
+    "source": {
+     "ref": "Node"
+    },
+    "target": {
+     "ref": "Node"
+    },
+    "directed": {
+     "type": "boolean"
+    },
+    "length_km": {
+     "type": "number",
+     "unit": "km"
+    },
+    "capacity": {
+     "type": "integer",
+     "unit": "see the network's assumptions"
+    }
+   }
+  },
+  {
+   "id": "Bridge",
+   "label": "Bridge",
+   "attributes": {
+    "lat": {
+     "type": "number",
+     "unit": "deg"
+    },
+    "lon": {
+     "type": "number",
+     "unit": "deg"
+    },
+    "edge": {
+     "ref": "Edge",
+     "description": "The link this bridge carries. An edge with several bridges is open only if all are."
+    },
+    "hazus_class": {
+     "type": "string",
+     "description": "HWB1 ... HWB28; selects the fragility parameter set."
+    }
+   },
+   "description": "A bridge, where it is and what kind it is. Its location is what every hazard function reads, so ground motion is one node per bridge."
+  },
+  {
+   "id": "ODPair",
+   "label": "Origin-destination pair",
+   "attributes": {
+    "origin": {
+     "ref": "Node"
+    },
+    "destination": {
+     "ref": "Node"
+    }
+   }
+  }
+ ],
+ "views": [
+  {
+   "id": "library",
+   "label": "Schema: every possible connection",
+   "network": null,
+   "cards": [
+    {
+     "key": "fragility.lognormal",
+     "function": "fragility.lognormal",
+     "label": "Lognormal bridge fragility",
+     "role": "fragility",
+     "per": "Bridge",
+     "inputs": [
+      {
+       "name": "im",
+       "quantity": "{imt}",
+       "over": "Bridge",
+       "via": "self",
+       "description": "The IM these curves are defined on, at this bridge.",
+       "choices": [
+        "PGA",
+        "PGV",
+        "SA(0.3)",
+        "SA(1.0)",
+        "SA(3.0)"
+       ],
+       "template": "imt",
+       "kind": "self"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "damage",
+       "quantity": "DamageState.HazusBridge",
+       "choices": [
+        "DamageState.HazusBridge"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [],
+     "tables": [],
+     "has_parameters": true,
+     "implementation": "src.builder.kernels.fragility:LognormalFragility",
+     "deterministic": false,
+     "drawKind": "Marginal",
+     "capabilities": [
+      "SampleForward",
+      "EvaluateDensity"
+     ],
+     "description": "Base (unmodified) curves on whichever IM the parameter set names: a set on PGA wires only to a hazard that produces PGA, and the check says so if none does. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`.",
+     "parameter_sets": [
+      {
+       "id": "hazus61.HWB1",
+       "label": "Hazus 6.1 HWB1, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB2",
+       "label": "Hazus 6.1 HWB2, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB3",
+       "label": "Hazus 6.1 HWB3, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB4",
+       "label": "Hazus 6.1 HWB4, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB5",
+       "label": "Hazus 6.1 HWB5, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB6",
+       "label": "Hazus 6.1 HWB6, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB7",
+       "label": "Hazus 6.1 HWB7, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB8",
+       "label": "Hazus 6.1 HWB8, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB9",
+       "label": "Hazus 6.1 HWB9, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB10",
+       "label": "Hazus 6.1 HWB10, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB11",
+       "label": "Hazus 6.1 HWB11, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB12",
+       "label": "Hazus 6.1 HWB12, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB13",
+       "label": "Hazus 6.1 HWB13, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB14",
+       "label": "Hazus 6.1 HWB14, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB15",
+       "label": "Hazus 6.1 HWB15, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB16",
+       "label": "Hazus 6.1 HWB16, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB17",
+       "label": "Hazus 6.1 HWB17, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB18",
+       "label": "Hazus 6.1 HWB18, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB19",
+       "label": "Hazus 6.1 HWB19, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB20",
+       "label": "Hazus 6.1 HWB20, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB21",
+       "label": "Hazus 6.1 HWB21, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB22",
+       "label": "Hazus 6.1 HWB22, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB23",
+       "label": "Hazus 6.1 HWB23, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB24",
+       "label": "Hazus 6.1 HWB24, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB25",
+       "label": "Hazus 6.1 HWB25, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB26",
+       "label": "Hazus 6.1 HWB26, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB27",
+       "label": "Hazus 6.1 HWB27, base SA(1.0 s) curves",
+       "count": null
+      },
+      {
+       "id": "hazus61.HWB28",
+       "label": "Hazus 6.1 HWB28, base SA(1.0 s) curves",
+       "count": null
+      }
+     ],
+     "n_parameter_sets": 28
+    },
+    {
+     "key": "functionality.usable-from-damage",
+     "function": "functionality.usable-from-damage",
+     "label": "Bridge usable unless damage reaches a closing state",
+     "role": "functionality",
+     "per": "Bridge",
+     "inputs": [
+      {
+       "name": "damage",
+       "quantity": "DamageState.HazusBridge",
+       "over": "Bridge",
+       "via": "self",
+       "choices": [
+        "DamageState.HazusBridge"
+       ],
+       "template": null,
+       "kind": "self"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "usable",
+       "quantity": "Usable",
+       "choices": [
+        "Usable"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [],
+     "tables": [],
+     "has_parameters": true,
+     "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+     "deterministic": true,
+     "drawKind": "Marginal",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "",
+     "parameter_sets": [
+      {
+       "id": "policy.closed-at-extensive",
+       "label": "Closed at Extensive or Complete",
+       "count": null
+      },
+      {
+       "id": "policy.closed-at-moderate",
+       "label": "Closed at Moderate or worse (conservative)",
+       "count": null
+      }
+     ],
+     "n_parameter_sets": 2
+    },
+    {
+     "key": "hazard.gmm",
+     "function": "hazard.gmm",
+     "label": "Ground-motion model",
+     "role": "hazard",
+     "per": "Bridge",
+     "inputs": [
+      {
+       "name": "rupture",
+       "quantity": "Rupture",
+       "over": "Event",
+       "via": "*",
+       "description": "The one Event row: the global parameters every site shares.",
+       "choices": [
+        "Rupture"
+       ],
+       "template": null,
+       "kind": "all"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "im",
+       "quantity": "{imt}",
+       "choices": [
+        "PGA",
+        "PGV",
+        "SA(0.3)",
+        "SA(1.0)",
+        "SA(3.0)"
+       ],
+       "template": "imt"
+      }
+     ],
+     "attributes": [
+      "lat",
+      "lon"
+     ],
+     "tables": [],
+     "has_parameters": true,
+     "implementation": "src.builder.kernels.hazard:Gmm",
+     "deterministic": false,
+     "drawKind": "Marginal",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. Choose the set with parameter_set_by_location to use the model made for where the network is. Marginal: no spatial correlation yet; that needs the between- and within-event split of sigma.",
+     "parameter_sets": [
+      {
+       "id": "campbell-2003.ema-script-sa1",
+       "label": "Campbell (2003) SA(1.0 s), as implemented by the EMA dataset script",
+       "count": null
+      }
+     ],
+     "n_parameter_sets": 1
+    },
+    {
+     "key": "hazard.scenario-fixed",
+     "function": "hazard.scenario-fixed",
+     "label": "Fixed earthquake scenario",
+     "role": "scenario",
+     "per": "Event",
+     "inputs": [],
+     "outputs": [
+      {
+       "name": "rupture",
+       "quantity": "Rupture",
+       "choices": [
+        "Rupture"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [
+      "mw",
+      "lat",
+      "lon",
+      "depth_km"
+     ],
+     "tables": [],
+     "has_parameters": false,
+     "implementation": "src.builder.kernels.hazard:ScenarioFixed",
+     "deterministic": true,
+     "drawKind": "Joint",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "Copies the Event row into the Rupture node: a degenerate root. Replace it with a prior over magnitude and location to make the scenario uncertain; nothing downstream changes, because the output quantity is the same.",
+     "parameter_sets": [],
+     "n_parameter_sets": 0
+    },
+    {
+     "key": "hazard.shakemap",
+     "function": "hazard.shakemap",
+     "label": "USGS ShakeMap, one IM at each bridge, from grid.xml and uncertainty.xml",
+     "role": "hazard",
+     "per": "Bridge",
+     "inputs": [
+      {
+       "name": "epsilon",
+       "quantity": "GMResidual",
+       "over": "Bridge",
+       "via": "self",
+       "description": "This bridge's residual, from a field that carries the correlation between bridges.",
+       "choices": [
+        "GMResidual"
+       ],
+       "template": null,
+       "kind": "self"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "im",
+       "quantity": "{imt}",
+       "choices": [
+        "PGA",
+        "PGV",
+        "SA(0.3)",
+        "SA(1.0)",
+        "SA(3.0)"
+       ],
+       "template": "imt"
+      }
+     ],
+     "attributes": [
+      "lat",
+      "lon"
+     ],
+     "tables": [],
+     "has_parameters": true,
+     "implementation": "src.builder.kernels.hazard:ShakeMap",
+     "deterministic": true,
+     "drawKind": "Marginal",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "ln IM = ln median + sigma * epsilon, with the median from grid.xml (e.g. PSA10 for SA(1.0)) and sigma from uncertainty.xml (STDPSA10), both interpolated bilinearly on the log scale at the site. Deterministic given epsilon: the randomness, and the dependence between sites, live in the residual field. A bridge outside the map is an error, not zero shaking; a map without uncertainty.xml gives sigma = 0 and says so.",
+     "parameter_sets": [],
+     "n_parameter_sets": 0
+    },
+    {
+     "key": "hazard.spatial-correlation",
+     "function": "hazard.spatial-correlation",
+     "label": "Spatially correlated ground-motion residual field",
+     "role": "hazard",
+     "per": "Bridge",
+     "inputs": [],
+     "outputs": [
+      {
+       "name": "epsilon",
+       "quantity": "GMResidual",
+       "choices": [
+        "GMResidual"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [
+      "lat",
+      "lon"
+     ],
+     "tables": [],
+     "has_parameters": true,
+     "implementation": "src.builder.kernels.hazard:SpatialCorrelationField",
+     "deterministic": false,
+     "drawKind": "Joint",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "One joint draw over every Bridge in the binding: epsilon = L z, with L L' = R, R_ij = exp(-3 h_ij / b) and h_ij the great-circle distance in km. L is the symmetric root from an eigendecomposition rather than a Cholesky factor, so bridges at the same location (correlation 1) do not make it fail. Applied to ShakeMap's conditional standard deviations this is OpenQuake's approximation: the correlation is the unconditional model's, not the one conditioned on the stations.",
+     "parameter_sets": [
+      {
+       "id": "jayaram-baker-2009.pga",
+       "label": "Jayaram & Baker (2009) at T = 0.0 s: range b = 8.5 km (no Vs30 clustering)",
+       "count": null
+      },
+      {
+       "id": "jayaram-baker-2009.sa0p3",
+       "label": "Jayaram & Baker (2009) at T = 0.3 s: range b = 13.66 km (no Vs30 clustering)",
+       "count": null
+      },
+      {
+       "id": "jayaram-baker-2009.sa1p0",
+       "label": "Jayaram & Baker (2009) at T = 1.0 s: range b = 25.7 km (no Vs30 clustering)",
+       "count": null
+      },
+      {
+       "id": "jayaram-baker-2009.sa3p0",
+       "label": "Jayaram & Baker (2009) at T = 3.0 s: range b = 33.1 km (no Vs30 clustering)",
+       "count": null
+      },
+      {
+       "id": "independent.any-im",
+       "label": "Independent bridges (no spatial correlation)",
+       "count": null
+      }
+     ],
+     "n_parameter_sets": 5
+    },
+    {
+     "key": "link.series",
+     "function": "link.series",
+     "label": "Link open only if every bridge on it is usable",
+     "role": "link",
+     "per": "Edge",
+     "inputs": [
+      {
+       "name": "usable",
+       "quantity": "Usable",
+       "over": "Bridge",
+       "via": "Bridge.edge",
+       "description": "Every bridge whose `edge` is this link: zero, one or several parents.",
+       "choices": [
+        "Usable"
+       ],
+       "template": null,
+       "kind": "reverse"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "open",
+       "quantity": "LinkOpen",
+       "choices": [
+        "LinkOpen"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [],
+     "tables": [],
+     "has_parameters": false,
+     "implementation": "src.builder.kernels.link:Series",
+     "deterministic": true,
+     "drawKind": "Marginal",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "A link with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here.",
+     "parameter_sets": [],
+     "n_parameter_sets": 0
+    },
+    {
+     "key": "system.max-flow",
+     "function": "system.max-flow",
+     "label": "Maximum flow over open links",
+     "role": "system",
+     "per": "ODPair",
+     "inputs": [
+      {
+       "name": "open",
+       "quantity": "LinkOpen",
+       "over": "Edge",
+       "via": "*",
+       "choices": [
+        "LinkOpen"
+       ],
+       "template": null,
+       "kind": "all"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "max_flow",
+       "quantity": "MaxFlow",
+       "choices": [
+        "MaxFlow"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [
+      "origin",
+      "destination"
+     ],
+     "tables": [
+      "Node",
+      "Edge"
+     ],
+     "has_parameters": false,
+     "implementation": "src.builder.kernels.system:MaxFlow",
+     "deterministic": true,
+     "drawKind": "Joint",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "Origin-to-destination max flow, with Edge.capacity on each open link and 0 on a closed one. Parallel links add their capacities; an undirected link carries its capacity in each direction.",
+     "parameter_sets": [],
+     "n_parameter_sets": 0
+    },
+    {
+     "key": "system.shortest-path",
+     "function": "system.shortest-path",
+     "label": "Shortest travel time over open links",
+     "role": "system",
+     "per": "ODPair",
+     "inputs": [
+      {
+       "name": "open",
+       "quantity": "LinkOpen",
+       "over": "Edge",
+       "via": "*",
+       "choices": [
+        "LinkOpen"
+       ],
+       "template": null,
+       "kind": "all"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "travel_time",
+       "quantity": "TravelTime",
+       "choices": [
+        "TravelTime"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [
+      "origin",
+      "destination"
+     ],
+     "tables": [
+      "Node",
+      "Edge"
+     ],
+     "has_parameters": true,
+     "implementation": "src.builder.kernels.system:ShortestPath",
+     "deterministic": true,
+     "drawKind": "Joint",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "Dijkstra on Edge.length_km / speed over the open links, from each origin. Joint across the ODPair plate: every pair reads the same link states in the same sample.",
+     "parameter_sets": [
+      {
+       "id": "speed.uniform-80kph",
+       "label": "80 km/h on every open link",
+       "count": null
+      }
+     ],
+     "n_parameter_sets": 1
+    }
+   ],
+   "links": [
+    {
+     "from": "hazard.gmm",
+     "out": "im",
+     "to": "fragility.lognormal",
+     "in": "im",
+     "quantity": "{imt}",
+     "via": "self",
+     "kind": "self",
+     "parents": null
+    },
+    {
+     "from": "hazard.shakemap",
+     "out": "im",
+     "to": "fragility.lognormal",
+     "in": "im",
+     "quantity": "{imt}",
+     "via": "self",
+     "kind": "self",
+     "parents": null
+    },
+    {
+     "from": "fragility.lognormal",
+     "out": "damage",
+     "to": "functionality.usable-from-damage",
+     "in": "damage",
+     "quantity": "DamageState.HazusBridge",
+     "via": "self",
+     "kind": "self",
+     "parents": null
+    },
+    {
+     "from": "hazard.scenario-fixed",
+     "out": "rupture",
+     "to": "hazard.gmm",
+     "in": "rupture",
+     "quantity": "Rupture",
+     "via": "*",
+     "kind": "all",
+     "parents": null
+    },
+    {
+     "from": "hazard.spatial-correlation",
+     "out": "epsilon",
+     "to": "hazard.shakemap",
+     "in": "epsilon",
+     "quantity": "GMResidual",
+     "via": "self",
+     "kind": "self",
+     "parents": null
+    },
+    {
+     "from": "functionality.usable-from-damage",
+     "out": "usable",
+     "to": "link.series",
+     "in": "usable",
+     "quantity": "Usable",
+     "via": "Bridge.edge",
+     "kind": "reverse",
+     "parents": null
+    },
+    {
+     "from": "link.series",
+     "out": "open",
+     "to": "system.max-flow",
+     "in": "open",
+     "quantity": "LinkOpen",
+     "via": "*",
+     "kind": "all",
+     "parents": null
+    },
+    {
+     "from": "link.series",
+     "out": "open",
+     "to": "system.shortest-path",
+     "in": "open",
+     "quantity": "LinkOpen",
+     "via": "*",
+     "kind": "all",
+     "parents": null
+    }
+   ],
+   "rows": {},
+   "problems": []
+  }
+ ],
+ "networks": {},
+ "generated_by": "python -m src diagram"
+};</script>
+<script>
+let DATA = window.BN_DATA || null;
+const STATIC = !!window.BN_DATA;           // a snapshot from python -m src export: no server behind it
+const ROLES = ["scenario", "hazard", "fragility", "functionality", "link", "system"];
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
+  del(k) { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } },
+};
+const hash = new URLSearchParams(location.hash.slice(1));        // #view=ema-highway/gmm&tab=plates&sel=b2
+const state = { view: hash.get("view") || store.get("view"), tab: hash.get("tab") || store.get("tab") || "model",
+                pane: STATIC ? "details" : "query", k: 1, tx: 0, ty: 0, pos: {}, sel: null, wires: [], chat: [], ran: [] };
+
+const view = () => DATA.views.find(v => v.id === state.view);
+const qty = id => DATA.quantities[id] || { label: id, type: "?" };
+const templated = p => (p.quantity || "").startsWith("{");
+const portType = p => templated(p) ? `set by θ.${p.template}` : qty(p.quantity).type;
+const roleColor = r => `var(--r-${r})`;
+const posKey = () => `pos:${state.view}:${state.tab}`;
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const fmt = x => x == null ? "–" : !isFinite(x) ? "∞" : Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 1 ? x.toPrecision(3) : x.toPrecision(2);
+
+// ---- cards -----------------------------------------------------------------
+
+function row(cls, port, ico, name, type, title) {
+  return `<div class="row ${cls}"${port ? ` data-port="${port}"` : ""}${title ? ` title="${esc(title)}"` : ""}>` +
+    `<span class="ico">${ico}</span><span class="nm">${esc(name)}</span><span class="ty">${esc(type)}</span></div>`;
+}
+
+function functionCard(c) {
+  const n = c.nodes != null ? `<span class="chip">×${c.rows}</span>` : "";
+  const sets = c.parameter_sets || [];
+  let h = `<div class="card${state.ran.includes(c.function) ? " ran" : ""}" data-key="${esc(c.key)}"><div class="head"><span class="dot" style="background:${roleColor(c.role)}"></span>` +
+    `<span class="fid" title="${esc(c.label)}">${esc(c.function)}</span></div><div class="sub">` +
+    `<span class="chip plate">per ${esc(c.per)}</span>${n}<span class="chip">${c.deterministic ? "deterministic" : "stochastic"}</span>` +
+    `<span class="chip">${esc(c.drawKind)}</span>${c.where ? `<span class="chip warn">where</span>` : ""}</div>`;
+  if (c.inputs.length) {
+    h += `<div class="sec">inputs · parents</div>`;
+    for (const p of c.inputs) h += row("in", `in:${p.name}`, "◆", p.name, `${p.quantity}[${p.over}]`,
+      `${templated(p) ? "one of " + p.choices.join(", ") : p.quantity} on ${p.over}, via ${p.via}`);
+  }
+  h += `<div class="sec">outputs</div>`;
+  for (const p of c.outputs) h += row("out", `out:${p.name}`, "▶", p.name, `${p.quantity} · ${portType(p)}`,
+    templated(p) ? `one of ${p.choices.join(", ")}` : qty(p.quantity).label);
+  const reads = c.attributes.map(a => row("dimrow", `rd:${a}`, "·", a, `${c.per}.${a}`)).concat(
+    c.tables.map(t => row("dimrow", `tb:${t}`, "▦", t, "whole table")));
+  if (reads.length) h += `<div class="sec">reads (fixed data)</div>` + reads.join("");
+  if (c.inline_parameters) {
+    h += `<div class="sec" data-port="theta">parameters · inline</div>` + Object.entries(c.inline_parameters)
+      .map(([k, val]) => row("dimrow", null, "θ", k, JSON.stringify(val))).join("");
+  } else if (c.has_parameters) {
+    h += `<div class="sec" data-port="theta">parameters · ${plural(sets.length, "set")}${c.parameter_template ? " · " + esc(c.parameter_template) : ""}${c.parameter_by_location ? " · by location" : ""}</div>`;
+    h += sets.slice(0, 3).map(s => row("dimrow", null, "θ", s.id, s.count != null ? `×${s.count}` : "", s.label)).join("");
+    if (sets.length > 3) h += `<div class="row more"><span class="ico"></span><span class="nm">+ ${sets.length - 3} more</span></div>`;
+    if (!sets.length) h += `<div class="row more"><span class="ico"></span><span class="nm">inline, in each assembly that binds it</span></div>`;
+  }
+  return h + `<div class="foot"></div></div>`;
+}
+
+function entityCard(e, v) {
+  const rows = v.network ? (DATA.networks[v.network].rows[e.id] ?? 0) : null;
+  const users = v.cards.filter(c => c.per === e.id);
+  let h = `<div class="card" data-key="${esc(e.id)}"><div class="head"><span class="dot" style="background:var(--faint)"></span>` +
+    `<span class="fid">${esc(e.id)}</span></div><div class="sub">${e.label !== e.id ? `<span class="chip plate">${esc(e.label)}</span>` : ""}` +
+    `${e.singleton ? `<span class="chip">singleton · global</span>` : ""}${rows != null ? `<span class="chip">${rows} rows</span>` : ""}</div>`;
+  h += `<div class="sec">columns</div>` + row("", "pk:id", "#", "id", "text · key");
+  for (const [name, a] of Object.entries(e.attributes)) {
+    const type = a.ref ? `→ ${a.ref}` : `${a.type}${a.unit ? " · " + a.unit : ""}`;
+    h += row(a.ref ? "out" : "dimrow", a.ref ? `fk:${name}` : `at:${name}`, a.ref ? "⚿" : (a.required === false ? "○" : "●"), name, type, a.description);
+  }
+  if (users.length) {
+    h += `<div class="sec">replicated over this plate</div>`;
+    h += users.map(c => `<div class="row dimrow"><span class="ico" style="color:${roleColor(c.role)}">■</span><span class="nm">${esc(c.function)}</span>` +
+      `<span class="ty">${c.nodes != null ? "×" + c.rows : ""}</span></div>`).join("");
+  }
+  return h + `<div class="foot"></div></div>`;
+}
+
+// ---- layout ------------------------------------------------------------------
+
+function layers(keys, edges) {
+  const succ = new Map(keys.map(k => [k, new Set()])), pred = new Map(keys.map(k => [k, new Set()]));
+  for (const [a, b] of edges) if (a !== b && succ.has(a) && succ.has(b)) { succ.get(a).add(b); pred.get(b).add(a); }
+  const indeg = new Map(keys.map(k => [k, pred.get(k).size])), order = [], queue = keys.filter(k => !indeg.get(k));
+  while (queue.length) {
+    const k = queue.shift(); order.push(k);
+    for (const s of succ.get(k)) { indeg.set(s, indeg.get(s) - 1); if (!indeg.get(s)) queue.push(s); }
+  }
+  for (const k of keys) if (!order.includes(k)) order.push(k);
+  const depth = new Map();
+  for (const k of order) depth.set(k, Math.max(0, ...[...pred.get(k)].map(p => (depth.get(p) ?? 0) + 1)));
+  const max = Math.max(0, ...depth.values()), layer = new Map();
+  // As late as possible: alternatives feeding one consumer line up in one column.
+  for (const k of [...order].reverse()) {
+    const s = [...succ.get(k)].map(x => layer.get(x) ?? max);
+    layer.set(k, s.length ? Math.min(...s) - 1 : max);
+  }
+  return layer;
+}
+
+const COLW = 460, CARDW = 292;          // column pitch leaves room between cards for wire labels
+
+function autoLayout(keys, layer, rank) {
+  const cols = new Map();
+  for (const k of keys) { const l = layer.get(k) ?? 0; if (!cols.has(l)) cols.set(l, []); cols.get(l).push(k); }
+  const h = k => cardEl(k).offsetHeight, gap = 26, colW = COLW;
+  const colH = l => cols.get(l).reduce((s, k) => s + h(k) + gap, -gap);
+  const maxH = Math.max(...[...cols.keys()].map(colH));
+  const pos = {};
+  [...cols.keys()].sort((a, b) => a - b).forEach((l, i) => {
+    let y = (maxH - colH(l)) / 2;
+    for (const k of cols.get(l).sort(rank)) { pos[k] = { x: i * colW, y }; y += h(k) + gap; }
+  });
+  return pos;
+}
+
+// Model view: the functions as in their own view, and the tables in a band beneath, each one
+// column left of the first function that reads it, so its dashed wires run forwards too.
+function modelLayout(fkeys, flayer, frank, ekeys, wires) {
+  const pos = autoLayout(fkeys, flayer, frank), gap = 26;
+  const bottom = Math.max(0, ...fkeys.map(k => pos[k].y + cardEl(k).offsetHeight));
+  const left = Math.min(0, ...fkeys.map(k => pos[k].x));
+  const byX = new Map();
+  for (const e of [...ekeys].sort()) {
+    const xs = wires.filter(w => w.from === e && w.style === "data").map(w => pos[w.to].x);
+    const x = (xs.length ? Math.min(...xs) : left) - COLW;
+    if (!byX.has(x)) byX.set(x, []);
+    byX.get(x).push(e);
+  }
+  for (const [x, es] of byX) {
+    let y = bottom + 90;
+    for (const e of es) { pos[e] = { x, y }; y += cardEl(e).offsetHeight + gap; }
+  }
+  return pos;
+}
+
+const cardEl = k => document.querySelector(`.card[data-key="${CSS.escape(k)}"]`);
+
+// ---- wires ---------------------------------------------------------------------
+
+function anchor(key, port, side) {
+  const card = cardEl(key), p = state.pos[key];
+  const r = card && card.querySelector(`[data-port="${CSS.escape(port)}"]`);
+  if (!card || !r || !p) return null;
+  return { x: p.x + (side === "right" ? card.offsetWidth : 0), y: p.y + r.offsetTop + r.offsetHeight / 2 };
+}
+
+function bez(a, b, da = 1, db = -1) {
+  const dx = Math.max(50, Math.abs(b.x - a.x) / 2);
+  const c1 = { x: a.x + da * dx, y: a.y }, c2 = { x: b.x + db * dx, y: b.y };
+  const mid = { x: (a.x + 3 * c1.x + 3 * c2.x + b.x) / 8, y: (a.y + 3 * c1.y + 3 * c2.y + b.y) / 8 };
+  return { d: `M${a.x},${a.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${b.x},${b.y}`, mid };
+}
+
+// Ends in crow's-foot notation: a bar is exactly one, a foot is many.
+const one = (p, dir) => `M${p.x + dir * 9},${p.y - 6} L${p.x + dir * 9},${p.y + 6}`;
+const many = (p, dir) => `M${p.x + dir * 13},${p.y} L${p.x},${p.y - 6} M${p.x + dir * 13},${p.y} L${p.x},${p.y} M${p.x + dir * 13},${p.y} L${p.x},${p.y + 6}`;
+
+// Leave and enter each card on the sides that face each other; a C-curve when they share a column.
+function sides(from, to) {
+  const a = state.pos[from], b = state.pos[to];
+  if (!a || !b || b.x >= a.x + CARDW / 2) return ["right", "left"];
+  if (b.x + CARDW / 2 <= a.x) return ["left", "right"];
+  return ["right", "right"];
+}
+
+function drawWires() {
+  let s = "", l = "";
+  state.wires.forEach((w, i) => {
+    const [fs, ts] = sides(w.from, w.to);
+    const a = anchor(w.from, w.fromPort, fs), b = anchor(w.to, w.toPort, ts);
+    if (!a || !b) return;
+    const da = fs === "right" ? 1 : -1, db = ts === "right" ? 1 : -1;
+    const { d, mid } = bez(a, b, da, db);
+    const ends = w.style === "data" ? "" : w.style === "fk" ? many(a, da) + " " + one(b, db)
+      : one(a, da) + " " + (w.many ? many(b, db) : one(b, db));
+    s += `<g data-w="${i}"><path class="wire ${w.style}" d="${d}"/><path class="end" d="${ends}"/><path class="hit" d="${d}"/></g>`;
+    if (w.label) l += `<div class="wlabel" data-w="${i}" style="left:${mid.x}px;top:${mid.y}px">${esc(w.label)}</div>`;
+  });
+  $("#wires").innerHTML = s; $("#labels").innerHTML = l;
+  highlight(state.sel);
+}
+
+function highlight(key) {
+  document.querySelectorAll("#wires g, .wlabel").forEach(el => {
+    const w = state.wires[+el.dataset.w];
+    const on = key && (w.from === key || w.to === key);
+    el.classList.toggle("hot", !!on);
+    el.classList.toggle("dim", !!key && !on);
+  });
+  document.querySelectorAll(".card").forEach(c => c.classList.toggle("sel", c.dataset.key === key));
+}
+
+function wireTip(w) {
+  if (w.tip) return w.tip;
+  if (w.style === "fk") return `<b>${esc(w.from)}.${esc(w.fromPort.slice(3))}</b> → <b>${esc(w.to)}.id</b><br>many rows of ${esc(w.from)} may point at one ${esc(w.to)}`;
+  if (templated(w)) return `<b>${esc(w.quantity)}</b>: the intensity measure each side's parameter set names; ` +
+    `a binding connects only where they agree, and the check names any bridge where they do not`;
+  const q = qty(w.quantity);
+  const states = q.states ? `<br>states: ${esc(q.states.join(", "))}` : q.unit ? `<br>unit: ${esc(q.unit)}` : "";
+  const how = { self: "the same row", fk: `follow the foreign key <b>${esc(w.via)}</b>`, reverse: `every ${esc(w.via.split(".")[0])} row keyed to this one`, all: "every row of the plate" }[w.kind];
+  return `<b>${esc(w.quantity)}</b>: ${esc(q.label)}${states}<br>parents: ${how}${w.parents ? ` (${esc(w.parents)} per node)` : ""}`;
+}
+
+// ---- render the canvas ---------------------------------------------------------
+
+function rvWires(v) {
+  return v.links.map(x => ({
+    style: "rv", from: x.from, fromPort: `out:${x.out}`, to: x.to, toPort: `in:${x.in}`, quantity: x.quantity,
+    via: x.via, kind: x.kind, parents: x.parents, many: x.kind === "reverse" || x.kind === "all",
+    label: `${x.quantity}${x.kind === "self" ? "" : x.kind === "all" ? " · all" : " · via " + x.via}${x.parents && x.parents !== "1" ? " ×" + x.parents : ""}`,
+  }));
+}
+
+const entity = id => DATA.entities.find(e => e.id === id);
+const portOf = (id, attr) => (entity(id)?.attributes[attr]?.ref ? "fk:" : "at:") + attr;
+
+// What each function reads from the tables: attributes, whole tables, the keys that route
+// its parents, and in a BN the attribute that picks each row's parameter set.
+function dataWires(v) {
+  const out = [];
+  for (const c of v.cards) {
+    for (const a of c.attributes) out.push({ style: "data", from: c.per, fromPort: portOf(c.per, a), to: c.key, toPort: `rd:${a}`,
+      tip: `<b>${esc(c.per)}.${esc(a)}</b> → <b>${esc(c.function)}</b><br>fixed data, read from each ${esc(c.per)} row the function is replicated over` });
+    for (const tb of c.tables) out.push({ style: "data", from: tb, fromPort: "pk:id", to: c.key, toPort: `tb:${tb}`,
+      tip: `<b>${esc(tb)}</b>, the whole table → <b>${esc(c.function)}</b><br>fixed structure (the network's topology), not BN nodes` });
+    for (const p of c.inputs) {
+      if (p.kind === "fk") out.push({ style: "data", from: c.per, fromPort: `fk:${p.via}`, to: c.key, toPort: `in:${p.name}`,
+        tip: `<b>${esc(c.per)}.${esc(p.via)}</b> routes <b>${esc(p.name)}</b>: each ${esc(c.per)} reads the ${esc(p.quantity)} of the ${esc(p.over)} its ${esc(p.via)} points at` });
+      if (p.kind === "reverse") {
+        const [ent, attr] = p.via.split(".");
+        out.push({ style: "data", from: ent, fromPort: `fk:${attr}`, to: c.key, toPort: `in:${p.name}`,
+          tip: `<b>${esc(p.via)}</b> routes <b>${esc(p.name)}</b>: each ${esc(c.per)} reads the ${esc(p.quantity)} of every ${esc(ent)} whose ${esc(attr)} points at it` });
+      }
+    }
+    for (const a of c.parameter_by_location ? ["lat", "lon"] : []) out.push({ style: "data", from: c.per, fromPort: portOf(c.per, a),
+      to: c.key, toPort: "theta",
+      tip: `<b>${esc(c.per)}.lat/lon</b> chooses each row's parameter set: the first of <code>${esc(c.parameter_by_location.join(", "))}</code> whose region contains it` });
+    for (const m of (c.parameter_template || "").matchAll(/\{(\w+)\}/g)) out.push({ style: "data", from: c.per, fromPort: portOf(c.per, m[1]), to: c.key, toPort: "theta",
+      tip: `<b>${esc(c.per)}.${esc(m[1])}</b> selects each row's parameter set: <code>${esc(c.parameter_template)}</code>` });
+  }
+  return out;
+}
+
+function fkWires(ekeys) {
+  const out = [];
+  for (const id of ekeys) for (const [name, a] of Object.entries(entity(id).attributes))
+    if (a.ref && ekeys.includes(a.ref)) out.push({ style: "fk", from: id, fromPort: `fk:${name}`, to: a.ref, toPort: "pk:id",
+      tip: `<b>${esc(id)}.${esc(name)}</b> → <b>${esc(a.ref)}.id</b><br>foreign key: many ${esc(id)} rows may point at one ${esc(a.ref)}` });
+  return out;
+}
+
+function render() {
+  const v = view();
+  $("#cards").innerHTML = "";
+  state.sel = null;
+  $("#banner").hidden = !v.problems.length;
+  $("#banner").textContent = v.problems.length ? `This assembly does not compile:\n${v.problems.join("\n")}` : "";
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === state.tab));
+
+  const withFunctions = state.tab !== "plates", withTables = state.tab !== "functions";
+  const wires = withFunctions ? rvWires(v) : [];
+  if (state.tab === "model") wires.push(...dataWires(v));
+  let ekeys = [];
+  if (withTables) {
+    // Every table in the plates view; in the model view, those the functions use and what they point at.
+    const used = new Set(state.tab === "plates" ? DATA.entities.map(e => e.id)
+      : [...v.cards.map(c => c.per), ...wires.filter(w => w.style === "data").map(w => w.from)]);
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const id of [...used]) for (const a of Object.values(entity(id).attributes))
+        if (a.ref && !used.has(a.ref)) { used.add(a.ref); grew = true; }
+    }
+    ekeys = DATA.entities.map(e => e.id).filter(id => used.has(id));
+    wires.push(...fkWires(ekeys));
+  }
+  $("#cards").innerHTML = (withFunctions ? v.cards.map(functionCard).join("") : "")
+    + (withTables ? ekeys.map(id => entityCard(entity(id), v)).join("") : "");
+  state.wires = wires;
+
+  const fkeys = withFunctions ? v.cards.map(c => c.key) : [];
+  const role = Object.fromEntries(v.cards.map(c => [c.key, ROLES.indexOf(c.role) * 1000 + (c.binding ?? 0)]));
+  const frank = (a, b) => role[a] - role[b] || a.localeCompare(b);
+  const flayer = () => layers(fkeys, v.links.map(x => [x.from, x.to]));
+  const saved = store.get(posKey()), keys = [...fkeys, ...ekeys];
+  if (saved && keys.every(k => saved[k])) state.pos = saved;
+  else if (state.tab === "functions") state.pos = autoLayout(fkeys, flayer(), frank);
+  else if (state.tab === "plates") state.pos = autoLayout(ekeys, layers(ekeys, wires.map(w => [w.from, w.to])), (a, b) => a.localeCompare(b));
+  else state.pos = modelLayout(fkeys, flayer(), frank, ekeys, wires);
+  place();
+  updateStats(v);
+  if (!saved) fit();
+}
+
+function place() {
+  for (const [k, p] of Object.entries(state.pos)) {
+    const el = cardEl(k);
+    if (el) { el.style.left = p.x + "px"; el.style.top = p.y + "px"; }
+  }
+  drawWires();
+}
+
+function updateStats(v) {
+  if (!v.network) { $("#stats").textContent = `${v.cards.length} functions · ${Object.keys(DATA.quantities).length} quantities · ${DATA.entities.length} plates`; return; }
+  const rows = Object.entries(DATA.networks[v.network].rows).map(([k, n]) => `${n} ${k}`).join(", ");
+  $("#stats").textContent = v.problems.length ? `${v.network}: does not compile` : `${v.n_nodes} BN nodes from ${plural(v.cards.length, "binding")} · ${rows}`;
+}
+
+function legend() {
+  const roles = ROLES.map(r => `<span><i style="background:${roleColor(r)}"></i>${r}</span>`).join("");
+  const svg = (d, dash = "") => `<svg width="34" height="14" viewBox="0 0 34 14"><path d="M0,7 L34,7 ${d}" stroke="currentColor" fill="none" stroke-width="1.3"${dash ? ` stroke-dasharray="${dash}"` : ""}/></svg>`;
+  $("#legend").innerHTML = `<div class="roles">${roles}</div>` +
+    `<div>${svg("M25,1 L25,13")} one parent per node &nbsp; ${svg("M21,7 L34,1 M21,7 L34,13")} many (fan-in)</div>` +
+    `<div>${svg("", "5 4")} data a function reads &nbsp; ${svg("", "1.5 3.5")} foreign key between tables</div>` +
+    `<div>◆ input (BN parent) &nbsp; ▶ output (BN node) &nbsp; · fixed data &nbsp; θ parameter set</div>`;
+}
+
+// ---- side panel: tabs ------------------------------------------------------------
+
+function showPane(name) {
+  state.pane = name;
+  document.querySelectorAll("#sidetabs button").forEach(b => b.classList.toggle("on", b.dataset.pane === name));
+  for (const p of ["query", "ask", "details"]) $(`#pane-${p}`).hidden = p !== name;
+  $("#askform").hidden = name !== "ask" || !view().menu || !chatStatus.available;
+}
+
+// ---- details -----------------------------------------------------------------------
+
+function detailsFor(key) {
+  const v = view(), p = $("#pane-details");
+  if (entity(key)) {
+    const e = entity(key);
+    const attrs = Object.entries(e.attributes).map(([n, a]) => `<tr><td>${esc(n)}</td><td>${esc(a.ref ? "→ " + a.ref : a.type)}${a.unit ? " · " + esc(a.unit) : ""}` +
+      `${a.required === false ? " · optional" : ""}${a.description ? `<br><span class="note">${esc(a.description)}</span>` : ""}</td></tr>`).join("");
+    const refs = DATA.entities.flatMap(o => Object.entries(o.attributes).filter(([, a]) => a.ref === key).map(([n]) => `${o.id}.${n}`));
+    p.innerHTML = `<h2>${esc(e.id)}</h2><p>${esc(e.label)}${e.singleton ? " · singleton: its variables are global" : ""}</p>` +
+      (e.description ? `<p>${esc(e.description)}</p>` : "") + `<h3>Columns</h3><table>${attrs}</table>` +
+      (refs.length ? `<h3>Referenced by</h3><p><code>${refs.map(esc).join("</code>, <code>")}</code>. An input <code>via ${esc(refs[0])}</code> gathers those rows as parents.</p>` : "");
+    return;
+  }
+  const c = v.cards.find(x => x.key === key);
+  const ins = c.inputs.map(i => `${i.name}: ${i.quantity}[${i.over} via ${i.via}]`).join(",\n    ");
+  const outs = c.outputs.map(o => `${o.name}: ${o.quantity}[${c.per}]`).join(", ");
+  const fixed = [...c.attributes.map(a => `${c.per}.${a}`), ...c.tables.map(t => `${t}(*)`)].join(", ") || "none";
+  const theta = c.inline_parameters ? "inline" : c.has_parameters ? `one of ${plural((c.parameter_sets || []).length, "set")}` : "none";
+  const ports = [...c.inputs.map(i => ["◆", i]), ...c.outputs.map(o => ["▶", o])].map(([d, x]) => {
+    const q = qty(x.quantity);
+    const what = templated(x) ? `set by θ.${x.template}: one of ${x.choices.join(", ")}`
+      : `${q.label}; ${q.states ? q.states.join(", ") : q.fields ? Object.keys(q.fields).join(", ") : q.unit}`;
+    return `<tr><td>${d} ${esc(x.name)}</td><td>${esc(x.quantity)}<br><span class="note">${esc(what)}</span></td></tr>`;
+  }).join("");
+  const sets = (c.parameter_sets || []).map(s => `<tr><td>${esc(s.id)}</td><td>${esc(s.label)}</td><td class="num">${s.count != null ? "×" + s.count : ""}</td></tr>`).join("");
+  const ex = c.example;
+  p.innerHTML = `<h2>${esc(c.function)}</h2><p>${esc(c.label)}</p>` + (c.description ? `<p>${esc(c.description)}</p>` : "") +
+    `<h3>Signature</h3><div class="sig">${esc(outs)}\n  = f(${esc(ins || "")}${ins ? ";\n    " : ""}fixed: ${esc(fixed)};\n    θ: ${esc(theta)})</div>` +
+    `<h3>Ports</h3><table>${ports}</table>` +
+    (c.inline_parameters ? `<h3>Inline parameters</h3><pre>${esc(JSON.stringify(c.inline_parameters, null, 1))}</pre>` : "") +
+    (sets ? `<h3>Parameter sets</h3><table>${sets}</table>` : "") +
+    (ex ? `<h3>Example node</h3><p><code>${esc(ex.id)}</code>${ex.parameter_set ? ` with θ = <code>${esc(ex.parameter_set)}</code>` : ""}</p>` +
+      (ex.n_parents ? `<p>parents: <code>${ex.parents.map(esc).join("</code>, <code>")}</code>${ex.n_parents > ex.parents.length ? ` … ${ex.n_parents} in all` : ""}</p>` : "<p>a root: no parents</p>") : "") +
+    (c.note ? `<p>${esc(c.note)}</p>` : "") +
+    `<h3>Implementation</h3><p><code>${esc(c.implementation)}</code></p><p>${esc(c.capabilities.join(", "))} · ${c.deterministic ? "deterministic" : "stochastic"} · ${esc(c.drawKind)}</p>`;
+}
+
+function select(key) {
+  state.sel = key;
+  highlight(key);
+  if (key) { detailsFor(key); showPane("details"); }
+}
+
+// ---- query (4) ----------------------------------------------------------------------
+
+const noBN = `<p>Pick a Bayesian network in the selector above. The schema view shows what can connect; an assembly is what can be queried.</p>`;
+
+function renderQuery() {
+  const v = view(), m = v.menu, p = $("#pane-query");
+  if (!m) { p.innerHTML = noBN; return; }
+  const s = m.settable;
+  const input = (id, value, schema = {}) => {
+    if (schema.enum) return `<select id="${id}">${schema.enum.map(o => `<option value="${esc(JSON.stringify(o))}"${o === value ? " selected" : ""}>${esc(o ?? "default")}</option>`).join("")}</select>`;
+    const numeric = ["number", "integer"].includes(schema.type) || (Array.isArray(schema.type) && schema.type.some(t => t === "number" || t === "integer"));
+    return `<input id="${id}" ${numeric ? 'type="number" step="any"' : ""} value="${esc(value ?? "")}">`;
+  };
+  let h = `<h2>${esc(m.assembly)}</h2><p>${esc(m.label)}</p><h3>Scenario · do()</h3>`;
+  s.rows.forEach((r, i) => { h += `<div class="field"><label for="r${i}">${esc(r.row)}.${esc(r.attribute)}${r.unit ? " (" + esc(r.unit) + ")" : ""}</label>${input("r" + i, r.value, { type: r.type })}</div>`; });
+  s.parameters.forEach((q, i) => {
+    h += `<div class="field"><label for="p${i}">${esc(q.function)}.${esc(q.name)}</label>${input("p" + i, q.value, q.schema)}</div>`;
+    if (q.function === "hazard.shakemap" && q.name === "event_id")
+      h += `<div class="field wide"><div class="inline"><button type="button" id="findev">Find ShakeMaps near this network</button><select id="evlist" hidden></select></div></div>`;
+  });
+  s.parameter_sets.forEach((c, i) => {
+    h += `<div class="field"><label for="s${i}">${esc(c.function)}</label><select id="s${i}">${c.choices.map(o =>
+      `<option value="${esc(o.id)}"${o.id === c.current ? " selected" : ""} title="${esc(o.label)}">${esc(o.id)}</option>`).join("")}</select></div>`;
+  });
+  if (!s.rows.length && !s.parameters.length && !s.parameter_sets.length) h += `<p>Nothing to set in this assembly.</p>`;
+  h += `<h3>Ask for</h3><div class="field"><label for="qq">quantity</label><select id="qq">${m.quantities.map(q =>
+      `<option value="${esc(q.id)}"${q.id === "TravelTime" ? " selected" : ""}>${esc(q.id)}</option>`).join("")}</select></div>` +
+    `<div class="field"><label for="qrow">rows (* = any)</label><input id="qrow" value="*"></div>` +
+    `<div class="field"><label for="qop">event (optional)</label><div class="inline"><select id="qop" style="width:56px"><option value="">–</option>` +
+    ["<", "<=", ">", ">=", "==", "!="].map(o => `<option>${o}</option>`).join("") + `</select><input id="qval" style="width:86px" placeholder="value"></div></div>` +
+    `<div class="field"><label for="qn">samples</label><input id="qn" type="number" min="100" max="20000" step="100" value="2000"></div>` +
+    `<h3>Query JSON</h3><textarea class="json" id="qjson" spellcheck="false"></textarea>` +
+    `<div class="inline" style="margin-top:6px"><button class="primary" id="run">Run query</button><span class="note" id="qstatus"></span></div>` +
+    `<div id="qout"></div>`;
+  p.innerHTML = h;
+  p.querySelectorAll("input, select").forEach(el => el.addEventListener("input", composeQuery));
+  $("#qop").addEventListener("change", composeQuery);
+  $("#run").onclick = runQuery;
+  const find = $("#findev");
+  if (find) find.onclick = findEvents;
+  updateQueryHint();
+  composeQuery();
+}
+
+function readValue(el, schema) {
+  if (el.tagName === "SELECT" && schema && schema.enum) return JSON.parse(el.value);
+  if (el.type === "number") return el.value === "" ? null : Number(el.value);
+  return el.value;
+}
+
+// The page's interventions: only what differs from the assembly as written.
+function interventions() {
+  const s = view().menu.settable, out = {};
+  s.rows.forEach((r, i) => {
+    const val = readValue($("#r" + i));
+    if (val !== null && val !== r.value) ((out.rows ??= {})[r.row] ??= {})[r.attribute] = val;
+  });
+  s.parameters.forEach((q, i) => {
+    const val = readValue($("#p" + i), q.schema);
+    if (JSON.stringify(val) !== JSON.stringify(q.value)) ((out.parameters ??= {})[q.function] ??= {})[q.name] = val;
+  });
+  s.parameter_sets.forEach((c, i) => {
+    const val = $("#s" + i).value;
+    if (val !== c.current) (out.parameter_sets ??= {})[c.function] = val;
+  });
+  return out;
+}
+
+function updateQueryHint() {
+  const q = view().menu.quantities.find(x => x.id === $("#qq").value);
+  $("#qval").placeholder = q.kind === "discrete" ? `state: ${q.states.join("/")}` : q.kind === "continuous" ? `${q.unit} or inf` : "–";
+  $("#qrow").title = `e.g. ${q.example.split("::")[1]}`;
+}
+
+function composeQuery(ev) {
+  if (ev && ev.target && ev.target.id === "qq") updateQueryHint();
+  const node = `${$("#qq").value}::${$("#qrow").value.trim() || "*"}`;
+  const query = { assembly: state.view };
+  const op = $("#qop").value, raw = $("#qval").value.trim();
+  if (op && raw !== "") query.events = [{ node, op, value: raw === "inf" || isNaN(Number(raw)) ? raw : Number(raw) }];
+  else query.targets = [node];
+  Object.assign(query, interventions());
+  query.samples = Number($("#qn").value) || 2000;
+  $("#qjson").value = JSON.stringify(query, null, 1);
+}
+
+async function findEvents() {
+  const list = $("#evlist"), btn = $("#findev");
+  btn.disabled = true; btn.textContent = "Searching USGS…";
+  try {
+    const r = await fetch(`/api/shakemap-events?network=${encodeURIComponent(view().network)}&min_magnitude=5`);
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error);
+    list.innerHTML = `<option value="">${body.events.length} events with a ShakeMap</option>` + body.events.map(e =>
+      `<option value="${esc(e.event_id)}">M${esc(e.magnitude)} ${esc((e.time || "").slice(0, 10))} ${esc(e.place || e.event_id)}</option>`).join("");
+    list.hidden = false;
+    list.onchange = () => {
+      const i = view().menu.settable.parameters.findIndex(q => q.function === "hazard.shakemap" && q.name === "event_id");
+      if (list.value && i >= 0) { $("#p" + i).value = list.value; composeQuery(); }
+    };
+  } catch (e) {
+    list.hidden = false; list.innerHTML = `<option>${esc(e.message)}</option>`;
+  } finally { btn.disabled = false; btn.textContent = "Find ShakeMaps near this network"; }
+}
+
+function summaryText(s) {
+  if (s.P) {
+    const entries = Object.entries(s.P);
+    return entries.map(([k, p]) => `P(${k})=${fmt(p)}`).join("  ");
+  }
+  if ("P_inf" in s) {
+    const parts = s.p50 != null ? [`median ${fmt(s.p50)}`, `90% [${fmt(s.p5)}, ${fmt(s.p95)}]`] : [];
+    if (s.P_inf > 0) parts.push(`P(∞)=${fmt(s.P_inf)}`);
+    return parts.join(" · ") || "always ∞";
+  }
+  return Object.entries(s).map(([k, x]) => `${k}=${fmt(x)}`).join("  ");
+}
+
+function resultHTML(r) {
+  let h = `<div class="stmt">${esc(r.statement)}</div><p class="note">${r.samples} forward samples · ${r.elapsed_s} s · computed ${esc(r.computed.join(" → "))}</p>`;
+  for (const w of r.warnings) h += `<div class="warnbox">${esc(w)}</div>`;
+  if (r.events.length) {
+    const ev = [...r.events].sort((a, b) => b.p - a.p);
+    h += `<table><tr><th>node</th><th>event</th><th class="num">P</th><th class="num">95% CI</th></tr>` + ev.slice(0, 200).map(e =>
+      `<tr><td>${esc(e.node)}</td><td>${esc(e.op)} ${esc(e.value)}</td><td class="num">${fmt(e.p)}</td><td class="num">${fmt(e.ci95[0])}–${fmt(e.ci95[1])}</td></tr>`).join("") + `</table>`;
+    if (ev.length > 200) h += `<p class="note">${ev.length - 200} more not shown.</p>`;
+  }
+  if (r.targets.length) {
+    h += `<table><tr><th>node</th><th>summary</th></tr>` + r.targets.slice(0, 200).map(t =>
+      `<tr><td>${esc(t.node)}</td><td>${esc(summaryText(t.summary))}</td></tr>`).join("") + `</table>`;
+    if (r.targets.length > 200) h += `<p class="note">${r.targets.length - 200} more not shown.</p>`;
+  }
+  return h;
+}
+
+function markComputed(functions) {
+  state.ran = functions || [];
+  document.querySelectorAll(".card").forEach(el => {
+    const c = view().cards.find(x => x.key === el.dataset.key);
+    el.classList.toggle("ran", !!c && state.ran.includes(c.function));
+  });
+}
+
+async function runQuery() {
+  const out = $("#qout"), status = $("#qstatus");
+  let query;
+  try { query = JSON.parse($("#qjson").value); } catch (e) { out.innerHTML = `<div class="err">The query is not valid JSON: ${esc(e.message)}</div>`; return; }
+  status.textContent = "Computing…"; $("#run").disabled = true;
+  try {
+    const r = await fetch("/api/query", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(query) });
+    const body = await r.json();
+    if (!r.ok) { out.innerHTML = `<div class="err">${esc(body.error)}</div>`; markComputed([]); return; }
+    out.innerHTML = resultHTML(body);
+    markComputed(body.computed);
+  } catch (e) {
+    out.innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  } finally { status.textContent = ""; $("#run").disabled = false; }
+}
+
+// ---- ask (5) ------------------------------------------------------------------------
+
+let chatStatus = { available: false, reason: "Checking…" };
+
+function renderAsk() {
+  const v = view(), log = $("#chatlog");
+  if (!v.menu) { log.innerHTML = noBN; showPane(state.pane); return; }
+  if (!chatStatus.available) {
+    log.innerHTML = `<p>No language model is ready: ${esc(chatStatus.reason)}</p><p>The query form works without one.</p>`;
+    showPane(state.pane); return;
+  }
+  log.innerHTML = `<p class="note">${esc(chatStatus.provider)} · ${esc(chatStatus.model)}. The model writes the query; the engine computes every number. Scenario settings on the Query tab apply here too.</p>` +
+    state.chat.map(t => t.html).join("");
+  showPane(state.pane);
+}
+
+async function ask(e) {
+  e.preventDefault();
+  const question = $("#question").value.trim();
+  if (!question) return;
+  $("#question").value = "";
+  const turn = { html: `<div class="bubble user">${esc(question)}</div>` };
+  state.chat.push(turn);
+  const live = { html: `<div class="bubble"><p class="note">Thinking…</p></div>` };
+  state.chat.push(live);
+  renderAsk();
+  const history = state.chat.filter(t => t.role).map(t => ({ role: t.role, content: t.content }));
+  const parts = [];
+  const update = done => { live.html = `<div class="bubble">${parts.join("")}${done ? "" : `<p class="note">Working…</p>`}</div>`; renderAsk(); $("#pane-ask").scrollTop = 1e9; };
+  try {
+    const defaults = view().menu ? interventions() : {};
+    const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assembly: state.view, question, history, defaults }) });
+    if (!r.ok) { const body = await r.json(); parts.push(`<div class="err">${esc(body.error)}</div>`); update(true); return; }
+    const reader = r.body.getReader(), decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl); buffer = buffer.slice(nl + 1);
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "query") parts.push(`<div class="stmt" data-pending="1">${esc(ev.statement)}</div>`);
+        else if (ev.type === "computed") { parts.pop(); parts.push(resultHTML(ev.result)); markComputed(ev.result.computed); }
+        else if (ev.type === "refused") { parts.pop(); parts.push(`<div class="stmt refused">${esc(ev.statement)}</div><div class="err">Refused: ${esc(ev.error)}</div>`); }
+        else if (ev.type === "answer") {
+          parts.push(`<div class="bubble answer">${esc(ev.answer)}</div>`);
+          state.chat.splice(state.chat.indexOf(turn), 1, { ...turn, role: "user", content: question });
+          state.chat.push({ html: "", role: "assistant", content: ev.answer });
+        } else if (ev.type === "error") parts.push(`<div class="err">${esc(ev.error)}</div>`);
+        update(false);
+      }
+    }
+    update(true);
+  } catch (err) {
+    parts.push(`<div class="err">${esc(err.message)}</div>`); update(true);
+  }
+}
+
+// ---- pan, zoom, drag -------------------------------------------------------------
+
+const world = $("#world"), canvas = $("#canvas");
+const applyT = () => { world.style.transform = `translate(${state.tx}px,${state.ty}px) scale(${state.k})`; };
+
+function fit() {
+  const ks = Object.keys(state.pos);
+  if (!ks.length) return;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const k of ks) {
+    const p = state.pos[k], el = cardEl(k);
+    if (!el) continue;
+    x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
+    x1 = Math.max(x1, p.x + el.offsetWidth); y1 = Math.max(y1, p.y + el.offsetHeight);
+  }
+  const W = canvas.clientWidth, H = canvas.clientHeight, pad = 40;
+  state.k = Math.min(1.1, (W - 2 * pad) / (x1 - x0), (H - 2 * pad - 70) / (y1 - y0));
+  state.tx = (W - (x1 - x0) * state.k) / 2 - x0 * state.k;
+  state.ty = Math.max(pad, (H - 70 - (y1 - y0) * state.k) / 2) - y0 * state.k;
+  applyT();
+}
+
+let drag = null;
+canvas.addEventListener("pointerdown", e => {
+  if (e.button !== 0 || e.target.closest("#banner")) return;
+  const card = e.target.closest(".card");
+  drag = { x: e.clientX, y: e.clientY, moved: false, card: card && card.dataset.key,
+           start: card ? { ...state.pos[card.dataset.key] } : { tx: state.tx, ty: state.ty } };
+  canvas.setPointerCapture(e.pointerId);
+  if (!card) canvas.classList.add("panning");
+});
+canvas.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+  if (!drag.moved) return;
+  if (drag.card) {
+    state.pos[drag.card] = { x: drag.start.x + dx / state.k, y: drag.start.y + dy / state.k };
+    const el = cardEl(drag.card);
+    el.style.left = state.pos[drag.card].x + "px"; el.style.top = state.pos[drag.card].y + "px";
+    drawWires();
+  } else {
+    state.tx = drag.start.tx + dx; state.ty = drag.start.ty + dy; applyT();
+  }
+});
+canvas.addEventListener("pointerup", () => {
+  if (!drag) return;
+  if (drag.card && drag.moved) store.set(posKey(), state.pos);
+  if (!drag.moved) select(drag.card || null);
+  drag = null; canvas.classList.remove("panning");
+});
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
+  const k = Math.min(2.5, Math.max(0.2, state.k * Math.exp(-e.deltaY * 0.0015)));
+  state.tx = cx - (cx - state.tx) * (k / state.k); state.ty = cy - (cy - state.ty) * (k / state.k); state.k = k;
+  applyT();
+}, { passive: false });
+
+const tip = $("#tip");
+canvas.addEventListener("mousemove", e => {
+  const g = e.target.closest && e.target.closest("#wires g");
+  if (!g || drag) { tip.hidden = true; return; }
+  tip.innerHTML = wireTip(state.wires[+g.dataset.w]);
+  tip.hidden = false;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 360) + "px"; tip.style.top = (e.clientY + 14) + "px";
+});
+canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
+
+// ---- start -----------------------------------------------------------------------
+
+function switchView(id) {
+  state.view = id; store.set("view", id); state.ran = [];
+  render(); renderQuery(); renderAsk();
+}
+
+async function start() {
+  if (STATIC) {
+    // Drawings and details only: queries and questions need the engine, so the server.
+    document.querySelectorAll('#sidetabs button[data-pane="query"], #sidetabs button[data-pane="ask"]').forEach(b => b.remove());
+    $("#pane-details").innerHTML = `<p>Select a card to see its signature, parameter sets and an example node.</p>` +
+      `<p class="note">Written by <code>${esc(DATA.generated_by || "python -m src export")}</code>${DATA.exported ? " on " + esc(DATA.exported) : ""}. ` +
+      `Run <code>python -m src serve --open</code> to query the BN or ask in words.</p>`;
+    if (!hash.get("view")) state.view = "library";
+  } else {
+    try {
+      const r = await fetch("/api/views");
+      DATA = await r.json();
+    } catch (e) {
+      $("#stats").textContent = `Could not load /api/views: ${e.message}`; return;
+    }
+  }
+  if (!DATA.views.some(v => v.id === state.view)) state.view = (DATA.views.find(v => v.menu) || DATA.views[0]).id;
+  $("#view").innerHTML = DATA.views.map(v => `<option value="${esc(v.id)}">${esc(v.id === "library" ? "Schema (all functions)" : v.id)}</option>`).join("");
+  $("#view").value = state.view;
+  $("#view").onchange = e => switchView(e.target.value);
+  document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { state.tab = b.dataset.tab; store.set("tab", state.tab); render(); markComputed(state.ran); });
+  document.querySelectorAll("#sidetabs button").forEach(b => b.onclick = () => showPane(b.dataset.pane));
+  $("#askform").onsubmit = ask;
+  $("#question").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#askform").requestSubmit(); } });
+  legend();
+  switchView(state.view);
+  fit();
+  if (hash.get("sel") && cardEl(hash.get("sel"))) select(hash.get("sel"));
+  if (STATIC) return;
+  try {
+    chatStatus = await (await fetch("/api/chat-status")).json();
+  } catch { chatStatus = { available: false, reason: "the status check failed" }; }
+  renderAsk();
+}
+
+$("#fit").onclick = fit;
+$("#relayout").onclick = () => { store.del(posKey()); render(); fit(); };
+$("#theme").onclick = () => {
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const now = document.documentElement.dataset.theme || (dark ? "dark" : "light");
+  document.documentElement.dataset.theme = now === "dark" ? "light" : "dark";
+  store.set("theme", document.documentElement.dataset.theme);
+};
+const savedTheme = store.get("theme");
+if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+addEventListener("keydown", e => { if (e.key === "Escape") select(null); });
+start();
+</script>
+</body>
+</html>

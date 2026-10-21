@@ -1,3 +1,4 @@
-# Retained byte-for-byte: its SHA-256 is recorded in every Hazus asset file, so
-# line-ending conversion on checkout would silently break that provenance check.
-docs/sources/** -text
+# Retained byte-for-byte: its SHA-256 is recorded in the Hazus parameter sets
+# (instances/parameters/hazus61-bridge-sa1.json), so line-ending conversion on
+# checkout would silently break that provenance.
+instances/parameters/hazus61-source.md -text

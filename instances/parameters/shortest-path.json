@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schema/meta/parameter-sets.schema.json",
+  "function": "system.shortest-path",
+  "source": {
+    "basis": "Assumed. No case in the repository records link speeds, so one free-flow speed is applied everywhere and named here rather than written into the Edge table."
+  },
+  "sets": [
+    {
+      "id": "speed.uniform-80kph",
+      "label": "80 km/h on every open link",
+      "values": {
+        "speed_kph": 80
+      }
+    }
+  ]
+}

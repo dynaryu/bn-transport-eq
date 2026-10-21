@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "entities.schema.json",
+  "title": "Entity types",
+  "description": "The plates. Each entity type is a table whose rows a function is replicated over. Attributes are known, fixed data (a bridge's class, an edge's length) and never become BN nodes; a ref attribute is a foreign key, and foreign keys are what route a variable from one plate to another.",
+  "type": "object",
+  "required": ["entities"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "entities": {"type": "array", "items": {"$ref": "#/$defs/entity"}}
+  },
+  "$defs": {
+    "entity": {
+      "type": "object",
+      "required": ["id", "label", "attributes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Z][A-Za-z]*$"},
+        "label": {"type": "string"},
+        "singleton": {
+          "description": "Exactly one row per case, e.g. the scenario event. Its variables are the global ones.",
+          "type": "boolean"
+        },
+        "attributes": {
+          "description": "Every row also has a string id, unique across the whole case.",
+          "type": "object",
+          "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$", "not": {"const": "id"}},
+          "additionalProperties": {"$ref": "#/$defs/attribute"}
+        },
+        "description": {"type": "string"}
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["number", "integer", "string", "boolean"]},
+        "ref": {"description": "Foreign key to this entity type; the value is a row id.", "type": "string", "pattern": "^[A-Z][A-Za-z]*$"},
+        "unit": {"type": "string"},
+        "required": {"type": "boolean", "default": true},
+        "description": {"type": "string"}
+      },
+      "oneOf": [{"required": ["type"]}, {"required": ["ref"]}]
+    }
+  }
+}
