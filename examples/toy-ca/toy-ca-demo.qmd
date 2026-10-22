@@ -394,7 +394,7 @@ show_table(pd.DataFrame([
 
 ### Sampling time
 
-CPU timings for the same six system states and their ancestors, using batches of 50,000. Each time is the median of three runs after a warm-up; model building and RSR extraction are excluded. P(fails) for n7 and n8 is from the first run at each size.
+CPU timings for the same six system states and their ancestors, using one CPU thread and batches of 50,000. Each time is the median of three runs after a warm-up; model building and RSR extraction are excluded. P(fails) for n7 and n8 is from the first run at each size.
 
 ```{python}
 #| label: sampling-timing
@@ -403,6 +403,7 @@ CPU timings for the same six system states and their ancestors, using batches of
 from time import perf_counter
 from statistics import median
 
+torch.set_num_threads(1)
 batch_size = 50_000
 inference.sample(probs, state_keys, n_sample=batch_size)  # warm-up
 watched = ["SystemState::n7", "SystemState::n8"]
