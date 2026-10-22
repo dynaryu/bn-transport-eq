@@ -16,7 +16,8 @@
     "bridge_class": "Seven bridges HWB11 (seismically designed continuous concrete); b2, b4 and b6, the three nearest the San Andreas trace, HWB5 (older, non-seismic) for the demo. Toy assumptions, not an inventory classification.",
     "avg_speed_kph": "60 km/h on every edge, assumed (the value the rsr and ndtools demos use); no measured speeds are in the dataset.",
     "key_destination": "Key destinations n1 and n2, as set by the user.",
-    "event": "Hypothetical M7.8 as a point source on the San Andreas trace at 36.50 N, 121.04 W, 10 km deep, for the demo only. This is the creeping section, not the 1857 rupture; a point source understates shaking along a ~300 km rupture."
+    "event": "Hypothetical M7.8 as a point source on the San Andreas trace at 36.50 N, 121.04 W, 10 km deep, for the demo only. This is the creeping section, not the 1857 rupture; a point source understates shaking along a ~300 km rupture.",
+    "system_event": "Survival is reaching the nearest key destination within 0.5 h of the intact network's travel time: the default threshold, assumed."
   },
   "tables": {
     "Node": [
@@ -241,6 +242,14 @@
         "lon": -121.04,
         "depth_km": 10.0,
         "description": "Hypothetical M7.8 on the San Andreas trace, at the network's centre latitude"
+      }
+    ],
+    "SystemEvent": [
+      {
+        "id": "reach-key-destination",
+        "analysis": "system.travel-time-to-nearest",
+        "target_add_h": 0.5,
+        "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
       }
     ]
   }

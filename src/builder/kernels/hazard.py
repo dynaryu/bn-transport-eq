@@ -93,6 +93,8 @@ class Gmm(Probability):
         ln_median, aleatory = GMM_FORMS[forms.pop()](mw, r, params)
         self.loc = ln_median.to(self.device)
         self.scale = torch.sqrt(aleatory**2 + self.tensor([p["sigma_epistemic"] for p in params]) ** 2).to(self.device)
+        self.notes.add("hazard.gmm draws each Bridge's residual independently: no spatial correlation, so joint "
+                       "outcomes across the network are likely understated.")
 
     def distribution(self, n: int) -> torch.distributions.LogNormal:
         shape = (n, len(self.childs))

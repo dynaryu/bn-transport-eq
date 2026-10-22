@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import threading
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -27,6 +28,18 @@ def get(url):
         return response.status, response.read()
 
 
+@pytest.fixture(autouse=True)
+def no_real_rule_extraction(monkeypatch):
+    """HTTP tests must not start workers that write model artifacts into the repository."""
+    from types import SimpleNamespace
+    from src.app import server
+    import subprocess
+    monkeypatch.setattr(server, "subprocess", SimpleNamespace(
+        Popen=lambda *a, **kw: SimpleNamespace(poll=lambda: None), STDOUT=subprocess.STDOUT,
+        CREATE_NEW_PROCESS_GROUP=0))
+    monkeypatch.setattr(server, "_extractions", {})
+
+
 def post(url, body):
     request = Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     try:
@@ -42,7 +55,7 @@ def test_view_data_has_the_schema_and_every_bn():
     links = {(x["from"], x["to"]) for x in views["library"]["links"]}
     for hazard in ("hazard.gmm", "hazard.shakemap"):
         assert (hazard, "fragility.bridge") in links          # alternatives, all type-compatible
-    assert views["ema-highway/gmm"]["n_nodes"] == 660            # 516 + travel time and state for 72 origins
+    assert views["ema-highway/gmm"]["n_nodes"] == 588            # 516 + a system state for each of 72 origins
     assert views["ema-highway/gmm"]["menu"]["settable"]["rows"]
 
 
@@ -62,7 +75,13 @@ def test_the_schema_page_is_current():
 
 def test_the_page_and_its_data_are_served(base_url):
     status, body = get(base_url + "/")
-    assert status == 200 and b"/api/views" in body
+    assert status == 200 and b"<title>quakenet</title>" in body and b"/api/example?assembly=" in body
+    assert b'<script src="/ask.js"></script>' in body
+    with urlopen(base_url + "/ask.js", timeout=10) as response:
+        assert response.status == 200 and response.headers.get_content_type() == "text/javascript"
+        assert b"function queryResults" in response.read()
+    status, body = get(base_url + "/bn")
+    assert status == 200 and b"/api/views" in body                # the BN drawing, embedded in quakenet's BN tab
     status, body = get(base_url + "/api/views")
     assert status == 200 and json.loads(body)["networks"]["hebei-transport"]["rows"]["Bridge"] == 33
 
@@ -73,7 +92,7 @@ def test_a_query_is_answered_and_a_bad_one_explained(base_url):
     assert status == 200 and body["targets"][0]["node"] == "EdgeOpen::e0001"
     status, body = post(base_url + "/api/query", {"assembly": "ema-highway/gmm",
                                                   "targets": ["SA(1.0)::*"], "evidence": {"x": 1}})
-    assert status == 400 and "forward inference only" in body["error"]
+    assert status == 400 and "no node 'x'" in body["error"]
 
 
 def test_ask_without_a_model_says_why(base_url, monkeypatch):
@@ -81,3 +100,125 @@ def test_ask_without_a_model_says_why(base_url, monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     status, body = post(base_url + "/api/ask", {"assembly": "ema-highway/gmm", "question": "hi"})
     assert status == 503 and "GEMINI_API_KEY" in body["error"]
+
+
+def test_an_example_carries_its_network_menu_and_rules(base_url):
+    status, body = get(base_url + "/api/examples")
+    assert status == 200 and "toy-ca/demo" in {e["id"] for e in json.loads(body)["examples"]}
+    status, body = get(base_url + "/api/example?assembly=toy-ca/demo")
+    ex = json.loads(body)
+    assert status == 200 and set(ex["network"]["tables"]) >= {"Node", "Edge", "Bridge", "Event", "SystemEvent"}
+    assert ex["objects"] == 37 and ex["rules"] == {"stored": 6, "origins": 6}
+    assert len(ex["nodes"]) == 46 and ex["joint"] == ["hazard.gmm"]          # what the BN tab draws, layer by layer
+    settable = {(r["entity"], r["attribute"]) for r in ex["menu"]["settable"]["rows"]}
+    assert {("Event", "mw"), ("SystemEvent", "target_add_h")} <= settable
+    with pytest.raises(HTTPError) as missing:
+        get(base_url + "/api/example?assembly=nowhere/x")
+    assert missing.value.code == 404 and "nowhere/x" in json.loads(missing.value.read())["error"]
+
+
+def test_a_map_run_returns_every_family_and_says_rules_were_used(base_url):
+    events = [{"node": f"{q}::*", "op": "==", "value": 0} for q in ("SystemState", "EdgeOpen", "Usable")]
+    status, body = post(base_url + "/api/query", {"assembly": "toy-ca/demo", "events": events, "samples": 500})
+    assert status == 200 and len(body["events"]) == 6 + 10 + 10
+    assert any("rsr rules exact for 6 of 6" in w for w in body["warnings"])
+
+
+@pytest.fixture
+def stored_at_network_threshold(tmp_path, monkeypatch):
+    """The toy-ca rules as the repository ships them, at the network's threshold only, whatever else
+    the app may have extracted since: a private copy the model directory points at."""
+    import shutil
+
+    from src.builder import bn_builder
+
+    model = Path(__file__).resolve().parents[3] / "examples/toy-ca/tbnpy/demo"
+    copy = tmp_path / "model"
+    for folder in (model / "rsr").glob("*/target_add_h=0.5"):
+        shutil.copytree(folder, copy / "rsr" / folder.parent.name / folder.name)
+    monkeypatch.setattr(bn_builder, "model_dir", lambda assembly_file: copy)
+    return copy
+
+
+def test_a_run_left_mostly_unclassified_starts_extraction_in_the_background(base_url, monkeypatch,
+                                                                         stored_at_network_threshold):
+    from src.app import server
+
+    started = []
+    import subprocess
+    from types import SimpleNamespace
+
+    job = type("Job", (), {"poll": lambda self: None})
+    # Only the server's own subprocess: git, which the query records call, keeps the real one.
+    monkeypatch.setattr(server, "subprocess", SimpleNamespace(
+        Popen=lambda cmd, **kw: started.append(cmd) or job(), STDOUT=subprocess.STDOUT, CREATE_NEW_PROCESS_GROUP=0))
+    monkeypatch.setattr(server, "_extractions", {})
+    query = {"assembly": "toy-ca/demo", "events": [{"node": "SystemState::*", "op": "==", "value": 0}], "samples": 500,
+             "rows": {"reach-key-destination": {"target_add_h": 0.25}}}
+    status, body = post(base_url + "/api/query", query)
+    assert status == 200 and any("in the background" in w for w in body["warnings"])
+    assert started[0][2:6] == ["src", "rules", "toy-ca/demo", "--target-add-h"] and started[0][6] == "0.25"
+    status, body = post(base_url + "/api/query", query)                 # the same scenario again: read from its bank
+    assert len(started) == 1 and body["samples_from"] == "the scenario's stored samples"
+    other = {**query, "rows": {**query["rows"], "demo-san-andreas": {"mw": 7.0}}}
+    status, body = post(base_url + "/api/query", other)                 # new samples, same threshold: one job only
+    assert len(started) == 1 and any("still being extracted" in w for w in body["warnings"])
+
+
+def test_a_negative_threshold_is_refused(base_url):
+    status, body = post(base_url + "/api/query", {"assembly": "toy-ca/demo", "targets": ["SystemState::n4"],
+                                                  "rows": {"reach-key-destination": {"target_add_h": -0.1}}})
+    assert status == 400 and "below its minimum" in body["error"]
+
+
+def test_proposal_api_keeps_drafts_separate_and_rejects_bad_activation(base_url, tmp_path, monkeypatch):
+    monkeypatch.setenv("QUAKENET_PROPOSALS", str(tmp_path / "proposals"))
+    spec = {"kind": "scenario", "title": "N1 only", "reason": "Access requirement",
+            "source": {"basis": "user-defined"}, "payload": {"id": "toy-ca/n1-only", "query": {
+                "assembly": "toy-ca/demo", "rows": {"n2": {"key_destination": False}},
+                "events": [{"node": "SystemState::n4", "op": "==", "value": 0}]}}}
+    status, draft = post(base_url + "/api/proposals", spec)
+    assert status == 200 and draft["status"] == "draft" and not draft["validation"]
+    status, body = get(base_url + "/api/proposals")
+    assert json.loads(body)["proposals"][0]["id"] == draft["id"]
+    status, body = post(base_url + "/api/proposals/activate", {"id": draft["id"], "reviewer": "", "sha256": draft["sha256"]})
+    assert status == 400 and "reviewer" in body["error"]
+
+
+def test_optional_readback_waits_and_cancellation_prevents_sampling(base_url, monkeypatch):
+    from queue import Queue
+    from src.app import server
+    from src.llm import chat
+    original = chat.ask
+    calls = []
+    def client(path, payload):
+        calls.append(payload)
+        if len(calls) == 1:
+            return {"message": {"tool_calls": [{"function": {"name": "run_query", "arguments": {"targets": ["Usable::b2"]}}}]}}
+        return {"message": {"content": "Cancelled."}}
+    monkeypatch.setenv("BN_LLM", "ollama")
+    monkeypatch.setattr(server.chat, "ask", lambda *a, **kw: original(*a, **kw, client=client, model="test"))
+    monkeypatch.setattr(chat.engine, "answer", lambda *a, **kw: (_ for _ in ()).throw(AssertionError("must not sample")))
+    queue = Queue()
+    def stream():
+        request = Request(base_url + "/api/ask", data=json.dumps({"assembly": "toy-ca/demo", "question": "b2 usability?", "review": True}).encode(), headers={"Content-Type": "application/json"})
+        with urlopen(request, timeout=30) as response:
+            for line in response:
+                queue.put(json.loads(line))
+    worker = threading.Thread(target=stream, daemon=True)
+    worker.start()
+    events = []
+    while True:
+        event = queue.get(timeout=15)
+        events.append(event)
+        if event["type"] == "review":
+            assert len(calls) == 1
+            status, _ = post(base_url + "/api/review", {"token": event["token"], "approved": False})
+            assert status == 200
+            break
+    while events[-1]["type"] != "answer":
+        events.append(queue.get(timeout=15))
+    worker.join(timeout=5)
+    assert not worker.is_alive()
+    assert any(e["type"] == "refused" and "cancelled" in e["error"] for e in events)
+    assert not any(e["type"] == "computed" for e in events)

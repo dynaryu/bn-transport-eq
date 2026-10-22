@@ -1,0 +1,34 @@
+{
+  "id": "emergency-observed-bridge",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "An accurate inspection says b2 is unusable. What is the probability that n4 fails?"
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "evidence": {
+          "Usable::b2": 0
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Use do() for the observed bridge"
+  ]
+}

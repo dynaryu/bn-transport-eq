@@ -1,5 +1,5 @@
 {
-  "format": "quakenet.tbnpy.v2",
+  "format": "quakenet.tbnpy.v3",
   "assembly": {
     "$schema": "../../schema/meta/assembly.schema.json",
     "id": "toy-ca/demo",
@@ -28,9 +28,6 @@
         "function": "system.travel-time-to-nearest",
         "where": {
           "key_destination": false
-        },
-        "parameters": {
-          "target_max": 0.5
         }
       }
     ]
@@ -45,7 +42,8 @@
     "bridge_class": "Seven bridges HWB11 (seismically designed continuous concrete); b2, b4 and b6, the three nearest the San Andreas trace, HWB5 (older, non-seismic) for the demo. Toy assumptions, not an inventory classification.",
     "avg_speed_kph": "60 km/h on every edge, assumed (the value the rsr and ndtools demos use); no measured speeds are in the dataset.",
     "key_destination": "Key destinations n1 and n2, as set by the user.",
-    "event": "Hypothetical M7.8 as a point source on the San Andreas trace at 36.50 N, 121.04 W, 10 km deep, for the demo only. This is the creeping section, not the 1857 rupture; a point source understates shaking along a ~300 km rupture."
+    "event": "Hypothetical M7.8 as a point source on the San Andreas trace at 36.50 N, 121.04 W, 10 km deep, for the demo only. This is the creeping section, not the 1857 rupture; a point source understates shaking along a ~300 km rupture.",
+    "system_event": "Survival is reaching the nearest key destination within 0.5 h of the intact network's travel time: the default threshold, assumed."
   },
   "instance_sources": {
     "demo.campbell-2003-in-california": {
@@ -366,42 +364,6 @@
         1
       ]
     },
-    "TravelTime::n3": {
-      "range": [
-        0,
-        null
-      ]
-    },
-    "TravelTime::n4": {
-      "range": [
-        0,
-        null
-      ]
-    },
-    "TravelTime::n5": {
-      "range": [
-        0,
-        null
-      ]
-    },
-    "TravelTime::n6": {
-      "range": [
-        0,
-        null
-      ]
-    },
-    "TravelTime::n7": {
-      "range": [
-        0,
-        null
-      ]
-    },
-    "TravelTime::n8": {
-      "range": [
-        0,
-        null
-      ]
-    },
     "SystemState::n3": {
       "states": [
         0,
@@ -442,6 +404,7 @@
   "probabilities": {
     "hazard.gmm": {
       "function": "hazard.gmm",
+      "role": "hazard",
       "implementation": "src.builder.kernels.hazard:Gmm",
       "binding": 0,
       "childs": [
@@ -830,83 +793,21 @@
         ]
       }
     },
-    "fragility.bridge": {
+    "DamageState.HazusBridge::b1": {
       "function": "fragility.bridge",
+      "role": "fragility",
       "implementation": "src.builder.kernels.fragility:Fragility",
       "binding": 1,
       "childs": [
-        "DamageState.HazusBridge::b1",
-        "DamageState.HazusBridge::b2",
-        "DamageState.HazusBridge::b3",
-        "DamageState.HazusBridge::b4",
-        "DamageState.HazusBridge::b5",
-        "DamageState.HazusBridge::b6",
-        "DamageState.HazusBridge::b7",
-        "DamageState.HazusBridge::b8",
-        "DamageState.HazusBridge::b9",
-        "DamageState.HazusBridge::b10"
+        "DamageState.HazusBridge::b1"
       ],
       "parents": [
-        "SA(1.0)::b1",
-        "SA(1.0)::b2",
-        "SA(1.0)::b3",
-        "SA(1.0)::b4",
-        "SA(1.0)::b5",
-        "SA(1.0)::b6",
-        "SA(1.0)::b7",
-        "SA(1.0)::b8",
-        "SA(1.0)::b9",
-        "SA(1.0)::b10"
+        "SA(1.0)::b1"
       ],
       "input_columns": [
         {
           "im": [
             0
-          ]
-        },
-        {
-          "im": [
-            1
-          ]
-        },
-        {
-          "im": [
-            2
-          ]
-        },
-        {
-          "im": [
-            3
-          ]
-        },
-        {
-          "im": [
-            4
-          ]
-        },
-        {
-          "im": [
-            5
-          ]
-        },
-        {
-          "im": [
-            6
-          ]
-        },
-        {
-          "im": [
-            7
-          ]
-        },
-        {
-          "im": [
-            8
-          ]
-        },
-        {
-          "im": [
-            9
           ]
         }
       ],
@@ -914,33 +815,6 @@
         "im": [
           [
             "b1"
-          ],
-          [
-            "b2"
-          ],
-          [
-            "b3"
-          ],
-          [
-            "b4"
-          ],
-          [
-            "b5"
-          ],
-          [
-            "b6"
-          ],
-          [
-            "b7"
-          ],
-          [
-            "b8"
-          ],
-          [
-            "b9"
-          ],
-          [
-            "b10"
           ]
         ]
       },
@@ -950,69 +824,6 @@
           "lat": 36.66025089106477,
           "lon": -120.62045329929501,
           "edge": "e1",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b2",
-          "lat": 36.22642937150082,
-          "lon": -120.5486970496632,
-          "edge": "e2",
-          "hazus_class": "HWB5"
-        },
-        {
-          "id": "b3",
-          "lat": 36.93803061824876,
-          "lon": -121.17935604270656,
-          "edge": "e3",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b4",
-          "lat": 36.66744890468672,
-          "lon": -121.25770399616306,
-          "edge": "e4",
-          "hazus_class": "HWB5"
-        },
-        {
-          "id": "b5",
-          "lat": 36.74859784043232,
-          "lon": -121.51667110451245,
-          "edge": "e5",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b6",
-          "lat": 36.34066084027575,
-          "lon": -120.9777746738673,
-          "edge": "e6",
-          "hazus_class": "HWB5"
-        },
-        {
-          "id": "b7",
-          "lat": 36.4569359512305,
-          "lon": -121.22817673987275,
-          "edge": "e7",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b8",
-          "lat": 36.144793823942315,
-          "lon": -120.9251138860227,
-          "edge": "e8",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b9",
-          "lat": 36.261068934897054,
-          "lon": -121.17551595202815,
-          "edge": "e9",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b10",
-          "lat": 36.538084886976094,
-          "lon": -121.48714384822215,
-          "edge": "e10",
           "hazus_class": "HWB11"
         }
       ],
@@ -1030,144 +841,9 @@
             },
             "beta": 0.6
           }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.25,
-              "moderate": 0.35,
-              "extensive": 0.45,
-              "complete": 0.7
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.9,
-              "moderate": 0.9,
-              "extensive": 1.1,
-              "complete": 1.5
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.25,
-              "moderate": 0.35,
-              "extensive": 0.45,
-              "complete": 0.7
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.9,
-              "moderate": 0.9,
-              "extensive": 1.1,
-              "complete": 1.5
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.25,
-              "moderate": 0.35,
-              "extensive": 0.45,
-              "complete": 0.7
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.9,
-              "moderate": 0.9,
-              "extensive": 1.1,
-              "complete": 1.5
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.9,
-              "moderate": 0.9,
-              "extensive": 1.1,
-              "complete": 1.5
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.9,
-              "moderate": 0.9,
-              "extensive": 1.1,
-              "complete": 1.5
-            },
-            "beta": 0.6
-          }
-        },
-        {
-          "form": "lognormal",
-          "imt": "SA(1.0)",
-          "damage_scale": "DamageState.HazusBridge",
-          "parameters": {
-            "medians": {
-              "slight": 0.9,
-              "moderate": 0.9,
-              "extensive": 1.1,
-              "complete": 1.5
-            },
-            "beta": 0.6
-          }
         }
       ],
       "parameter_sets": [
-        "hazus61.HWB11",
-        "hazus61.HWB5",
-        "hazus61.HWB11",
-        "hazus61.HWB5",
-        "hazus61.HWB11",
-        "hazus61.HWB5",
-        "hazus61.HWB11",
-        "hazus61.HWB11",
-        "hazus61.HWB11",
         "hazus61.HWB11"
       ],
       "states": {
@@ -1181,83 +857,597 @@
       },
       "tables": {}
     },
-    "functionality.usable-from-damage": {
+    "DamageState.HazusBridge::b2": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b2"
+      ],
+      "parents": [
+        "SA(1.0)::b2"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b2"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b2",
+          "lat": 36.22642937150082,
+          "lon": -120.5486970496632,
+          "edge": "e2",
+          "hazus_class": "HWB5"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.25,
+              "moderate": 0.35,
+              "extensive": 0.45,
+              "complete": 0.7
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB5"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b3": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b3"
+      ],
+      "parents": [
+        "SA(1.0)::b3"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b3"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b3",
+          "lat": 36.93803061824876,
+          "lon": -121.17935604270656,
+          "edge": "e3",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.9,
+              "moderate": 0.9,
+              "extensive": 1.1,
+              "complete": 1.5
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB11"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b4": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b4"
+      ],
+      "parents": [
+        "SA(1.0)::b4"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b4"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b4",
+          "lat": 36.66744890468672,
+          "lon": -121.25770399616306,
+          "edge": "e4",
+          "hazus_class": "HWB5"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.25,
+              "moderate": 0.35,
+              "extensive": 0.45,
+              "complete": 0.7
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB5"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b5": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b5"
+      ],
+      "parents": [
+        "SA(1.0)::b5"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b5"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b5",
+          "lat": 36.74859784043232,
+          "lon": -121.51667110451245,
+          "edge": "e5",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.9,
+              "moderate": 0.9,
+              "extensive": 1.1,
+              "complete": 1.5
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB11"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b6": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b6"
+      ],
+      "parents": [
+        "SA(1.0)::b6"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b6"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b6",
+          "lat": 36.34066084027575,
+          "lon": -120.9777746738673,
+          "edge": "e6",
+          "hazus_class": "HWB5"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.25,
+              "moderate": 0.35,
+              "extensive": 0.45,
+              "complete": 0.7
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB5"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b7": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b7"
+      ],
+      "parents": [
+        "SA(1.0)::b7"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b7"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b7",
+          "lat": 36.4569359512305,
+          "lon": -121.22817673987275,
+          "edge": "e7",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.9,
+              "moderate": 0.9,
+              "extensive": 1.1,
+              "complete": 1.5
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB11"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b8": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b8"
+      ],
+      "parents": [
+        "SA(1.0)::b8"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b8"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b8",
+          "lat": 36.144793823942315,
+          "lon": -120.9251138860227,
+          "edge": "e8",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.9,
+              "moderate": 0.9,
+              "extensive": 1.1,
+              "complete": 1.5
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB11"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b9": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b9"
+      ],
+      "parents": [
+        "SA(1.0)::b9"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b9"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b9",
+          "lat": 36.261068934897054,
+          "lon": -121.17551595202815,
+          "edge": "e9",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.9,
+              "moderate": 0.9,
+              "extensive": 1.1,
+              "complete": 1.5
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB11"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "DamageState.HazusBridge::b10": {
+      "function": "fragility.bridge",
+      "role": "fragility",
+      "implementation": "src.builder.kernels.fragility:Fragility",
+      "binding": 1,
+      "childs": [
+        "DamageState.HazusBridge::b10"
+      ],
+      "parents": [
+        "SA(1.0)::b10"
+      ],
+      "input_columns": [
+        {
+          "im": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "im": [
+          [
+            "b10"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b10",
+          "lat": 36.538084886976094,
+          "lon": -121.48714384822215,
+          "edge": "e10",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "form": "lognormal",
+          "imt": "SA(1.0)",
+          "damage_scale": "DamageState.HazusBridge",
+          "parameters": {
+            "medians": {
+              "slight": 0.9,
+              "moderate": 0.9,
+              "extensive": 1.1,
+              "complete": 1.5
+            },
+            "beta": 0.6
+          }
+        }
+      ],
+      "parameter_sets": [
+        "hazus61.HWB11"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b1": {
       "function": "functionality.usable-from-damage",
+      "role": "functionality",
       "implementation": "src.builder.kernels.functionality:UsableFromDamage",
       "binding": 2,
       "childs": [
-        "Usable::b1",
-        "Usable::b2",
-        "Usable::b3",
-        "Usable::b4",
-        "Usable::b5",
-        "Usable::b6",
-        "Usable::b7",
-        "Usable::b8",
-        "Usable::b9",
-        "Usable::b10"
+        "Usable::b1"
       ],
       "parents": [
-        "DamageState.HazusBridge::b1",
-        "DamageState.HazusBridge::b2",
-        "DamageState.HazusBridge::b3",
-        "DamageState.HazusBridge::b4",
-        "DamageState.HazusBridge::b5",
-        "DamageState.HazusBridge::b6",
-        "DamageState.HazusBridge::b7",
-        "DamageState.HazusBridge::b8",
-        "DamageState.HazusBridge::b9",
-        "DamageState.HazusBridge::b10"
+        "DamageState.HazusBridge::b1"
       ],
       "input_columns": [
         {
           "damage": [
             0
-          ]
-        },
-        {
-          "damage": [
-            1
-          ]
-        },
-        {
-          "damage": [
-            2
-          ]
-        },
-        {
-          "damage": [
-            3
-          ]
-        },
-        {
-          "damage": [
-            4
-          ]
-        },
-        {
-          "damage": [
-            5
-          ]
-        },
-        {
-          "damage": [
-            6
-          ]
-        },
-        {
-          "damage": [
-            7
-          ]
-        },
-        {
-          "damage": [
-            8
-          ]
-        },
-        {
-          "damage": [
-            9
           ]
         }
       ],
@@ -1265,33 +1455,6 @@
         "damage": [
           [
             "b1"
-          ],
-          [
-            "b2"
-          ],
-          [
-            "b3"
-          ],
-          [
-            "b4"
-          ],
-          [
-            "b5"
-          ],
-          [
-            "b6"
-          ],
-          [
-            "b7"
-          ],
-          [
-            "b8"
-          ],
-          [
-            "b9"
-          ],
-          [
-            "b10"
           ]
         ]
       },
@@ -1301,69 +1464,6 @@
           "lat": 36.66025089106477,
           "lon": -120.62045329929501,
           "edge": "e1",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b2",
-          "lat": 36.22642937150082,
-          "lon": -120.5486970496632,
-          "edge": "e2",
-          "hazus_class": "HWB5"
-        },
-        {
-          "id": "b3",
-          "lat": 36.93803061824876,
-          "lon": -121.17935604270656,
-          "edge": "e3",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b4",
-          "lat": 36.66744890468672,
-          "lon": -121.25770399616306,
-          "edge": "e4",
-          "hazus_class": "HWB5"
-        },
-        {
-          "id": "b5",
-          "lat": 36.74859784043232,
-          "lon": -121.51667110451245,
-          "edge": "e5",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b6",
-          "lat": 36.34066084027575,
-          "lon": -120.9777746738673,
-          "edge": "e6",
-          "hazus_class": "HWB5"
-        },
-        {
-          "id": "b7",
-          "lat": 36.4569359512305,
-          "lon": -121.22817673987275,
-          "edge": "e7",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b8",
-          "lat": 36.144793823942315,
-          "lon": -120.9251138860227,
-          "edge": "e8",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b9",
-          "lat": 36.261068934897054,
-          "lon": -121.17551595202815,
-          "edge": "e9",
-          "hazus_class": "HWB11"
-        },
-        {
-          "id": "b10",
-          "lat": 36.538084886976094,
-          "lon": -121.48714384822215,
-          "edge": "e10",
           "hazus_class": "HWB11"
         }
       ],
@@ -1375,90 +1475,9 @@
             "slight",
             "moderate"
           ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
-        },
-        {
-          "damage_scale": "DamageState.HazusBridge",
-          "usable_states": [
-            "none",
-            "slight",
-            "moderate"
-          ]
         }
       ],
       "parameter_sets": [
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
-        "policy.closed-at-extensive",
         "policy.closed-at-extensive"
       ],
       "states": {
@@ -1476,83 +1495,579 @@
       },
       "tables": {}
     },
-    "edge.open": {
+    "Usable::b2": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b2"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b2"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b2"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b2",
+          "lat": 36.22642937150082,
+          "lon": -120.5486970496632,
+          "edge": "e2",
+          "hazus_class": "HWB5"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b3": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b3"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b3"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b3"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b3",
+          "lat": 36.93803061824876,
+          "lon": -121.17935604270656,
+          "edge": "e3",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b4": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b4"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b4"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b4"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b4",
+          "lat": 36.66744890468672,
+          "lon": -121.25770399616306,
+          "edge": "e4",
+          "hazus_class": "HWB5"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b5": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b5"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b5"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b5"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b5",
+          "lat": 36.74859784043232,
+          "lon": -121.51667110451245,
+          "edge": "e5",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b6": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b6"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b6"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b6"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b6",
+          "lat": 36.34066084027575,
+          "lon": -120.9777746738673,
+          "edge": "e6",
+          "hazus_class": "HWB5"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b7": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b7"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b7"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b7"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b7",
+          "lat": 36.4569359512305,
+          "lon": -121.22817673987275,
+          "edge": "e7",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b8": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b8"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b8"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b8"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b8",
+          "lat": 36.144793823942315,
+          "lon": -120.9251138860227,
+          "edge": "e8",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b9": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b9"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b9"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b9"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b9",
+          "lat": 36.261068934897054,
+          "lon": -121.17551595202815,
+          "edge": "e9",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "Usable::b10": {
+      "function": "functionality.usable-from-damage",
+      "role": "functionality",
+      "implementation": "src.builder.kernels.functionality:UsableFromDamage",
+      "binding": 2,
+      "childs": [
+        "Usable::b10"
+      ],
+      "parents": [
+        "DamageState.HazusBridge::b10"
+      ],
+      "input_columns": [
+        {
+          "damage": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "damage": [
+          [
+            "b10"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "b10",
+          "lat": 36.538084886976094,
+          "lon": -121.48714384822215,
+          "edge": "e10",
+          "hazus_class": "HWB11"
+        }
+      ],
+      "parameters": [
+        {
+          "damage_scale": "DamageState.HazusBridge",
+          "usable_states": [
+            "none",
+            "slight",
+            "moderate"
+          ]
+        }
+      ],
+      "parameter_sets": [
+        "policy.closed-at-extensive"
+      ],
+      "states": {
+        "damage": [
+          "none",
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "usable": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e1": {
       "function": "edge.open",
+      "role": "edge",
       "implementation": "src.builder.kernels.edge:EdgeOpen",
       "binding": 3,
       "childs": [
-        "EdgeOpen::e1",
-        "EdgeOpen::e2",
-        "EdgeOpen::e3",
-        "EdgeOpen::e4",
-        "EdgeOpen::e5",
-        "EdgeOpen::e6",
-        "EdgeOpen::e7",
-        "EdgeOpen::e8",
-        "EdgeOpen::e9",
-        "EdgeOpen::e10"
+        "EdgeOpen::e1"
       ],
       "parents": [
-        "Usable::b1",
-        "Usable::b2",
-        "Usable::b3",
-        "Usable::b4",
-        "Usable::b5",
-        "Usable::b6",
-        "Usable::b7",
-        "Usable::b8",
-        "Usable::b9",
-        "Usable::b10"
+        "Usable::b1"
       ],
       "input_columns": [
         {
           "usable": [
             0
-          ]
-        },
-        {
-          "usable": [
-            1
-          ]
-        },
-        {
-          "usable": [
-            2
-          ]
-        },
-        {
-          "usable": [
-            3
-          ]
-        },
-        {
-          "usable": [
-            4
-          ]
-        },
-        {
-          "usable": [
-            5
-          ]
-        },
-        {
-          "usable": [
-            6
-          ]
-        },
-        {
-          "usable": [
-            7
-          ]
-        },
-        {
-          "usable": [
-            8
-          ]
-        },
-        {
-          "usable": [
-            9
           ]
         }
       ],
@@ -1560,33 +2075,6 @@
         "usable": [
           [
             "b1"
-          ],
-          [
-            "b2"
-          ],
-          [
-            "b3"
-          ],
-          [
-            "b4"
-          ],
-          [
-            "b5"
-          ],
-          [
-            "b6"
-          ],
-          [
-            "b7"
-          ],
-          [
-            "b8"
-          ],
-          [
-            "b9"
-          ],
-          [
-            "b10"
           ]
         ]
       },
@@ -1599,111 +2087,12 @@
           "length_km": 106.011906,
           "capacity": 1,
           "avg_speed_kph": 60
-        },
-        {
-          "id": "e2",
-          "source": "n1",
-          "target": "n5",
-          "directed": false,
-          "length_km": 51.220587,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e3",
-          "source": "n2",
-          "target": "n3",
-          "directed": false,
-          "length_km": 43.998194,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e4",
-          "source": "n3",
-          "target": "n4",
-          "directed": false,
-          "length_km": 43.118452,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e5",
-          "source": "n3",
-          "target": "n8",
-          "directed": false,
-          "length_km": 29.417095,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e6",
-          "source": "n4",
-          "target": "n5",
-          "directed": false,
-          "length_km": 45.176621,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e7",
-          "source": "n4",
-          "target": "n7",
-          "directed": false,
-          "length_km": 20.759042,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e8",
-          "source": "n5",
-          "target": "n6",
-          "directed": false,
-          "length_km": 18.944186,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e9",
-          "source": "n6",
-          "target": "n7",
-          "directed": false,
-          "length_km": 42.998648,
-          "capacity": 1,
-          "avg_speed_kph": 60
-        },
-        {
-          "id": "e10",
-          "source": "n7",
-          "target": "n8",
-          "directed": false,
-          "length_km": 40.193808,
-          "capacity": 1,
-          "avg_speed_kph": 60
         }
       ],
       "parameters": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
         null
       ],
       "parameter_sets": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
         null
       ],
       "states": {
@@ -1718,17 +2107,499 @@
       },
       "tables": {}
     },
-    "system.travel-time-to-nearest:travel_time": {
+    "EdgeOpen::e2": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e2"
+      ],
+      "parents": [
+        "Usable::b2"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b2"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e2",
+          "source": "n1",
+          "target": "n5",
+          "directed": false,
+          "length_km": 51.220587,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e3": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e3"
+      ],
+      "parents": [
+        "Usable::b3"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b3"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e3",
+          "source": "n2",
+          "target": "n3",
+          "directed": false,
+          "length_km": 43.998194,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e4": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e4"
+      ],
+      "parents": [
+        "Usable::b4"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b4"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e4",
+          "source": "n3",
+          "target": "n4",
+          "directed": false,
+          "length_km": 43.118452,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e5": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e5"
+      ],
+      "parents": [
+        "Usable::b5"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b5"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e5",
+          "source": "n3",
+          "target": "n8",
+          "directed": false,
+          "length_km": 29.417095,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e6": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e6"
+      ],
+      "parents": [
+        "Usable::b6"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b6"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e6",
+          "source": "n4",
+          "target": "n5",
+          "directed": false,
+          "length_km": 45.176621,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e7": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e7"
+      ],
+      "parents": [
+        "Usable::b7"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b7"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e7",
+          "source": "n4",
+          "target": "n7",
+          "directed": false,
+          "length_km": 20.759042,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e8": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e8"
+      ],
+      "parents": [
+        "Usable::b8"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b8"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e8",
+          "source": "n5",
+          "target": "n6",
+          "directed": false,
+          "length_km": 18.944186,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e9": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e9"
+      ],
+      "parents": [
+        "Usable::b9"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b9"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e9",
+          "source": "n6",
+          "target": "n7",
+          "directed": false,
+          "length_km": 42.998648,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "EdgeOpen::e10": {
+      "function": "edge.open",
+      "role": "edge",
+      "implementation": "src.builder.kernels.edge:EdgeOpen",
+      "binding": 3,
+      "childs": [
+        "EdgeOpen::e10"
+      ],
+      "parents": [
+        "Usable::b10"
+      ],
+      "input_columns": [
+        {
+          "usable": [
+            0
+          ]
+        }
+      ],
+      "parent_rows": {
+        "usable": [
+          [
+            "b10"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "e10",
+          "source": "n7",
+          "target": "n8",
+          "directed": false,
+          "length_km": 40.193808,
+          "capacity": 1,
+          "avg_speed_kph": 60
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "usable": [
+          0,
+          1
+        ],
+        "open": [
+          0,
+          1
+        ]
+      },
+      "tables": {}
+    },
+    "SystemState::n3": {
       "function": "system.travel-time-to-nearest",
+      "role": "system",
       "implementation": "src.builder.kernels.system:TravelTimeToNearest",
       "binding": 4,
       "childs": [
-        "TravelTime::n3",
-        "TravelTime::n4",
-        "TravelTime::n5",
-        "TravelTime::n6",
-        "TravelTime::n7",
-        "TravelTime::n8"
+        "SystemState::n3"
       ],
       "parents": [
         "EdgeOpen::e1",
@@ -1756,140 +2627,10 @@
             8,
             9
           ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
         }
       ],
       "parent_rows": {
         "open": [
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
           [
             "e1",
             "e2",
@@ -1910,64 +2651,12 @@
           "lat": 36.83099716309577,
           "lon": -121.3875291153705,
           "key_destination": false
-        },
-        {
-          "id": "n4",
-          "lat": 36.50390064627767,
-          "lon": -121.1278788769556,
-          "key_destination": false
-        },
-        {
-          "id": "n5",
-          "lat": 36.17742103427384,
-          "lon": -120.827670470779,
-          "key_destination": false
-        },
-        {
-          "id": "n6",
-          "lat": 36.11216661361079,
-          "lon": -121.0225573012664,
-          "key_destination": false
-        },
-        {
-          "id": "n7",
-          "lat": 36.40997125618332,
-          "lon": -121.3284746027899,
-          "key_destination": false
-        },
-        {
-          "id": "n8",
-          "lat": 36.66619851776886,
-          "lon": -121.6458130936544,
-          "key_destination": false
         }
       ],
       "parameters": [
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        }
+        null
       ],
       "parameter_sets": [
-        null,
-        null,
-        null,
-        null,
-        null,
         null
       ],
       "states": {
@@ -2122,20 +2811,979 @@
             "capacity": 1,
             "avg_speed_kph": 60
           }
+        ],
+        "SystemEvent": [
+          {
+            "id": "reach-key-destination",
+            "analysis": "system.travel-time-to-nearest",
+            "target_add_h": 0.5,
+            "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
+          }
         ]
       },
-      "output": "travel_time"
+      "references": [
+        {
+          "upper": "rsr/n3/target_add_h=0.5/refs_up_1.pt",
+          "upper_at": 0.5,
+          "lower": "rsr/n3/target_add_h=0.5/refs_low_0.pt",
+          "lower_at": 0.5
+        }
+      ]
     },
-    "system.travel-time-to-nearest:state": {
+    "SystemState::n4": {
       "function": "system.travel-time-to-nearest",
+      "role": "system",
       "implementation": "src.builder.kernels.system:TravelTimeToNearest",
       "binding": 4,
       "childs": [
-        "SystemState::n3",
-        "SystemState::n4",
-        "SystemState::n5",
-        "SystemState::n6",
-        "SystemState::n7",
+        "SystemState::n4"
+      ],
+      "parents": [
+        "EdgeOpen::e1",
+        "EdgeOpen::e2",
+        "EdgeOpen::e3",
+        "EdgeOpen::e4",
+        "EdgeOpen::e5",
+        "EdgeOpen::e6",
+        "EdgeOpen::e7",
+        "EdgeOpen::e8",
+        "EdgeOpen::e9",
+        "EdgeOpen::e10"
+      ],
+      "input_columns": [
+        {
+          "open": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        }
+      ],
+      "parent_rows": {
+        "open": [
+          [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "n4",
+          "lat": 36.50390064627767,
+          "lon": -121.1278788769556,
+          "key_destination": false
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "open": [
+          0,
+          1
+        ],
+        "state": [
+          0,
+          1
+        ]
+      },
+      "tables": {
+        "Node": [
+          {
+            "id": "n1",
+            "lat": 36.2754377087278,
+            "lon": -120.2697236285474,
+            "key_destination": true
+          },
+          {
+            "id": "n2",
+            "lat": 37.04506407340175,
+            "lon": -120.9711829700426,
+            "key_destination": true
+          },
+          {
+            "id": "n3",
+            "lat": 36.83099716309577,
+            "lon": -121.3875291153705,
+            "key_destination": false
+          },
+          {
+            "id": "n4",
+            "lat": 36.50390064627767,
+            "lon": -121.1278788769556,
+            "key_destination": false
+          },
+          {
+            "id": "n5",
+            "lat": 36.17742103427384,
+            "lon": -120.827670470779,
+            "key_destination": false
+          },
+          {
+            "id": "n6",
+            "lat": 36.11216661361079,
+            "lon": -121.0225573012664,
+            "key_destination": false
+          },
+          {
+            "id": "n7",
+            "lat": 36.40997125618332,
+            "lon": -121.3284746027899,
+            "key_destination": false
+          },
+          {
+            "id": "n8",
+            "lat": 36.66619851776886,
+            "lon": -121.6458130936544,
+            "key_destination": false
+          }
+        ],
+        "Edge": [
+          {
+            "id": "e1",
+            "source": "n1",
+            "target": "n2",
+            "directed": false,
+            "length_km": 106.011906,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e2",
+            "source": "n1",
+            "target": "n5",
+            "directed": false,
+            "length_km": 51.220587,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e3",
+            "source": "n2",
+            "target": "n3",
+            "directed": false,
+            "length_km": 43.998194,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e4",
+            "source": "n3",
+            "target": "n4",
+            "directed": false,
+            "length_km": 43.118452,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e5",
+            "source": "n3",
+            "target": "n8",
+            "directed": false,
+            "length_km": 29.417095,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e6",
+            "source": "n4",
+            "target": "n5",
+            "directed": false,
+            "length_km": 45.176621,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e7",
+            "source": "n4",
+            "target": "n7",
+            "directed": false,
+            "length_km": 20.759042,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e8",
+            "source": "n5",
+            "target": "n6",
+            "directed": false,
+            "length_km": 18.944186,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e9",
+            "source": "n6",
+            "target": "n7",
+            "directed": false,
+            "length_km": 42.998648,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e10",
+            "source": "n7",
+            "target": "n8",
+            "directed": false,
+            "length_km": 40.193808,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          }
+        ],
+        "SystemEvent": [
+          {
+            "id": "reach-key-destination",
+            "analysis": "system.travel-time-to-nearest",
+            "target_add_h": 0.5,
+            "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
+          }
+        ]
+      },
+      "references": [
+        {
+          "upper": "rsr/n4/target_add_h=0.5/refs_up_1.pt",
+          "upper_at": 0.5,
+          "lower": "rsr/n4/target_add_h=0.5/refs_low_0.pt",
+          "lower_at": 0.5
+        }
+      ]
+    },
+    "SystemState::n5": {
+      "function": "system.travel-time-to-nearest",
+      "role": "system",
+      "implementation": "src.builder.kernels.system:TravelTimeToNearest",
+      "binding": 4,
+      "childs": [
+        "SystemState::n5"
+      ],
+      "parents": [
+        "EdgeOpen::e1",
+        "EdgeOpen::e2",
+        "EdgeOpen::e3",
+        "EdgeOpen::e4",
+        "EdgeOpen::e5",
+        "EdgeOpen::e6",
+        "EdgeOpen::e7",
+        "EdgeOpen::e8",
+        "EdgeOpen::e9",
+        "EdgeOpen::e10"
+      ],
+      "input_columns": [
+        {
+          "open": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        }
+      ],
+      "parent_rows": {
+        "open": [
+          [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "n5",
+          "lat": 36.17742103427384,
+          "lon": -120.827670470779,
+          "key_destination": false
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "open": [
+          0,
+          1
+        ],
+        "state": [
+          0,
+          1
+        ]
+      },
+      "tables": {
+        "Node": [
+          {
+            "id": "n1",
+            "lat": 36.2754377087278,
+            "lon": -120.2697236285474,
+            "key_destination": true
+          },
+          {
+            "id": "n2",
+            "lat": 37.04506407340175,
+            "lon": -120.9711829700426,
+            "key_destination": true
+          },
+          {
+            "id": "n3",
+            "lat": 36.83099716309577,
+            "lon": -121.3875291153705,
+            "key_destination": false
+          },
+          {
+            "id": "n4",
+            "lat": 36.50390064627767,
+            "lon": -121.1278788769556,
+            "key_destination": false
+          },
+          {
+            "id": "n5",
+            "lat": 36.17742103427384,
+            "lon": -120.827670470779,
+            "key_destination": false
+          },
+          {
+            "id": "n6",
+            "lat": 36.11216661361079,
+            "lon": -121.0225573012664,
+            "key_destination": false
+          },
+          {
+            "id": "n7",
+            "lat": 36.40997125618332,
+            "lon": -121.3284746027899,
+            "key_destination": false
+          },
+          {
+            "id": "n8",
+            "lat": 36.66619851776886,
+            "lon": -121.6458130936544,
+            "key_destination": false
+          }
+        ],
+        "Edge": [
+          {
+            "id": "e1",
+            "source": "n1",
+            "target": "n2",
+            "directed": false,
+            "length_km": 106.011906,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e2",
+            "source": "n1",
+            "target": "n5",
+            "directed": false,
+            "length_km": 51.220587,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e3",
+            "source": "n2",
+            "target": "n3",
+            "directed": false,
+            "length_km": 43.998194,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e4",
+            "source": "n3",
+            "target": "n4",
+            "directed": false,
+            "length_km": 43.118452,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e5",
+            "source": "n3",
+            "target": "n8",
+            "directed": false,
+            "length_km": 29.417095,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e6",
+            "source": "n4",
+            "target": "n5",
+            "directed": false,
+            "length_km": 45.176621,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e7",
+            "source": "n4",
+            "target": "n7",
+            "directed": false,
+            "length_km": 20.759042,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e8",
+            "source": "n5",
+            "target": "n6",
+            "directed": false,
+            "length_km": 18.944186,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e9",
+            "source": "n6",
+            "target": "n7",
+            "directed": false,
+            "length_km": 42.998648,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e10",
+            "source": "n7",
+            "target": "n8",
+            "directed": false,
+            "length_km": 40.193808,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          }
+        ],
+        "SystemEvent": [
+          {
+            "id": "reach-key-destination",
+            "analysis": "system.travel-time-to-nearest",
+            "target_add_h": 0.5,
+            "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
+          }
+        ]
+      },
+      "references": [
+        {
+          "upper": "rsr/n5/target_add_h=0.5/refs_up_1.pt",
+          "upper_at": 0.5,
+          "lower": "rsr/n5/target_add_h=0.5/refs_low_0.pt",
+          "lower_at": 0.5
+        }
+      ]
+    },
+    "SystemState::n6": {
+      "function": "system.travel-time-to-nearest",
+      "role": "system",
+      "implementation": "src.builder.kernels.system:TravelTimeToNearest",
+      "binding": 4,
+      "childs": [
+        "SystemState::n6"
+      ],
+      "parents": [
+        "EdgeOpen::e1",
+        "EdgeOpen::e2",
+        "EdgeOpen::e3",
+        "EdgeOpen::e4",
+        "EdgeOpen::e5",
+        "EdgeOpen::e6",
+        "EdgeOpen::e7",
+        "EdgeOpen::e8",
+        "EdgeOpen::e9",
+        "EdgeOpen::e10"
+      ],
+      "input_columns": [
+        {
+          "open": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        }
+      ],
+      "parent_rows": {
+        "open": [
+          [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "n6",
+          "lat": 36.11216661361079,
+          "lon": -121.0225573012664,
+          "key_destination": false
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "open": [
+          0,
+          1
+        ],
+        "state": [
+          0,
+          1
+        ]
+      },
+      "tables": {
+        "Node": [
+          {
+            "id": "n1",
+            "lat": 36.2754377087278,
+            "lon": -120.2697236285474,
+            "key_destination": true
+          },
+          {
+            "id": "n2",
+            "lat": 37.04506407340175,
+            "lon": -120.9711829700426,
+            "key_destination": true
+          },
+          {
+            "id": "n3",
+            "lat": 36.83099716309577,
+            "lon": -121.3875291153705,
+            "key_destination": false
+          },
+          {
+            "id": "n4",
+            "lat": 36.50390064627767,
+            "lon": -121.1278788769556,
+            "key_destination": false
+          },
+          {
+            "id": "n5",
+            "lat": 36.17742103427384,
+            "lon": -120.827670470779,
+            "key_destination": false
+          },
+          {
+            "id": "n6",
+            "lat": 36.11216661361079,
+            "lon": -121.0225573012664,
+            "key_destination": false
+          },
+          {
+            "id": "n7",
+            "lat": 36.40997125618332,
+            "lon": -121.3284746027899,
+            "key_destination": false
+          },
+          {
+            "id": "n8",
+            "lat": 36.66619851776886,
+            "lon": -121.6458130936544,
+            "key_destination": false
+          }
+        ],
+        "Edge": [
+          {
+            "id": "e1",
+            "source": "n1",
+            "target": "n2",
+            "directed": false,
+            "length_km": 106.011906,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e2",
+            "source": "n1",
+            "target": "n5",
+            "directed": false,
+            "length_km": 51.220587,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e3",
+            "source": "n2",
+            "target": "n3",
+            "directed": false,
+            "length_km": 43.998194,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e4",
+            "source": "n3",
+            "target": "n4",
+            "directed": false,
+            "length_km": 43.118452,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e5",
+            "source": "n3",
+            "target": "n8",
+            "directed": false,
+            "length_km": 29.417095,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e6",
+            "source": "n4",
+            "target": "n5",
+            "directed": false,
+            "length_km": 45.176621,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e7",
+            "source": "n4",
+            "target": "n7",
+            "directed": false,
+            "length_km": 20.759042,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e8",
+            "source": "n5",
+            "target": "n6",
+            "directed": false,
+            "length_km": 18.944186,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e9",
+            "source": "n6",
+            "target": "n7",
+            "directed": false,
+            "length_km": 42.998648,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e10",
+            "source": "n7",
+            "target": "n8",
+            "directed": false,
+            "length_km": 40.193808,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          }
+        ],
+        "SystemEvent": [
+          {
+            "id": "reach-key-destination",
+            "analysis": "system.travel-time-to-nearest",
+            "target_add_h": 0.5,
+            "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
+          }
+        ]
+      },
+      "references": [
+        {
+          "upper": "rsr/n6/target_add_h=0.5/refs_up_1.pt",
+          "upper_at": 0.5,
+          "lower": "rsr/n6/target_add_h=0.5/refs_low_0.pt",
+          "lower_at": 0.5
+        }
+      ]
+    },
+    "SystemState::n7": {
+      "function": "system.travel-time-to-nearest",
+      "role": "system",
+      "implementation": "src.builder.kernels.system:TravelTimeToNearest",
+      "binding": 4,
+      "childs": [
+        "SystemState::n7"
+      ],
+      "parents": [
+        "EdgeOpen::e1",
+        "EdgeOpen::e2",
+        "EdgeOpen::e3",
+        "EdgeOpen::e4",
+        "EdgeOpen::e5",
+        "EdgeOpen::e6",
+        "EdgeOpen::e7",
+        "EdgeOpen::e8",
+        "EdgeOpen::e9",
+        "EdgeOpen::e10"
+      ],
+      "input_columns": [
+        {
+          "open": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        }
+      ],
+      "parent_rows": {
+        "open": [
+          [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10"
+          ]
+        ]
+      },
+      "rows": [
+        {
+          "id": "n7",
+          "lat": 36.40997125618332,
+          "lon": -121.3284746027899,
+          "key_destination": false
+        }
+      ],
+      "parameters": [
+        null
+      ],
+      "parameter_sets": [
+        null
+      ],
+      "states": {
+        "open": [
+          0,
+          1
+        ],
+        "state": [
+          0,
+          1
+        ]
+      },
+      "tables": {
+        "Node": [
+          {
+            "id": "n1",
+            "lat": 36.2754377087278,
+            "lon": -120.2697236285474,
+            "key_destination": true
+          },
+          {
+            "id": "n2",
+            "lat": 37.04506407340175,
+            "lon": -120.9711829700426,
+            "key_destination": true
+          },
+          {
+            "id": "n3",
+            "lat": 36.83099716309577,
+            "lon": -121.3875291153705,
+            "key_destination": false
+          },
+          {
+            "id": "n4",
+            "lat": 36.50390064627767,
+            "lon": -121.1278788769556,
+            "key_destination": false
+          },
+          {
+            "id": "n5",
+            "lat": 36.17742103427384,
+            "lon": -120.827670470779,
+            "key_destination": false
+          },
+          {
+            "id": "n6",
+            "lat": 36.11216661361079,
+            "lon": -121.0225573012664,
+            "key_destination": false
+          },
+          {
+            "id": "n7",
+            "lat": 36.40997125618332,
+            "lon": -121.3284746027899,
+            "key_destination": false
+          },
+          {
+            "id": "n8",
+            "lat": 36.66619851776886,
+            "lon": -121.6458130936544,
+            "key_destination": false
+          }
+        ],
+        "Edge": [
+          {
+            "id": "e1",
+            "source": "n1",
+            "target": "n2",
+            "directed": false,
+            "length_km": 106.011906,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e2",
+            "source": "n1",
+            "target": "n5",
+            "directed": false,
+            "length_km": 51.220587,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e3",
+            "source": "n2",
+            "target": "n3",
+            "directed": false,
+            "length_km": 43.998194,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e4",
+            "source": "n3",
+            "target": "n4",
+            "directed": false,
+            "length_km": 43.118452,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e5",
+            "source": "n3",
+            "target": "n8",
+            "directed": false,
+            "length_km": 29.417095,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e6",
+            "source": "n4",
+            "target": "n5",
+            "directed": false,
+            "length_km": 45.176621,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e7",
+            "source": "n4",
+            "target": "n7",
+            "directed": false,
+            "length_km": 20.759042,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e8",
+            "source": "n5",
+            "target": "n6",
+            "directed": false,
+            "length_km": 18.944186,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e9",
+            "source": "n6",
+            "target": "n7",
+            "directed": false,
+            "length_km": 42.998648,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          },
+          {
+            "id": "e10",
+            "source": "n7",
+            "target": "n8",
+            "directed": false,
+            "length_km": 40.193808,
+            "capacity": 1,
+            "avg_speed_kph": 60
+          }
+        ],
+        "SystemEvent": [
+          {
+            "id": "reach-key-destination",
+            "analysis": "system.travel-time-to-nearest",
+            "target_add_h": 0.5,
+            "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
+          }
+        ]
+      },
+      "references": [
+        {
+          "upper": "rsr/n7/target_add_h=0.5/refs_up_1.pt",
+          "upper_at": 0.5,
+          "lower": "rsr/n7/target_add_h=0.5/refs_low_0.pt",
+          "lower_at": 0.5
+        }
+      ]
+    },
+    "SystemState::n8": {
+      "function": "system.travel-time-to-nearest",
+      "role": "system",
+      "implementation": "src.builder.kernels.system:TravelTimeToNearest",
+      "binding": 4,
+      "childs": [
         "SystemState::n8"
       ],
       "parents": [
@@ -2164,140 +3812,10 @@
             8,
             9
           ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
-        },
-        {
-          "open": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9
-          ]
         }
       ],
       "parent_rows": {
         "open": [
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
-          [
-            "e1",
-            "e2",
-            "e3",
-            "e4",
-            "e5",
-            "e6",
-            "e7",
-            "e8",
-            "e9",
-            "e10"
-          ],
           [
             "e1",
             "e2",
@@ -2314,36 +3832,6 @@
       },
       "rows": [
         {
-          "id": "n3",
-          "lat": 36.83099716309577,
-          "lon": -121.3875291153705,
-          "key_destination": false
-        },
-        {
-          "id": "n4",
-          "lat": 36.50390064627767,
-          "lon": -121.1278788769556,
-          "key_destination": false
-        },
-        {
-          "id": "n5",
-          "lat": 36.17742103427384,
-          "lon": -120.827670470779,
-          "key_destination": false
-        },
-        {
-          "id": "n6",
-          "lat": 36.11216661361079,
-          "lon": -121.0225573012664,
-          "key_destination": false
-        },
-        {
-          "id": "n7",
-          "lat": 36.40997125618332,
-          "lon": -121.3284746027899,
-          "key_destination": false
-        },
-        {
           "id": "n8",
           "lat": 36.66619851776886,
           "lon": -121.6458130936544,
@@ -2351,31 +3839,9 @@
         }
       ],
       "parameters": [
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        },
-        {
-          "target_max": 0.5
-        }
+        null
       ],
       "parameter_sets": [
-        null,
-        null,
-        null,
-        null,
-        null,
         null
       ],
       "states": {
@@ -2530,38 +3996,27 @@
             "capacity": 1,
             "avg_speed_kph": 60
           }
+        ],
+        "SystemEvent": [
+          {
+            "id": "reach-key-destination",
+            "analysis": "system.travel-time-to-nearest",
+            "target_add_h": 0.5,
+            "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
+          }
         ]
       },
-      "output": "state",
       "references": [
         {
-          "upper": "rsr/n3/refs_up_1.pt",
-          "lower": "rsr/n3/refs_low_0.pt"
-        },
-        {
-          "upper": "rsr/n4/refs_up_1.pt",
-          "lower": "rsr/n4/refs_low_0.pt"
-        },
-        {
-          "upper": "rsr/n5/refs_up_1.pt",
-          "lower": "rsr/n5/refs_low_0.pt"
-        },
-        {
-          "upper": "rsr/n6/refs_up_1.pt",
-          "lower": "rsr/n6/refs_low_0.pt"
-        },
-        {
-          "upper": "rsr/n7/refs_up_1.pt",
-          "lower": "rsr/n7/refs_low_0.pt"
-        },
-        {
-          "upper": "rsr/n8/refs_up_1.pt",
-          "lower": "rsr/n8/refs_low_0.pt"
+          "upper": "rsr/n8/target_add_h=0.5/refs_up_1.pt",
+          "upper_at": 0.5,
+          "lower": "rsr/n8/target_add_h=0.5/refs_low_0.pt",
+          "lower_at": 0.5
         }
       ]
     }
   },
-  "source_sha256": "eb8aeaf44b498d29ed3493ff3c72ea78c80ee002238eda74d00698363240a3f7",
+  "source_sha256": "258447b9d86aa6e211bc1864b10b2735b645b51ea382a99af081edaf60dab18a",
   "versions": {
     "tbnpy": "0.2.0",
     "torch": "2.14.1",

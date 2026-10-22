@@ -7,3 +7,9 @@ __pycache__/
 # ShakeMap grids downloaded from USGS (~30 MB each); re-fetched on demand
 .cache/
 dist/
+
+# Generated RSR rules are rebuilt locally for each model and threshold.
+examples/**/rsr/
+
+# Query samples are kept for inspection when small, and can always be rebuilt with python -m src replay.
+records/samples/

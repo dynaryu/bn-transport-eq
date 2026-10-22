@@ -195,8 +195,9 @@ const store = {
   del(k) { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } },
 };
 const hash = new URLSearchParams(location.hash.slice(1));        // #view=ema-highway/gmm&tab=plates&sel=b2
+const EMBED = hash.get("embed") === "1";   // inside quakenet's BN tab: the drawing and details; quakenet runs queries
 const state = { view: hash.get("view") || store.get("view"), tab: hash.get("tab") || store.get("tab") || "model",
-                pane: STATIC ? "details" : "query", k: 1, tx: 0, ty: 0, pos: {}, sel: null, wires: [], chat: [], ran: [] };
+                pane: STATIC || EMBED ? "details" : "query", k: 1, tx: 0, ty: 0, pos: {}, sel: null, wires: [], chat: [], ran: [] };
 
 const view = () => DATA.views.find(v => v.id === state.view);
 const qty = id => DATA.quantities[id] || { label: id, type: "?" };
@@ -860,9 +861,12 @@ function switchView(id) {
 }
 
 async function start() {
-  if (STATIC) {
-    // Drawings and details only: queries and questions need the engine, so the server.
+  if (STATIC || EMBED) {
+    // Drawings and details only: queries and questions need the engine (or, embedded, are quakenet's).
     document.querySelectorAll('#sidetabs button[data-pane="query"], #sidetabs button[data-pane="ask"]').forEach(b => b.remove());
+  }
+  if (EMBED) for (const sel of [".brand", "#view", "#theme"]) { const el = $(sel); if (el) el.style.display = "none"; }
+  if (STATIC) {
     $("#pane-details").innerHTML = `<p>Select a card to see its signature, parameter sets and an example node.</p>` +
       `<p class="note">Written by <code>${esc(DATA.generated_by || "python -m src export")}</code>${DATA.exported ? " on " + esc(DATA.exported) : ""}. ` +
       `Run <code>python -m src serve --open</code> to query the BN or ask in words.</p>`;
@@ -887,7 +891,7 @@ async function start() {
   switchView(state.view);
   fit();
   if (hash.get("sel") && cardEl(hash.get("sel"))) select(hash.get("sel"));
-  if (STATIC) return;
+  if (STATIC || EMBED) return;
   try {
     chatStatus = await (await fetch("/api/chat-status")).json();
   } catch { chatStatus = { available: false, reason: "the status check failed" }; }

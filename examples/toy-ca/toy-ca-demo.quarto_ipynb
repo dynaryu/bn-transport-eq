@@ -1,0 +1,994 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Toy network demo\"\n",
+        "format:\n",
+        "  pdf:\n",
+        "    toc: true\n",
+        "    toc-depth: 2\n",
+        "    geometry: margin=20mm\n",
+        "    papersize: a4\n",
+        "    fontsize: 10pt\n",
+        "    code-block-font-size: \"\\\\scriptsize\"\n",
+        "    include-in-header:\n",
+        "      text: |\n",
+        "        \\usepackage{fvextra}\n",
+        "        \\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\\\\{\\},breaklines,breakanywhere}\n",
+        "        \\fvset{breaklines=true,breakanywhere=true}\n",
+        "jupyter: quakenet\n",
+        "execute:\n",
+        "  warning: false\n",
+        "---\n",
+        "\n",
+        "This is an illustration using the toy network `toy-ca`. The only user input required is `network.json`, which is explained in Section 1. The rest of the demo is automated.\n",
+        "\n",
+        "The system behind it is drawn in [`schema/diagram.html`](../../schema/diagram.html). Open it in a browser, or run `python -m src diagram --open`. It has three tabs:\n",
+        "\n",
+        "- **Model:** every function, with the tables it reads.\n",
+        "- **Functions:** how each function's outputs feed the next one's inputs, from hazard to fragility, usability, edge and system state.\n",
+        "- **Plates:** the tables of `network.json` and their keys.\n",
+        "\n",
+        "Clicking a card shows its signature and parameter sets."
+      ],
+      "id": "93b3f5b6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: setup\n",
+        "#| include: false\n",
+        "import json, os, sys\n",
+        "from pathlib import Path\n",
+        "from IPython.display import Markdown, display\n",
+        "from pprint import pprint\n",
+        "from textwrap import fill\n",
+        "\n",
+        "ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / \"pyproject.toml\").is_file())\n",
+        "os.chdir(ROOT)\n",
+        "sys.path.insert(0, str(ROOT))\n",
+        "\n",
+        "def show_table(frame):\n",
+        "    \"\"\"Render small tables consistently in PDF.\"\"\"\n",
+        "    header = \"| \" + \" | \".join(map(str, frame.columns)) + \" |\"\n",
+        "    rule = \"| \" + \" | \".join([\"---\"] * len(frame.columns)) + \" |\"\n",
+        "    rows = [\"| \" + \" | \".join(str(v).replace(\"|\", \"\\\\|\") for v in row) + \" |\"\n",
+        "            for row in frame.itertuples(index=False, name=None)]\n",
+        "    display(Markdown(\"\\n\".join([header, rule, *rows])))"
+      ],
+      "id": "setup",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## 1. The network dataset\n",
+        "\n",
+        "The network is one file, `examples/toy-ca/network.json`, with one table per entity type."
+      ],
+      "id": "5b1a739b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "data = json.loads(Path(\"examples/toy-ca/network.json\").read_text(encoding=\"utf-8\"))\n",
+        "{table: len(rows) for table, rows in data[\"tables\"].items()}"
+      ],
+      "id": "a5fc3b84",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "One row of each table:"
+      ],
+      "id": "6227c364"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "for table in (\"Node\", \"Edge\", \"Bridge\", \"Event\", \"SystemEvent\"):\n",
+        "    pprint({table: data[\"tables\"][table][0]}, width=85, sort_dicts=False)"
+      ],
+      "id": "8f9027fb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The tables:"
+      ],
+      "id": "d8bad534"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import pandas as pd\n",
+        "\n",
+        "nodes = pd.DataFrame(data[\"tables\"][\"Node\"]).set_index(\"id\")\n",
+        "edges = pd.DataFrame(data[\"tables\"][\"Edge\"]).set_index(\"id\")\n",
+        "bridges = pd.DataFrame(data[\"tables\"][\"Bridge\"]).set_index(\"id\")\n",
+        "nodes"
+      ],
+      "id": "60d3636f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "edges"
+      ],
+      "id": "181e1e76",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "bridges"
+      ],
+      "id": "d509b3be",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The schemas the file is checked against: its shape, from its `$schema`, and each table's columns, from `schema/entities.json`."
+      ],
+      "id": "af51b3a1"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from jsonschema import Draft202012Validator\n",
+        "\n",
+        "shape = json.loads(Path(\"schema/meta/network.schema.json\").read_text(encoding=\"utf-8\"))\n",
+        "print(\"$schema:\", data[\"$schema\"])\n",
+        "print(\"shape errors:\", list(Draft202012Validator(shape).iter_errors(data)))"
+      ],
+      "id": "cb277a07",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "entities = {e[\"id\"]: e for e in json.loads(Path(\"schema/entities.json\").read_text(encoding=\"utf-8\"))[\"entities\"]}\n",
+        "\n",
+        "columns = []\n",
+        "for table, records in data[\"tables\"].items():\n",
+        "    attrs = entities[table][\"attributes\"]\n",
+        "    in_file = set().union(*(r.keys() for r in records)) - {\"id\"}\n",
+        "    for name, spec in attrs.items():\n",
+        "        columns.append({\"table\": table, \"column\": name,\n",
+        "                        \"schema type\": f\"-> {spec['ref']}\" if \"ref\" in spec else spec[\"type\"],\n",
+        "                        \"required\": spec.get(\"required\", True), \"in file\": name in in_file})\n",
+        "    for name in sorted(in_file - attrs.keys()):\n",
+        "        columns.append({\"table\": table, \"column\": name, \"schema type\": \"NOT IN SCHEMA\", \"required\": None, \"in file\": True})\n",
+        "columns = pd.DataFrame(columns)\n",
+        "columns"
+      ],
+      "id": "f2838104",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "They match: every required column is in the file, and the file has no column the schema lacks."
+      ],
+      "id": "db1b571b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "missing = columns[columns.required.eq(True) & ~columns[\"in file\"]]\n",
+        "extra = columns[columns[\"schema type\"] == \"NOT IN SCHEMA\"]\n",
+        "print(\"required but missing:\", missing[[\"table\", \"column\"]].values.tolist())\n",
+        "print(\"in file, not in schema:\", extra[[\"table\", \"column\"]].values.tolist())"
+      ],
+      "id": "26770141",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Every assumed value is named in the file:"
+      ],
+      "id": "183436dc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "for key, text in data[\"assumptions\"].items():\n",
+        "    print(fill(f\"- {key}: {text}\", width=90, subsequent_indent=\"  \"))"
+      ],
+      "id": "62230001",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The map:\n",
+        "\n",
+        "![](network_screenshot.png){width=60%}"
+      ],
+      "id": "5b77e66e"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-network\n",
+        "#| fig-cap: Nodes, edges, bridges by class, key destinations and the demo scenario.\n",
+        "import matplotlib.pyplot as plt\n",
+        "import numpy as np\n",
+        "\n",
+        "fig, ax = plt.subplots(figsize=(6, 5))\n",
+        "for _, e in edges.iterrows():\n",
+        "    a, b = nodes.loc[e.source], nodes.loc[e.target]\n",
+        "    ax.plot([a.lon, b.lon], [a.lat, b.lat], color=\"0.7\", zorder=1)\n",
+        "ax.scatter(nodes.lon, nodes.lat, s=40, color=\"k\", zorder=2, label=\"node\")\n",
+        "for cls, group in bridges.groupby(\"hazus_class\"):\n",
+        "    ax.scatter(group.lon, group.lat, s=35, marker=\"s\", zorder=3, label=f\"bridge {cls}\")\n",
+        "key = nodes[nodes.key_destination]\n",
+        "ax.scatter(key.lon, key.lat, s=160, facecolors=\"none\", edgecolors=\"tab:green\", linewidths=2, zorder=4,\n",
+        "           label=\"key destination\")\n",
+        "event = data[\"tables\"][\"Event\"][0]\n",
+        "ax.scatter(event[\"lon\"], event[\"lat\"], marker=\"*\", s=300, color=\"orange\", zorder=5, label=f\"scenario M{event['mw']}\")\n",
+        "for nid, n in nodes.iterrows():\n",
+        "    ax.annotate(nid, (n.lon, n.lat), xytext=(4, 4), textcoords=\"offset points\")\n",
+        "ax.set_aspect(1 / np.cos(np.radians(nodes.lat.mean())))\n",
+        "ax.set_xlabel(\"longitude\")\n",
+        "ax.set_ylabel(\"latitude\")\n",
+        "ax.legend(loc=\"lower left\", fontsize=8)\n",
+        "plt.show()"
+      ],
+      "id": "fig-network",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Loading the network checks every row against `schema/entities.json`:"
+      ],
+      "id": "01a95a5a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from src.builder.load import check_tables, load_library, load_network\n",
+        "\n",
+        "lib = load_library()                      # schema/ and instances/\n",
+        "net = load_network(\"toy-ca\", lib)\n",
+        "{entity: len(rows) for entity, rows in net.tables.items()}"
+      ],
+      "id": "7e6c4204",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "A broken row is refused, with the reason:"
+      ],
+      "id": "cf0f132a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "broken = json.loads(json.dumps(net.tables))\n",
+        "broken[\"Bridge\"][0][\"edge\"] = \"e99\"\n",
+        "broken[\"Edge\"][0].pop(\"avg_speed_kph\")\n",
+        "_, problems = check_tables(broken, lib, \"toy-ca (edited)\")\n",
+        "problems"
+      ],
+      "id": "5c95e44f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## 2. Build the tbnpy model\n",
+        "\n",
+        "The builder resolves the assembly and saves the model and RSR rules under this example."
+      ],
+      "id": "d9aaf69c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| output: false\n",
+        "from src.builder.bn_builder import (\n",
+        "    generate_tbn, define_tbn_variables, define_tbn_probabilities,\n",
+        ")\n",
+        "\n",
+        "model_dir = generate_tbn(Path(\"examples/toy-ca/demo.assembly.json\"))"
+      ],
+      "id": "43fbd860",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Load the saved data into tbnpy's two dictionaries:"
+      ],
+      "id": "68144a0b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "model_data = json.loads((model_dir / \"model.json\").read_text(encoding=\"utf-8\"))\n",
+        "varis = define_tbn_variables(model_data)\n",
+        "probs = define_tbn_probabilities(model_data, varis, directory=model_dir)\n",
+        "print(f\"{len(varis)} variables; {len(probs)} probability objects\")"
+      ],
+      "id": "0d1d93aa",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "`varis` holds scalar variables, grouped below. The scenario (the Event row) is fixed data read by the hazard object, so it is not a variable."
+      ],
+      "id": "e934e556"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "from collections import Counter\n",
+        "\n",
+        "counts = Counter(name.split(\"::\")[0] for name in varis)\n",
+        "show_table(pd.DataFrame([{\n",
+        "    \"quantity\": quantity, \"count\": count,\n",
+        "    \"type\": \"discrete\" if isinstance(next(v.values for k, v in varis.items()\n",
+        "                                          if k.split(\"::\")[0] == quantity), list) else \"continuous\",\n",
+        "} for quantity, count in counts.items()]))\n",
+        "kind_counts = Counter(\"discrete\" if isinstance(v.values, list) else \"continuous\"\n",
+        "                      for v in varis.values())\n",
+        "display(Markdown(f\"Total: **{kind_counts['continuous']} continuous** and \"\n",
+        "                 f\"**{kind_counts['discrete']} discrete** variables.\"))"
+      ],
+      "id": "221fb534",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "`probs` holds the probability objects, each with `childs`, `parents`, `sample()` and `log_prob()`. Each variable has its own object, keyed by the variable, except the ten intensities: the hazard field draws them together."
+      ],
+      "id": "4e223782"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "by_function = {}\n",
+        "for k, p in probs.items():\n",
+        "    by_function.setdefault(p.spec[\"function\"], []).append((k, p))\n",
+        "\n",
+        "def span(values):\n",
+        "    return str(min(values)) if min(values) == max(values) else f\"{min(values)}–{max(values)}\"\n",
+        "\n",
+        "show_table(pd.DataFrame([\n",
+        "    {\"function\": f, \"objects\": len(ps),\n",
+        "     \"children each\": span([len(p.childs) for _, p in ps]),\n",
+        "     \"parents each\": span([len(p.parents) for _, p in ps]),\n",
+        "     \"example key\": ps[0][0]}\n",
+        "    for f, ps in by_function.items()\n",
+        "]))"
+      ],
+      "id": "4184c572",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The graph groups variables by quantity. Arrows show the conditional direction; each system state takes every edge state as input."
+      ],
+      "id": "ddb0f588"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "fig-width": 7,
+        "fig-height": 2.1
+      },
+      "source": [
+        "#| label: fig-bn-families\n",
+        "#| echo: false\n",
+        "#| fig-cap: Variable families and their counts. The intensities share one joint object; every other variable has its own.\n",
+        "fig, ax = plt.subplots(figsize=(7, 2.1))\n",
+        "positions = [(1.6, 0.5), (3.2, 0.5), (4.8, 0.5), (6.4, 0.5), (8, 0.5)]\n",
+        "labels = [\"SA(1.0) (10)\", \"DamageState (10)\", \"Usable (10)\", \"EdgeOpen (10)\", \"SystemState (6)\"]\n",
+        "boxes = []\n",
+        "for pos, label in zip(positions, labels):\n",
+        "    boxes.append(ax.text(*pos, label, ha=\"center\", va=\"center\", fontsize=7,\n",
+        "                         bbox=dict(boxstyle=\"round,pad=0.5\", facecolor=\"#edf3f7\", edgecolor=\"0.5\")))\n",
+        "ax.set(xlim=(0.7, 8.9), ylim=(-0.5, 1.5))\n",
+        "ax.axis(\"off\")\n",
+        "plt.tight_layout()\n",
+        "fig.canvas.draw()\n",
+        "for i, j in [(0, 1), (1, 2), (2, 3), (3, 4)]:\n",
+        "    ax.annotate(\"\", xy=positions[j], xytext=positions[i],\n",
+        "                arrowprops=dict(arrowstyle=\"->\", color=\"0.35\", shrinkA=3, shrinkB=3,\n",
+        "                                patchA=boxes[i].get_bbox_patch(), patchB=boxes[j].get_bbox_patch()))\n",
+        "plt.show()"
+      ],
+      "id": "fig-bn-families",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### One instance of each type\n",
+        "\n",
+        "In tbnpy, a probability object's `parents` are its inputs and `childs` are its outputs. The examples below follow bridge b4, edge e4 and origin n4."
+      ],
+      "id": "53263bc3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| include: false\n",
+        "import torch\n",
+        "from tbnpy import inference\n",
+        "\n",
+        "with torch.random.fork_rng(devices=[]):\n",
+        "    torch.manual_seed(20261022)\n",
+        "    trace = inference.sample(probs, list(probs), n_sample=3)\n",
+        "draws = {v.name: trace[k].Cs[:, j] for k, p in probs.items()\n",
+        "         for j, v in enumerate(p.childs)}\n",
+        "\n",
+        "def example_parents(prob):\n",
+        "    return torch.stack([draws[v.name] for v in prob.parents], dim=1)\n",
+        "\n",
+        "def sampled_value(name):\n",
+        "    return draws[name][0].item()\n",
+        "\n",
+        "hazard = probs[\"hazard.gmm\"]\n",
+        "fragility = probs[\"DamageState.HazusBridge::b4\"]\n",
+        "bridge_index = next(i for i, v in enumerate(hazard.childs) if v.name == \"SA(1.0)::b4\")\n",
+        "motion = hazard.distribution(1)\n",
+        "mass = fragility.distribution(example_parents(fragility))[0, 0]\n",
+        "damage_states = fragility.spec[\"states\"][\"damage\"]"
+      ],
+      "id": "8cc8b433",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Intensity — `SA(1.0)::b4`.** No parents: the event's Mw, epicentre and depth are fixed data from `network.json`. Outputs: all ten bridge intensities jointly; b4's output feeds `DamageState.HazusBridge::b4`. The Campbell function calculates log-median $\\mu$ and dispersion $\\sigma$, then draws $I=\\exp(\\mu+\\sigma Z)$ with $Z\\sim N(0,1)$. This demo supplies only SA(1.0), with independent residuals between bridges."
+      ],
+      "id": "c226f239"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "display(Markdown(f\"For b4: median = {motion.loc[0, bridge_index].exp().item():.3f} g; \"\n",
+        "                 f\"log-dispersion = {motion.scale[0, bridge_index].item():.3f}; \"\n",
+        "                 f\"sampled intensity = {sampled_value('SA(1.0)::b4'):.3f} g.\"))"
+      ],
+      "id": "0d365214",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Damage — `DamageState.HazusBridge::b4`.** Parent: `SA(1.0)::b4`. Child: `DamageState.HazusBridge::b4`, which feeds `Usable::b4`. Lognormal exceedances are differenced into five state probabilities, then one uniform draw per bridge picks a state index. Indices 0–4 denote none through complete."
+      ],
+      "id": "2b65ad22"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "show_table(pd.DataFrame({\"damage state\": damage_states,\n",
+        "                         \"P(state given sampled intensity)\": [f\"{p:.3f}\" for p in mass.tolist()]}))\n",
+        "sampled_index = int(sampled_value(\"DamageState.HazusBridge::b4\"))\n",
+        "meaning = \" (no damage)\" if damage_states[sampled_index] == \"none\" else \"\"\n",
+        "display(Markdown(f\"Sampled damage at b4: index {sampled_index}, \"\n",
+        "                 f\"state **{damage_states[sampled_index]}**{meaning}.\"))"
+      ],
+      "id": "76bef807",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Usability — `Usable::b4`.** Parent: `DamageState.HazusBridge::b4`. Child: `Usable::b4`, which feeds `EdgeOpen::e4`. The closure policy deterministically maps none/slight/moderate to 1, and extensive/complete to 0.\n",
+        "\n",
+        "**Edge state — `EdgeOpen::e4`.** Parents: the usability of every bridge on e4, here `Usable::b4`. Child: `EdgeOpen::e4`. An edge is open only if every bridge on it is usable. Every edge state feeds each origin's system state, n3–n8.\n",
+        "\n",
+        "For example, this calls the edge object's sampling method directly. The tensor columns follow `parents`; returned columns follow `childs`."
+      ],
+      "id": "48977455"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "edge = probs[\"EdgeOpen::e4\"]\n",
+        "Cs_pars = example_parents(edge)\n",
+        "Cs_child, logp = edge.sample(Cs_pars=Cs_pars)\n",
+        "print(\"parents:\", [v.name for v in edge.parents], \"; childs:\", [v.name for v in edge.childs])\n",
+        "print(\"b4 usability:\", int(sampled_value(\"Usable::b4\")))\n",
+        "print(\"e4 state:\", int(Cs_child[0, 0]), \"; probability:\", float(np.exp(logp[0])))"
+      ],
+      "id": "41599049",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**System state — `SystemState::n4`.** Parents: all ten edge states. Child: `SystemState::n4`, with no downstream variables; each of the six origins has its own object. RSR first classifies the edge configuration; ndtools handles any unknowns. Survival means n4 reaches n1 or n2 within 0.5 hours of its intact travel time, with edge time = length/speed."
+      ],
+      "id": "4b1e5c9b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "display(Markdown(f\"Sampled state of n4: **{int(sampled_value('SystemState::n4'))}**.\"))"
+      ],
+      "id": "ac9aac9f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## 3. The RSR results\n",
+        "\n",
+        "Each origin has survival and failure rules under `rsr/<origin>/target_add_h=0.5/`, the network's threshold. The counts below also check rule coverage across all 1,024 edge configurations."
+      ],
+      "id": "f54132cd"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "import itertools\n",
+        "import torch\n",
+        "from rsr.rsr import classify_samples_with_indices\n",
+        "\n",
+        "state_keys = [k for k, p in probs.items() if p.spec[\"role\"] == \"system\"]\n",
+        "coverage = []\n",
+        "for key in state_keys:\n",
+        "    system, row = probs[key], probs[key].spec[\"rows\"][0]\n",
+        "    configurations = torch.tensor(list(itertools.product((0, 1), repeat=len(system.parents))))\n",
+        "    one_hot = torch.nn.functional.one_hot(configurations, 2).to(torch.int32)\n",
+        "    upper, lower = system.refs[0]\n",
+        "    classified = classify_samples_with_indices(one_hot, upper, lower)\n",
+        "    metrics = [json.loads(line) for line in\n",
+        "               (model_dir / \"rsr\" / row[\"id\"] / \"target_add_h=0.5\" / \"metrics.json\").read_text().splitlines()]\n",
+        "    coverage.append({\"origin\": row[\"id\"], \"survival rules\": len(upper),\n",
+        "                     \"failure rules\": len(lower), \"rounds\": len(metrics),\n",
+        "                     \"unclassified / 1024\": classified[\"unknown\"]})\n",
+        "show_table(pd.DataFrame(coverage))"
+      ],
+      "id": "de330d1a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "For example, these rules determine whether n4 stays within 0.5 hours of its intact travel time. `1` means open; `0` means closed. Unlisted edges are unrestricted."
+      ],
+      "id": "e3ed29ce"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "for filename, outcome in ((\"refs_up_1.json\", \"survives\"),\n",
+        "                          (\"refs_low_0.json\", \"fails\")):\n",
+        "    rules = json.loads((model_dir / \"rsr/n4/target_add_h=0.5\" / filename).read_text())\n",
+        "    for rule in rules:\n",
+        "        conditions = \" and \".join(f\"{edge}={value}\" for edge, (_, value) in rule.items()\n",
+        "                                  if edge != \"sys\")\n",
+        "        print(f\"{conditions} -> n4 {outcome}\")"
+      ],
+      "id": "e19c38cf",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "RSR classifies the BN's edge samples; ndtools resolves any unclassified configurations. The 50/50 edge probabilities used during rule search are not the BN's probabilities.\n",
+        "\n",
+        "## 4. Sample the BN\n",
+        "\n",
+        "tbnpy samples the system state and all its ancestors using PyTorch. These are Monte Carlo estimates under the demo scenario."
+      ],
+      "id": "69ff7a9f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from tbnpy import inference\n",
+        "\n",
+        "torch.manual_seed(20261022)\n",
+        "result = inference.sample(probs, state_keys, n_sample=5000)\n",
+        "show_table(pd.DataFrame([\n",
+        "    {\"origin\": key.split(\"::\")[1],\n",
+        "     \"P(fails)\": f\"{(result[key].Cs[:, 0] == 0).double().mean().item():.4f}\"}\n",
+        "    for key in state_keys\n",
+        "]))"
+      ],
+      "id": "ee1c875e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Sampling time\n",
+        "\n",
+        "CPU timings for the same six system states and their ancestors, using batches of 50,000. Each time is the median of three runs after a warm-up; model building and RSR extraction are excluded. P(fails) for n7 and n8 is from the first run at each size."
+      ],
+      "id": "83cd0620"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: sampling-timing\n",
+        "#| echo: false\n",
+        "#| output: false\n",
+        "from time import perf_counter\n",
+        "from statistics import median\n",
+        "\n",
+        "batch_size = 50_000\n",
+        "inference.sample(probs, state_keys, n_sample=batch_size)  # warm-up\n",
+        "watched = [\"SystemState::n7\", \"SystemState::n8\"]\n",
+        "measurements = []\n",
+        "for n in range(100_000, 1_000_001, 100_000):\n",
+        "    seconds = []\n",
+        "    for repeat in range(3):\n",
+        "        torch.manual_seed(20261022 + repeat)\n",
+        "        start = perf_counter()\n",
+        "        sampled = inference.sample(probs, state_keys, n_sample=n, batch_size=batch_size)\n",
+        "        seconds.append(perf_counter() - start)\n",
+        "        if repeat == 0:          # estimated after the clock stops, from the first run\n",
+        "            p_fail = {k.split(\"::\")[1]: (sampled[k].Cs[:, 0] == 0).double().mean().item() for k in watched}\n",
+        "        del sampled\n",
+        "    measurements.append({\"samples\": n, \"seconds\": seconds, \"median_s\": median(seconds), \"P_fail\": p_fail})"
+      ],
+      "id": "sampling-timing",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "import platform\n",
+        "from datetime import datetime, timezone\n",
+        "\n",
+        "benchmark = {\n",
+        "    \"measured_at_utc\": datetime.now(timezone.utc).isoformat(),\n",
+        "    \"assembly\": model_data[\"assembly\"][\"id\"],\n",
+        "    \"source_sha256\": model_data[\"source_sha256\"],\n",
+        "    \"query_nodes\": state_keys, \"origins\": [k.split(\"::\")[1] for k in state_keys],\n",
+        "    \"device\": str(system.device), \"processor\": platform.processor(),\n",
+        "    \"torch_version\": torch.__version__, \"torch_threads\": torch.get_num_threads(),\n",
+        "    \"dtype\": \"float64\", \"batch_size\": batch_size, \"repetitions\": 3,\n",
+        "    \"warmup_samples\": batch_size, \"seed_base\": 20261022,\n",
+        "    \"includes\": \"sampling all ancestors and accumulating system-state results\",\n",
+        "    \"excludes\": \"model building, rule extraction, seed setting and reporting\",\n",
+        "    \"measurements\": measurements,\n",
+        "}\n",
+        "(model_dir / \"sampling_benchmark.json\").write_text(\n",
+        "    json.dumps(benchmark, indent=2) + \"\\n\", encoding=\"utf-8\")\n",
+        "display(Markdown(f\"PyTorch {torch.__version__}; {torch.get_num_threads()} CPU threads; float64.\"))\n",
+        "show_table(pd.DataFrame([\n",
+        "    {\"samples\": f\"{r['samples']:,}\", \"median time (s)\": f\"{r['median_s']:.3f}\",\n",
+        "     \"samples/s\": f\"{r['samples'] / r['median_s']:,.0f}\",\n",
+        "     **{f\"P({origin} fails)\": f\"{p:.4f}\" for origin, p in r[\"P_fail\"].items()}}\n",
+        "    for r in measurements\n",
+        "]))"
+      ],
+      "id": "3327120b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The individual timings and settings are saved in `tbnpy/demo/sampling_benchmark.json`.\n",
+        "\n",
+        "## 5. The app\n",
+        "\n",
+        "Run `python -m src serve --example toy-ca/demo --open`. The Map tab combines\n",
+        "scenario controls, the network, results and Ask; BN and Schema show the model.\n",
+        "Ask translates words into validated queries, reads them back, then gives the\n",
+        "engine's results and provenance. Optional query review pauses before sampling.\n",
+        "\n",
+        "The engine supports forced discrete node states, joint events and discrete\n",
+        "observations. Comparisons, bridge importance and candidate-path rankings are\n",
+        "computed in Python. Inspection priority uses value of information from supplied\n",
+        "actions, losses, accuracy and cost. Missing inputs prompt a clarification.\n",
+        "Evidence with too few matching samples is refused; continuous evidence and\n",
+        "sequential inspection policies remain outside this pilot.\n",
+        "\n",
+        "The Proposals tab reviews new parameter sets and saved scenario variants.\n",
+        "Drafts include sources and validation results; a named user activates the\n",
+        "reviewed version. New mathematical forms still need code and tests.\n",
+        "\n",
+        "## 6. Hazard: the mock now, and what is expected\n",
+        "\n",
+        "The hazard node generates **a joint sample of the intensity measure at every bridge.** There are two modes that differ in what supplies it.\n",
+        "\n",
+        "| Mode | Source | Status |\n",
+        "|---|---|---|\n",
+        "| Preparation | OpenQuake scenario: rupture + GMM | **to build**; a mock stands in |\n",
+        "| Emergency | ShakeCast-triggered USGS ShakeMap | built; needs connecting to live ShakeCast |\n",
+        "\n",
+        "### The contract\n",
+        "\n",
+        "A hazard function is one probability object over all bridges. The current mock looks like:"
+      ],
+      "id": "d5f08052"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "hazard = probs[\"hazard.gmm\"]\n",
+        "Cs, logp = hazard.sample(n_sample=4)\n",
+        "print(\"childs:\", [v.name for v in hazard.childs[:3]], \"...\", len(hazard.childs))\n",
+        "print(\"parents:\", hazard.parents)\n",
+        "print(\"sample ->\", tuple(Cs.shape), \"IMs in g;\", tuple(logp.shape), \"log probabilities\")\n",
+        "print(\"notes:\", fill(hazard.notes[0], 90))"
+      ],
+      "id": "5ad316fc",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "| Item | Requirement |\n",
+        "|---|---|\n",
+        "| `childs` | `<IMT>::<bridge id>` for every bridge, e.g. `SA(1.0)::b4` |\n",
+        "| `sample(n_sample=n)` | `(n, bridges)` tensor of IMs (g, or cm/s for PGV), plus `(n,)` log probabilities |\n",
+        "| `log_prob(Cs)` | log density of given samples, consistent with `sample` |\n",
+        "| `imt` | the same IM as the fragility curves (`SA(1.0)` for Hazus); `check` refuses a mismatch |\n",
+        "| `notes` | provenance shown with every answer: model, map version, assumptions |\n",
+        "| fixed data | the `Event` row and each bridge's `lat`/`lon` (and `vs30` when the GMM needs it) |\n",
+        "\n",
+        "### The mock (stands in for preparation mode)\n",
+        "\n",
+        "The scenario is the `Event` row of `network.json`. The GMM is a parameter set chosen by location. The demo set reuses Campbell (2003)'s eastern North America coefficients over a box drawn around toy-ca. Its residuals are independent between bridges."
+      ],
+      "id": "4db6d494"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "demo_gmm = lib.parameter_sets[\"demo.campbell-2003-in-california\"]\n",
+        "print(\"Event:\", {k: v for k, v in data[\"tables\"][\"Event\"][0].items() if k != \"description\"})\n",
+        "print(\"set:\", demo_gmm[\"label\"])\n",
+        "print({k: demo_gmm[\"values\"][k] for k in (\"form\", \"imt\", \"sigma_epistemic\", \"magnitude_range\")})\n",
+        "print(\"region:\", demo_gmm[\"region\"][\"name\"], \"[lon, lat] box:\", demo_gmm[\"region\"][\"polygon\"][0], \"to\", demo_gmm[\"region\"][\"polygon\"][2])"
+      ],
+      "id": "586a5513",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Preparation mode: OpenQuake (expected)\n",
+        "\n",
+        "**Where it goes.** A new function, say `hazard.openquake-scenario`. Its class lives in `src/builder/kernels/hazard.py`, and it is the same kind of object as `Gmm`: per `Bridge`, `drawKind: Joint`, output `{imt}`, reading the `Event` table and each bridge's `lat`, `lon` and `vs30`.\n",
+        "\n",
+        "**What OpenQuake supplies.** `openquake.hazardlib` gives each site's mean ln IM and the between-event ($\\tau$) and within-event ($\\phi$) standard deviations, for the rupture and the GMM.\n",
+        "\n",
+        "**What we sample.** We sample the field ourselves; it is fast enough for $10^6$ draws. $\\eta$ is one draw shared by every bridge. $\\varepsilon$ is correlated between bridges by the existing `hazard.spatial-correlation` model (Jayaram & Baker 2009).\n",
+        "\n",
+        "$$\\ln I_b = \\mu_b + \\tau_b\\,\\eta + \\phi_b\\,\\varepsilon_b$$\n",
+        "\n",
+        "**Instances.** A parameter set under `instances/hazard/` names the GMM and its IM, e.g. `{\"gsim\": \"...\", \"imt\": \"SA(1.0)\"}`, with a `region` so `parameter_set_by_location` can choose it.\n",
+        "\n",
+        "**Data.**\n",
+        "\n",
+        "- `Event` gains what an OpenQuake rupture needs, e.g. strike, dip, rake, or a path to a `rupture.xml`.\n",
+        "- `Bridge.vs30` takes the user's value where given. Missing values are filled with `python -m src vs30 <network>` from the USGS mosaic. That command is untested: it needs GDAL and the grid downloaded by hand.\n",
+        "\n",
+        "**Several IMs** (e.g. PGA and SA(1.0)) stay in the same object, so their correlation is kept.\n",
+        "\n",
+        "Swapping the mock for it is one binding in the assembly; nothing else changes:\n",
+        "\n",
+        "```json\n",
+        "{\"function\": \"hazard.gmm\", \"parameter_set_by_location\": [\"demo.campbell-2003-in-california\"]}\n",
+        "{\"function\": \"hazard.openquake-scenario\", \"parameter_set_by_location\": [\"<oq set for California>\"]}\n",
+        "```\n",
+        "\n",
+        "The rules extracted in section 3 still apply after the swap, because they depend on the network and the system event, not the hazard. The same holds for a changed scenario:"
+      ],
+      "id": "6d835006"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from src.builder.bn_builder import build_tbn\n",
+        "from src.inference.engine import compile_query\n",
+        "\n",
+        "_, other = build_tbn(compile_query({\"assembly\": \"toy-ca/demo\",\n",
+        "                                    \"rows\": {\"demo-san-andreas\": {\"mw\": 7.0}}}))\n",
+        "print(\"rules reused at M7.0:\", all(p.refs[0] is not None\n",
+        "                                   for p in other.values() if p.spec[\"role\"] == \"system\"))"
+      ],
+      "id": "17f58505",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Emergency mode: ShakeCast to ShakeMap (in place)\n",
+        "\n",
+        "Two functions already do this, as in `hebei-transport/shakemap`:\n",
+        "\n",
+        "- `hazard.spatial-correlation` draws the residual field $\\varepsilon$ jointly over all bridges.\n",
+        "- `hazard.shakemap` reads the median from `grid.xml` and $\\sigma$ from `uncertainty.xml` at each bridge, and sets $\\ln I = \\ln\\mathrm{median} + \\sigma\\varepsilon$."
+      ],
+      "id": "527a6898"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "hebei = json.loads(Path(\"examples/hebei-transport/shakemap.assembly.json\").read_text(encoding=\"utf-8\"))\n",
+        "for b in hebei[\"bindings\"][:2]:\n",
+        "    pprint({k: v for k, v in b.items() if k != \"note\"}, width=90)"
+      ],
+      "id": "21e5633e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Where maps come from.**\n",
+        "\n",
+        "- **ShakeCast first:** its data directory (`SHAKECAST_USER_DIRECTORY`, default `~/.shakecast`), laid out as `<event>/<event>-<version>/grid.xml`.\n",
+        "- **USGS catalogue otherwise.**\n",
+        "- **Choosing:** `BN_SHAKEMAP_SOURCE` = `auto`, `shakecast` or `comcat`.\n",
+        "- **Caching:** grids are cached in `.cache/shakemaps/`.\n",
+        "- **Outside the map:** a bridge outside the map is refused, not set to zero.\n",
+        "\n",
+        "**What is expected.**\n",
+        "\n",
+        "- **ShakeCast's trigger:** it should hand the new `event_id` to the assembly, e.g. `--set` or the query's `parameters`: `{\"hazard.shakemap\": {\"event_id\": \"...\"}}`.\n",
+        "- **The live server:** the directory layout and the grid fields (`PSA10`/`STDPSA10` for SA(1.0), and so on) should be confirmed against a live ShakeCast server.\n",
+        "- **A toy-ca assembly for this mode:** `toy-ca/shakemap` would use a California scenario ShakeMap, so both modes can be compared on the same network.\n",
+        "\n",
+        "### Checks a new hazard must pass\n",
+        "\n",
+        "- `python -m src check`: its schema file and instances validate, and its IM wires to the curves.\n",
+        "- `sample` and `log_prob` agree, as `test_samples_and_log_probabilities_agree` checks for the current objects.\n",
+        "- A closed-form check on one bridge, like `test_event_probability_matches_the_closed_form` for the GMM.\n",
+        "\n",
+        "### Other potential useful additions\n",
+        "\n",
+        "- Showing the rupture locations or other hazard information in the map, overlaid with the network.\n",
+        "\n",
+        "\n",
+        "## 7. LLM-related files and expanding the test cases\n",
+        "\n",
+        "The answer files below live in `examples/toy-ca/`; code paths start at the repository root.\n",
+        "\n",
+        "| Files | Role |\n",
+        "|---|---|\n",
+        "| `answer-sheet.md`, `answer-cases/*.json` | Agreed meanings and executable expectations: context, phrasings, tools and forbidden interpretations. |\n",
+        "| `src/llm/chat.py`, `cases.py` | Translation, tools, few-shot selection and held-out evaluation. |\n",
+        "| `src/inference/engine.py`, `query.schema.json` | Sampling, interventions, joint events and evidence. |\n",
+        "| `comparisons.py`, `decision.py`, `records.py` in `src/inference/` | Comparisons and paths, VOI, and provenance. New numerical capabilities need tests. |\n",
+        "| `schema/`, `instances/`, network and assembly JSON | Allowed structures, sourced values and their application. New forms need kernels and tests. |\n",
+        "| `src/proposals.py`, `proposals/` | Draft validation and reviewed activation. |\n",
+        "| `src/app/server.py`, `quakenet.html` | API and interface for new tools and results. |\n",
+        "\n",
+        "Copy a case JSON, give it a new ID, and vary networks, origins, destinations,\n",
+        "thresholds, evidence, interventions and wording. Include missing-input questions;\n",
+        "distinguish inspection from repair and observation from intervention. Keep\n",
+        "held-out cases out of prompts.\n",
+        "\n",
+        "`python -m src evaluate` checks contracts; `--live` logs held-out LLM translations\n",
+        "without computing. Review semantic alternatives; contract checks alone are not\n",
+        "LLM accuracy."
+      ],
+      "id": "69aba821"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "quakenet",
+      "language": "python",
+      "display_name": "Python (quakenet)",
+      "path": "C:\\Users\\bjieu\\AppData\\Roaming\\jupyter\\kernels\\quakenet"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

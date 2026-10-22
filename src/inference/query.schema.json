@@ -2,15 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "query.schema.json",
   "title": "Probabilistic query",
-  "description": "What to compute on one compiled BN. Interventions (rows, parameters, parameter_sets) set the scenario, do()-style; targets and events say what to report. Evidence is part of the language but refused: the engine is forward-only.",
+  "description": "Scenario queries, node interventions, joint events and discrete observational evidence.",
   "type": "object",
   "required": ["assembly"],
-  "anyOf": [{"required": ["targets"]}, {"required": ["events"]}],
+  "anyOf": [{"required": ["targets"]}, {"required": ["events"]}, {"required": ["joint_events"]}],
   "additionalProperties": false,
   "properties": {
     "assembly": {"description": "Which BN, e.g. ema-highway/gmm.", "type": "string", "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"},
     "targets": {
-      "description": "Node ids to summarise, \"<Quantity>::<row id>\"; * matches any run of characters, e.g. TravelTime::*>n22.",
+      "description": "Node ids to summarise, \"<Quantity>::<row id>\"; * matches any run of characters, e.g. SystemState::*.",
       "type": "array", "minItems": 1, "items": {"type": "string", "minLength": 3}
     },
     "events": {
@@ -37,8 +37,25 @@
       "description": "do(): bind another parameter set to a function, {\"<function id>\": \"<parameter-set id>\"}.",
       "type": "object", "additionalProperties": {"type": "string"}
     },
-    "evidence": {"description": "Observed node values. Refused: forward inference only.", "type": "object"},
-    "samples": {"type": "integer", "minimum": 100, "maximum": 20000},
+    "do": {"description": "Force individually owned discrete nodes to named states before sampling descendants.", "type": "object", "additionalProperties": {"type": ["number", "string"]}},
+    "evidence": {"description": "Observed discrete node states; rejection conditioning, with acceptance diagnostics.", "type": "object", "additionalProperties": {"type": ["number", "string"]}},
+    "joint_events": {"type": "array", "minItems": 1, "maxItems": 256, "items": {
+      "type": "object", "required": ["name", "expression"], "additionalProperties": false,
+      "properties": {"name": {"type": "string", "minLength": 1}, "expression": {"$ref": "#/$defs/expression"}}
+    }},
+    "samples": {"type": "integer", "minimum": 100, "maximum": 1000000},
     "seed": {"type": "integer"}
+  },
+  "$defs": {
+    "expression": {"oneOf": [
+      {"type": "object", "required": ["node", "op", "value"], "additionalProperties": false,
+       "properties": {"node": {"type": "string"}, "op": {"enum": ["<", "<=", ">", ">=", "==", "!="]}, "value": {"type": ["number", "string"]}}},
+      {"type": "object", "required": ["all"], "additionalProperties": false,
+       "properties": {"all": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}}}},
+      {"type": "object", "required": ["any"], "additionalProperties": false,
+       "properties": {"any": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}}}},
+      {"type": "object", "required": ["not"], "additionalProperties": false,
+       "properties": {"not": {"$ref": "#/$defs/expression"}}}
+    ]}
   }
 }

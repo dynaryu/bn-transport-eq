@@ -35,10 +35,7 @@
       "where": {
         "key_destination": false
       },
-      "parameters": {
-        "target_max": 0.5
-      },
-      "note": "One travel-time node per non-key node, to its nearest key destination; survives within 0.5 h of the intact time."
+      "note": "One system state per non-key node: it survives if it reaches its nearest key destination within the network's target_add_h of the intact time."
     }
   ]
 }

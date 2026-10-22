@@ -18,7 +18,8 @@
     "capacity": "The dataset's highest capacity state per arc (unitless capacity levels).",
     "bridge_location": "Each bridge sits at the midpoint of its edge's end nodes; bridge locations are not surveyed.",
     "avg_speed_kph": "60 km/h on every edge, assumed (the value the rsr and ndtools demos use); no measured speeds are in the dataset.",
-    "key_destination": "Key destinations n22: the dataset's destinations."
+    "key_destination": "Key destinations n22: the dataset's destinations.",
+    "system_event": "Survival is reaching the nearest key destination within 0.5 h of the intact network's travel time: the default threshold, assumed."
   },
   "tables": {
     "Node": [
@@ -699,6 +700,14 @@
         "lon": 114.746235,
         "edge": "e33",
         "hazus_class": "HWB11"
+      }
+    ],
+    "SystemEvent": [
+      {
+        "id": "reach-key-destination",
+        "analysis": "system.travel-time-to-nearest",
+        "target_add_h": 0.5,
+        "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
       }
     ]
   }

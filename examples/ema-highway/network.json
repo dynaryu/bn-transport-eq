@@ -18,7 +18,8 @@
     "event": "Epicentre from the pilot's schematic (x=1.0, y=10.0) by an affine fit of node x/y to lat/lon; depth 10 km assumed. Distances are now real kilometres, so shaking is lower than the pilot's, which read schematic units as km.",
     "bridge_location": "Each bridge sits at the midpoint of its edge's end nodes; bridge locations are not surveyed.",
     "avg_speed_kph": "60 km/h on every edge, assumed (the value the rsr and ndtools demos use); no measured speeds are in the dataset.",
-    "key_destination": "Key destinations n22, n66: the dataset's destinations."
+    "key_destination": "Key destinations n22, n66: the dataset's destinations.",
+    "system_event": "Survival is reaching the nearest key destination within 0.5 h of the intact network's travel time: the default threshold, assumed."
   },
   "tables": {
     "Event": [
@@ -2691,6 +2692,14 @@
         "lon": -71.6085,
         "edge": "e0129",
         "hazus_class": "HWB11"
+      }
+    ],
+    "SystemEvent": [
+      {
+        "id": "reach-key-destination",
+        "analysis": "system.travel-time-to-nearest",
+        "target_add_h": 0.5,
+        "description": "Each origin reaches its nearest key destination within 0.5 h of its intact travel time."
       }
     ]
   }

@@ -1,0 +1,53 @@
+{
+  "id": "emergency-restoration-probabilities",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; observed b4 unusable"
+  },
+  "questions": [
+    "An inspection says b4 is unusable. Report n4's failure probability under the current scenario and with b2 forced usable, keeping the b4 observation in both queries."
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "assembly": "toy-ca/demo",
+        "evidence": {
+          "Usable::b4": 0
+        },
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "evidence": {
+          "Usable::b4": 0
+        },
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "do": {
+          "Usable::b2": 1
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Replace the two probabilities with a restoration-benefit score",
+    "Discard the b4 observation",
+    "Treat the observed b4 state as an intervention",
+    "Label a probability difference as an event probability"
+  ]
+}

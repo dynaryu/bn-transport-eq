@@ -1,0 +1,110 @@
+{
+  "id": "prep-importance-selected-probabilities",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "history": [
+      {
+        "role": "user",
+        "content": "Which of b2, b4 and b6 is most important for n4 meeting its system requirement?"
+      },
+      {
+        "role": "assistant",
+        "content": "Which mathematical meaning of most important should I use?\nForced outage: P(F | do(B_i=0), H): system failure when bridge i is forced unusable; other bridges retain their scenario uncertainty.\nAvailability comparison: P(F | do(B_i=0), H) and P(F | do(B_i=1), H), reported separately for each bridge.\nDiagnostic association: P(B_i=0 | F, H): bridge i is unusable given an observed system failure; this is not a causal effect."
+      }
+    ],
+    "system_failure": "SystemState::n4 == 0"
+  },
+  "questions": [
+    "Use the availability comparison: report both forced-unusable and forced-usable failure probabilities for b2, b4 and b6 separately."
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "do": {
+          "Usable::b2": 0
+        }
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "do": {
+          "Usable::b2": 1
+        }
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "do": {
+          "Usable::b4": 0
+        }
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "do": {
+          "Usable::b4": 1
+        }
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "do": {
+          "Usable::b6": 0
+        }
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "do": {
+          "Usable::b6": 1
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Use the diagnostic definition instead of the selected interventions",
+    "Collapse the six probabilities into an arbitrary score",
+    "Ignore the selected definition in conversation history"
+  ]
+}

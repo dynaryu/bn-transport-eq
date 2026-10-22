@@ -20,7 +20,7 @@ are listed in each object's `childs`. Forward results' `Cs` columns follow that
 child order. All samples and likelihood evaluations use PyTorch tensors, with
 ndtools evaluating graph performance on the CPU.
 
-There are 52 variables and six probability objects:
+There are 46 variables and five probability objects:
 
 | Probability object | Child variables |
 |---|---|
@@ -28,8 +28,7 @@ There are 52 variables and six probability objects:
 | Fragility | Ten five-state damage variables |
 | Usability | Ten binary bridge variables |
 | Edge open | Ten binary edge variables |
-| Travel time | Six origin travel times, in hours; infinity when disconnected |
-| System state | Six binary events: travel within 0.5 hours of the intact time |
+| System state | Six binary events: the nearest key destination reached within 0.5 hours of the intact time |
 
 Toy-ca currently specifies one IM and independent total GMM residuals; grouping
 the field in one probability object preserves that model without asserting a
@@ -38,15 +37,18 @@ and joint residual model. The demo reuses eastern North America coefficients
 in California for communication only. No hazard or fragility discretisation is
 introduced.
 
-`rsr/<origin>/` holds survival/failure reference tensors, readable rules,
-extraction metrics and model metadata for each origin. RSR searches with a
+`rsr/<origin>/target_add_h=<h>/` holds survival/failure reference tensors, readable
+rules, extraction metrics and metadata for each origin at one threshold. RSR searches with a
 50/50 independent proposal over edge states, solely to find topology rules.
 The BN supplies the actual edge samples. Unclassified samples are evaluated by
-ndtools. Extraction diagnostics use the binary state as the system value
-because RSR 0.2.0 cannot round infinite travel times. Travel-time outputs retain
-infinity for disconnected configurations.
+ndtools. The system value rsr sees is the binary state itself; the travel time
+ndtools computes is internal to that judgement.
 
-Regenerate after changing source data. A snapshot fingerprint associates rules
-with their network, edge order, destinations and thresholds. `--no-rules` skips
-extraction and uses ndtools directly. The existing app/query engine still uses
-its original sampler; this generated model is sampled directly through tbnpy.
+Regenerate after changing source data. A fingerprint associates rules with their
+network, edge order, destinations and analysis; the threshold is stored beside
+them. Because the state is monotone in the threshold, a query at another
+`target_add_h` reuses the survival rules of the nearest stricter threshold and the
+failure rules of the nearest looser one, and ndtools decides the rest.
+`python -m src rules toy-ca/demo --target-add-h 0.25` adds a threshold's own rules.
+`--no-rules` on `build` skips extraction and uses ndtools directly. Queries, the
+page and the chat build the same model in memory and sample it through tbnpy.

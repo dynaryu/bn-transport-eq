@@ -1,0 +1,41 @@
+{
+  "id": "prep-bridge-importance",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "Rank b2, b4 and b6 by the change in n4 failure when each is forced unusable versus usable."
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "analysis": {
+          "kind": "importance",
+          "query": {
+            "assembly": "toy-ca/demo",
+            "events": [
+              {
+                "node": "SystemState::n4",
+                "op": "==",
+                "value": 0
+              }
+            ]
+          },
+          "bridges": [
+            "b2",
+            "b4",
+            "b6"
+          ]
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Condition on bridge state instead of intervening"
+  ]
+}

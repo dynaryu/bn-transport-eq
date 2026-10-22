@@ -1,0 +1,33 @@
+{
+  "id": "emergency-path-to-n1",
+  "split": "few_shot",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "From n4 to N1, compare the ten shortest-time simple paths by their joint survival probabilities."
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "analysis": {
+          "kind": "paths",
+          "query": {
+            "assembly": "toy-ca/demo"
+          },
+          "origin": "n4",
+          "destination": "n1",
+          "limit": 10
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Allow arrival at N2",
+    "Multiply marginal edge probabilities"
+  ]
+}

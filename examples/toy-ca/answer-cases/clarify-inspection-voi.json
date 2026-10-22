@@ -1,0 +1,35 @@
+{
+  "id": "clarify-inspection-voi",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "Which bridge should we inspect first?",
+    "Prioritise bridge inspections using value of information."
+  ],
+  "expected": {
+    "outcome": "clarify",
+    "tool_arguments": [
+      {
+        "clarification": {
+          "question": "What actions can follow inspection, and what loss table, loss units, inspection accuracy and costs should I use?",
+          "missing": [
+            "actions",
+            "losses",
+            "loss_units",
+            "inspection_accuracy",
+            "inspection_costs"
+          ]
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Use an uncertainty-times-sensitivity score",
+    "Invent costs or losses"
+  ]
+}

@@ -332,7 +332,19 @@ def check_tables(tables: dict[str, list[dict[str, Any]]], lib: Library, where: s
                         problems.append(f"{at}: {name} = {value!r} is not a {spec['ref']} row")
                 elif not _TYPES[spec["type"]](value):
                     problems.append(f"{at}: {name} = {value!r} is not a {spec['type']}")
+                elif "minimum" in spec and value < spec["minimum"]:
+                    problems.append(f"{at}: {name} = {value!r} is below its minimum, {spec['minimum']}")
     return entity_of, problems
+
+
+def fill_defaults(tables: dict[str, list[dict[str, Any]]], lib: Library) -> None:
+    """Give every row the default of each attribute it leaves out, where the schema names one."""
+    for entity, rows in tables.items():
+        for name, spec in lib.entities.get(entity, {}).get("attributes", {}).items():
+            if "default" in spec:
+                for row in rows:
+                    if row.get(name) is None:
+                        row[name] = spec["default"]
 
 
 def load_network(network_id: str, lib: Library, root: Path = NETWORKS) -> Network:
@@ -345,6 +357,7 @@ def load_network(network_id: str, lib: Library, root: Path = NETWORKS) -> Networ
         raise RegistryError(problems)
     if data["network"] != network_id:
         problems.append(f"{rel(path)}: network is {data['network']!r}, but the folder is {network_id!r}")
+    fill_defaults(data["tables"], lib)
     entity_of, row_problems = check_tables(data["tables"], lib, rel(path))
     problems += row_problems
     if problems:

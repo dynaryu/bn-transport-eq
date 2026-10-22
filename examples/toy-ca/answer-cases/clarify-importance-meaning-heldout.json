@@ -1,0 +1,44 @@
+{
+  "id": "clarify-importance-meaning-heldout",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0"
+  },
+  "questions": [
+    "For n4, rank b2, b4 and b6 by how critical they are to maintaining network service."
+  ],
+  "expected": {
+    "outcome": "clarify",
+    "tool_arguments": [
+      {
+        "clarification": {
+          "question": "Which mathematical meaning of most important should I use?",
+          "missing": [
+            "importance_definition"
+          ],
+          "choices": [
+            {
+              "label": "Forced outage",
+              "definition": "P(F | do(B_i=0), H): system failure when bridge i is forced unusable; other bridges retain their scenario uncertainty."
+            },
+            {
+              "label": "Availability comparison",
+              "definition": "P(F | do(B_i=0), H) and P(F | do(B_i=1), H), reported separately for each bridge."
+            },
+            {
+              "label": "Diagnostic association",
+              "definition": "P(B_i=0 | F, H): bridge i is unusable given an observed system failure; this is not a causal effect."
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Choose an importance definition without asking",
+    "Run probability queries before the user selects a definition",
+    "Invent a composite priority score"
+  ]
+}

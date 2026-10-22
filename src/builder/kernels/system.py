@@ -6,10 +6,12 @@ and one graph edge per Edge row carrying its ``eid`` and a ``time_h`` weight
 and ``length_attr="time_h"``, so travel times come out in hours with each
 edge's own speed. A sample's ``EdgeOpen`` values are its ``comps_state``.
 
-The binding's two outputs are two probability objects (``spec["output"]``), so
-a question about the state alone never computes times: the state object first
-classifies each sample with the origin's stored rsr rules, and evaluates only
-what they leave unclassified.
+The output is the binary system state of each origin. Each sample is first
+classified by the origin's stored rsr rules that hold at the system event's
+threshold: exact ones, or survival rules from a stricter threshold and failure
+rules from a looser one (``bn_builder.choose_rules``). ndtools evaluates only what
+they leave unclassified, and ``tally`` counts how much that was, so the engine can
+say when the rules need extending. The travel time is internal to the judgement.
 """
 
 from __future__ import annotations
@@ -20,6 +22,14 @@ import networkx as nx
 import torch
 
 from . import Probability
+
+
+class Tally(dict):
+    """Samples seen and left unclassified, per origin row. tbnpy deep-copies its probability
+    objects before sampling; the copies keep counting into this same tally."""
+
+    def __deepcopy__(self, memo: dict) -> "Tally":
+        return self
 
 
 def base_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> nx.Graph:
@@ -45,12 +55,21 @@ class TravelTimeToNearest(Probability):
         self.destinations = [r["id"] for r in tables["Node"] if r["key_destination"]]
         if not self.destinations:
             raise ValueError("no node is a key_destination, so there is nothing to travel to")
-        self.refs: list[tuple[torch.Tensor, torch.Tensor] | None] = [None] * len(self.spec["rows"])
-        if self.spec["output"] == "state" and self.directory:
+        events = tables["SystemEvent"]
+        if len(events) != 1:
+            raise ValueError(f"a system function judges exactly one system event, got {len(events)}")
+        self.target_add_h = events[0]["target_add_h"]
+        rows = len(self.spec["rows"])
+        self.refs: list[tuple[torch.Tensor, torch.Tensor] | None] = [None] * rows
+        if self.directory:
             for j, ref in enumerate(self.spec.get("references", [])):
                 if ref:
-                    self.refs[j] = tuple(torch.load(self.directory / ref[k], map_location=self.device,
-                                                    weights_only=True) for k in ("upper", "lower"))
+                    # A side with no rules that hold at this threshold is an empty set: it classifies nothing.
+                    empty = torch.empty((0, len(self.edges(j)), 2), dtype=torch.int32, device=self.device)
+                    self.refs[j] = tuple(
+                        torch.load(self.directory / ref[k], map_location=self.device, weights_only=True)
+                        if ref.get(k) else empty for k in ("upper", "lower"))
+        self.tally = Tally(seen=[0] * rows, unclassified=[0] * rows)
         never = [row["id"] for j, row in enumerate(self.spec["rows"])
                  if self.system_function(j)(dict.fromkeys(self.edges(j), 1))[1] == 0]
         if never:
@@ -64,12 +83,11 @@ class TravelTimeToNearest(Probability):
         """(travel time in hours, state, None) for origin row j, from a {edge id: 0/1} dict."""
         from ndtools import fun_binary_graph as fbg
 
-        origin = self.spec["rows"][j]["id"]
-        target_max = self.spec["parameters"][j]["target_max"]
+        origin, target_add_h = self.spec["rows"][j]["id"], self.target_add_h
 
         def evaluate(comps: dict[str, int]) -> tuple[float, int, None]:
             time_h, state, _ = fbg.eval_travel_time_to_nearest(
-                comps, self.graph, origin, self.destinations, avg_speed=1.0, target_max=target_max,
+                comps, self.graph, origin, self.destinations, avg_speed=1.0, target_max=target_add_h,
                 length_attr="time_h")
             return (float("inf") if time_h is None else float(time_h)), int(state), None
 
@@ -78,11 +96,9 @@ class TravelTimeToNearest(Probability):
     def evaluate(self, pars: torch.Tensor) -> torch.Tensor:
         if ((pars != 0) & (pars != 1)).any():
             raise ValueError("edge states must be binary")
-        unique, inverse = torch.unique(pars, dim=0, return_inverse=True)    # identical states, identical answers
-        out = torch.empty((len(unique), len(self.childs)), dtype=torch.float64, device=self.device)
-        want = 0 if self.spec["output"] == "travel_time" else 1
+        out = torch.empty((len(pars), len(self.childs)), dtype=torch.float64, device=self.device)
         for j, columns in enumerate(self.spec["input_columns"]):
-            x = unique[:, columns["open"]].long()
+            x = pars[:, columns["open"]].long()
             unknown = torch.ones(len(x), dtype=torch.bool, device=self.device)
             if self.refs[j] is not None:
                 from rsr.rsr import classify_samples_with_indices
@@ -92,7 +108,13 @@ class TravelTimeToNearest(Probability):
                 out[result["mask_upper"], j] = 1
                 out[result["mask_lower"], j] = 0
                 unknown = result["mask_unknown"]
-            evaluate, names = self.system_function(j), self.edges(j)
-            for i in torch.where(unknown)[0].tolist():
-                out[i, j] = evaluate(dict(zip(names, x[i].tolist())))[want]
-        return out[inverse]
+            rows = torch.where(unknown)[0]
+            self.tally["seen"][j] += len(x)
+            self.tally["unclassified"][j] += len(rows)
+            if len(rows):
+                # Only what the rules leave unclassified goes to ndtools, once per distinct edge state.
+                distinct, inverse = torch.unique(x[rows], dim=0, return_inverse=True)
+                evaluate, names = self.system_function(j), self.edges(j)
+                states = self.tensor([evaluate(dict(zip(names, s)))[1] for s in distinct.tolist()])
+                out[rows, j] = states[inverse]
+        return out

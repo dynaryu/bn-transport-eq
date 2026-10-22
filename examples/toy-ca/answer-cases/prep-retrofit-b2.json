@@ -1,0 +1,49 @@
+{
+  "id": "prep-retrofit-b2",
+  "split": "few_shot",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "What are n4's failure probabilities before and after changing b2 to HWB11 under this scenario?"
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "rows": {
+          "b2": {
+            "hazus_class": "HWB11"
+          }
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Force b2 usable",
+    "Change any other bridge",
+    "Replace the before-and-after probabilities with a benefit score",
+    "Label a probability difference as an event probability"
+  ]
+}

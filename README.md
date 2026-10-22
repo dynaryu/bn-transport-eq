@@ -16,7 +16,7 @@ assembly of functions over a network's rows gives the Bayesian network. A query
 | 3 | **BN builder** | `src/builder/bn_builder.py` | validate 1 and 2, then build BN nodes and parents; the kernels behind each function and the ShakeMap reader live alongside it |
 | 4 | **Inference engine** | `src/inference/` | a probabilistic query ([`query.schema.json`](src/inference/query.schema.json)) in, an answer out, by forward sampling with [tbnpy](https://pypi.org/project/tbnpy/) (PyTorch) |
 | 5 | **Language** | `src/llm/` | a question in words becomes a query, the engine's numbers become an answer |
-| 6 | **App** | `src/app/` | one local page: the BN drawn like Supabase's schema visualiser, a query form and a chat panel |
+| 6 | **App: quakenet** | `src/app/` | one local page (`python -m src serve --open`): an example's scenario and models, the network map coloured by failure probabilities, the results with intervals, the BN drawn like Supabase's schema visualiser, and questions in words |
 
 The networks the tools run on are in [`examples/`](examples/README.md): each one's rows, and its
 assemblies (which function and parameters describe which rows). A report concerns one network,
@@ -45,8 +45,10 @@ python -m src compile ema-highway/gmm        # 3: what one assembly expands to, 
 python -m src build toy-ca/demo              # 3: generate runnable tbnpy data, model.py and RSR rules
 python examples/toy-ca/tbnpy/demo/model.py --samples 2000  # sample with tbnpy/PyTorch
 python -m src query ema-highway/gmm --event "EdgeOpen::*==0" --set ema-reference.mw=7
+python -m src scope toy-ca/demo --event "SystemState::n4==0"     # 4: what that query depends on and samples
+python -m src replay <record id>             # 4: re-run a recorded query (records/queries.jsonl) exactly
 python -m src ask ema-highway/gmm "Would n1 still reach n66 after an M7?"             # 5: needs a model
-python -m src serve --open                   # 6: the page, at http://127.0.0.1:8765
+python -m src serve --open                   # 6: quakenet, at http://127.0.0.1:8765
 python -m src export --open                  # 6: its drawings as one file, no server (.cache/schema.html)
 python -m src diagram                        # 1: rewrite schema/diagram.md after editing the schema
 python -m pytest -q                          # the tests
@@ -65,16 +67,27 @@ python -m pytest -q                          # the tests
   Which GMM is chosen by where the network is, and the IM itself is left open:
   `PGA`, `SA(0.3)`, `SA(1.0)`... wire only to curves on the same IM.
 - **System functions run on [ndtools](https://pypi.org/project/ndtools-duco/).**
-  `system.travel-time-to-nearest` gives each non-key node a `TravelTime` (hours) to its
-  nearest `key_destination` and a `SystemState`: 1 if within `target_max` hours of the
-  intact network's time. The network supplies each edge's `length_km` and
-  `avg_speed_kph`; the assembly sets `target_max`. Next: rules extracted once by
-  [rsr](https://jieunbyun.github.io/rsr/) and stored, so ndtools runs only where no rule applies.
-- **A query is a probability statement**: targets and threshold events, under
-  `do()`-style settings of rows and parameters. Evidence is refused: the engine is
-  forward-only.
+  `system.travel-time-to-nearest` gives each non-key node a binary `SystemState`: 1 if
+  it reaches its nearest `key_destination` within `target_add_h` hours of the intact
+  network's time. The network supplies each edge's `length_km` and `avg_speed_kph`, and
+  its `SystemEvent` row names the analysis and `target_add_h` (defaults: this function, 0.5 h).
+  Rules extracted by [rsr](https://jieunbyun.github.io/rsr/) are stored with the example per
+  threshold, so ndtools runs only where no rule applies. A threshold without its own rules
+  gets them extracted in the background on its first run in quakenet (or by hand with
+  `python -m src rules <assembly> --target-add-h <h>`); meanwhile the rules that still hold
+  (survival rules from a stricter threshold, failure rules from a looser one) and ndtools give
+  the same answer.
+- **A query is a probability statement**: targets, threshold or joint events,
+  under scenario settings and discrete node `do()` interventions. Discrete evidence
+  uses rejection conditioning with acceptance diagnostics; continuous evidence is unsupported.
 - **The language model only chooses the query.** Every number in an answer comes
   from the engine, and each query is shown, as a statement, before it runs.
+
+The app also computes comparisons, bridge importance, candidate paths and one-step
+inspection VOI from supplied loss tables. Review new inputs in Proposals before
+activating them. [The answer cases](examples/toy-ca/answer-cases/README.md) explain
+how to expand translation tests: `python -m src evaluate` checks their contracts;
+`python -m src evaluate --live` evaluates held-out phrasings with the configured LLM.
 
 The schema's design and how to add to it: [`schema/README.md`](schema/README.md).
 
@@ -102,9 +115,9 @@ The page's chat panel and `python -m src ask` need one backend. Choose it with
 
 | Backend | Costs | Setup |
 |---|---|---|
-| `ollama` (default) | free, local | install [Ollama](https://ollama.com), then `ollama pull qwen3:8b` (any model with tool support) |
+| `anthropic` (default) | API credit, hosted | `ant auth login`, or `ANTHROPIC_API_KEY`; with uv, `uv sync --extra anthropic`. Claude Opus 5.5, with refusal fallbacks on |
+| `ollama` | free, local | install [Ollama](https://ollama.com), then `ollama pull qwen3:8b` (any model with tool support) |
 | `gemini` | free tier, hosted | a key from aistudio.google.com/apikey in `GEMINI_API_KEY` |
-| `anthropic` | API credit, hosted | `ant auth login`, or `ANTHROPIC_API_KEY`; with uv, `uv sync --extra anthropic` |
 
 On startup the server prints the backend and whether it is ready;
 `/api/chat-status` gives the reason when not. A small local model may translate a

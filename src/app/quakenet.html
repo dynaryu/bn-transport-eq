@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>quakenet</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --raised: #ffffff;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --accent: #2a78d6; --idle: #c3c2b7; --bar: #2a78d6; --ci: #52514e;
+  --err: #d03b3b;
+  --seq-0: #cde2fb; --seq-1: #9ec5f4; --seq-2: #6da7ec; --seq-3: #3987e5;
+  --seq-4: #256abf; --seq-5: #184f95; --seq-6: #0d366b;
+  --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a; --cat-4: #eda100; --cat-5: #e87ba4; --cat-6: #008300; --cat-7: #6250d6;
+  --link: rgba(82,81,78,0.35); --link-hot: #0b0b0b; --plane: rgba(11,11,11,0.035);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --accent: #3987e5; --idle: #4a4a46; --bar: #3987e5; --ci: #c3c2b7;
+    --seq-0: #104281; --seq-1: #184f95; --seq-2: #1c5cab; --seq-3: #2a78d6;
+    --seq-4: #5598e7; --seq-5: #86b6ef; --seq-6: #cde2fb;
+    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9;
+    --link: rgba(195,194,183,0.30); --link-hot: #f0efec; --plane: rgba(255,255,255,0.04);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --accent: #3987e5; --idle: #4a4a46; --bar: #3987e5; --ci: #c3c2b7;
+  --seq-0: #104281; --seq-1: #184f95; --seq-2: #1c5cab; --seq-3: #2a78d6;
+  --seq-4: #5598e7; --seq-5: #86b6ef; --seq-6: #cde2fb;
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9;
+  --link: rgba(195,194,183,0.30); --link-hot: #f0efec; --plane: rgba(255,255,255,0.04);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { display: flex; flex-direction: column; overflow: hidden; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { flex: none; display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+header h1 { font-size: 18px; margin: 0; letter-spacing: 0.02em; }
+header .sub { color: var(--ink-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+select, input, button, textarea { font: inherit; color: inherit; }
+select, input[type=number], textarea { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+button { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button:disabled { opacity: 0.6; cursor: progress; }
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr; }
+aside { border-right: 1px solid var(--border); background: var(--surface); padding: 12px 16px; overflow: auto; }
+aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 18px 0 8px; }
+aside h2:first-child { margin-top: 4px; }
+.field { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 8px; margin: 6px 0; }
+.field label { color: var(--ink-2); }
+.field select { grid-column: 1 / -1; width: 100%; }
+.field input { width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
+.fixed { color: var(--ink-2); font-size: 13px; margin: 4px 0; }
+.fixed code { font-size: 12px; }
+#run { width: 100%; margin-top: 14px; padding: 8px; }
+#status { color: var(--ink-2); font-size: 13px; margin-top: 8px; min-height: 1.4em; }
+#status.err { color: var(--err); }
+.work { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+nav { display: flex; gap: 2px; padding: 8px 16px 0; border-bottom: 1px solid var(--border); }
+nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 6px 12px; color: var(--ink-2); }
+nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.pane { flex: 1; min-height: 0; overflow: auto; display: none; }
+.pane.on { display: block; }
+#pane-map.on { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: minmax(0, 1fr); }
+#map-wrap { min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+#map { flex: 1 0 260px; min-height: 240px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: block; }
+#legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; font-size: 12px; color: var(--ink-2); padding: 0 4px; }
+#legend .scale { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+#legend .ramp { display: flex; height: 10px; width: 160px; border-radius: 2px; overflow: hidden; }
+#legend .ramp span { flex: 1; }
+#legend .key { display: flex; align-items: center; gap: 5px; }
+#results { border-left: 1px solid var(--border); background: var(--surface); padding: 12px 16px; overflow: auto; }
+#results h3 { font-size: 13px; margin: 14px 0 6px; }
+#results h3:first-child { margin-top: 0; }
+.meta { color: var(--ink-2); font-size: 13px; }
+.notes { color: var(--ink-2); font-size: 12px; padding-left: 16px; margin: 6px 0; }
+.empty { color: var(--muted); font-size: 13px; }
+svg text { fill: var(--ink-2); font-size: 11px; }
+.tip { position: fixed; pointer-events: none; background: var(--raised); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 10; display: none; max-width: 320px; }
+.tip b { font-weight: 600; }
+.tip .v { font-variant-numeric: tabular-nums; }
+#pane-schema.on, #pane-bn.on { display: flex; flex-direction: column; }
+#schema-info, #bn-info { padding: 8px 16px; color: var(--ink-2); font-size: 13px; border-bottom: 1px solid var(--border); }
+#schema-frame { flex: 1; width: 100%; border: 0; background: var(--surface); }
+#bn { flex: 1; min-height: 0; width: 100%; background: var(--surface); display: block; }
+#bn .link { stroke: var(--link); fill: none; }
+#bn .link.hot { stroke: var(--link-hot); stroke-opacity: 1; stroke-width: 1.6; }
+#bn.focus .link:not(.hot) { stroke-opacity: 0.25; }
+#legend label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+#legend .credit { margin-left: auto; color: var(--muted); font-size: 11px; }
+#legend .credit a { color: inherit; }
+#map-ask { flex: none; border-top: 1px solid var(--border); padding-top: 12px; }
+#map-ask h2 { font-size: 14px; margin: 0 0 8px; }
+#chat-log { display: flex; flex-direction: column; gap: 12px; max-height: 440px; overflow: auto; overflow-wrap: anywhere; padding: 2px; }
+#chat-log:empty { display: none; }
+.bubble { padding: 9px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; max-width: 88%; }
+.bubble.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
+.bubble.assistant { align-self: flex-start; width: 100%; max-width: 100%; min-width: 0; background: var(--raised); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+.bubble.assistant.error { border-color: var(--err); color: var(--err); }
+.bubble .stage { color: var(--muted); font-style: italic; }
+.bubble .answer { white-space: pre-wrap; }
+.bubble .answer:empty { display: none; }
+/* The query sits above the answer, not under it: it is stated before the engine runs, and it is how a
+   reader checks that the question was translated into the query they expected. */
+.pq { margin: 0 0 9px; padding: 7px 10px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 5px; }
+.pq.running { border-left-color: var(--muted); }
+.pq.refused { border-left-color: var(--err); }
+.pq-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; color: var(--ink-2); margin: 0 0 4px; }
+.pq-state { font-weight: 400; color: var(--muted); }
+.pq code { font-size: 12px; }
+.pq ul { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
+.pq li { font-variant-numeric: tabular-nums; }
+.pq .reason { color: var(--err); font-size: 12px; margin: 4px 0 0; }
+.pq .from { color: var(--muted); font-size: 11px; margin: 4px 0 0; }
+.pq p { margin: 5px 0; }
+.pq .table-wrap { overflow-x: auto; margin: 8px 0; }
+.pq table caption { text-align: left; color: var(--ink-2); margin-bottom: 4px; }
+.pq th { font-weight: 600; }
+.pq th[scope=row] { font-weight: 400; }
+.pq .result-number { white-space: nowrap; }
+.pq.reviewing { border-left-color: var(--accent); }
+.pq .review-actions, .clarification-options { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.pq .review-error { color: var(--err); }
+.pq .choice { display: block; width: 100%; text-align: left; white-space: normal; }
+.pq .choice span { display: block; color: var(--ink-2); margin-top: 3px; font-weight: 400; }
+.pq .choice:disabled { cursor: default; }
+.pq .validation { margin: 6px 0; }
+.pq .proposal-id { color: var(--muted); font-size: 11px; }
+#proposal-status { white-space: pre-wrap; }
+.proposal-card input { max-width: 100%; background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+#chat-examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { padding: 4px 10px; border-radius: 14px; font-size: 12px; color: var(--ink-2); background: var(--raised); }
+.chip:hover { border-color: var(--accent); color: var(--ink); }
+#chat-download { margin-top: 8px; font-size: 12px; }
+#chat-log pre, #pane-proposals pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+#pane-proposals { padding: 16px; }
+#proposal-json { width: 100%; min-height: 180px; font-family: monospace; }
+.proposal { border-bottom: 1px solid var(--border); padding: 12px 0; }
+#scenario-preset { max-width: 250px; }
+#chat-form { display: flex; gap: 8px; margin-top: 12px; }
+#chat-form textarea { flex: 1; min-width: 0; min-height: 60px; }
+#pane-assume { padding: 16px; max-width: 900px; }
+#pane-assume dt { font-weight: 600; margin-top: 10px; }
+#pane-assume dd { margin: 2px 0 0; color: var(--ink-2); }
+table.data { border-collapse: collapse; font-size: 12px; width: 100%; }
+table.data th, table.data td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+table.data td.num, table.data th.num { text-align: right; }
+details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-top: 8px; }
+@media (max-width: 900px) {
+  body { height: auto; min-height: 100%; overflow: auto; }
+  main { flex: none; grid-template-columns: 1fr; height: auto; }
+  aside { border-right: none; border-bottom: 1px solid var(--border); }
+  #pane-map.on { grid-template-columns: 1fr; }
+  header { flex-wrap: wrap; gap: 8px; }
+  header .sub { flex-basis: 100%; }
+  nav { overflow-x: auto; padding-left: 8px; }
+  nav button { white-space: nowrap; }
+  #pane-map.on { grid-template-rows: auto; }
+  #map-wrap { overflow: visible; }
+  #map { flex: none; height: 45vh; }
+  #chat-log { max-height: 65vh; }
+  #results { border-left: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>quakenet</h1>
+  <select id="example" aria-label="Example network"></select>
+  <select id="scenario-preset" aria-label="Saved scenario"><option value="">Current scenario</option></select>
+  <span class="sub" id="subtitle"></span>
+  <button id="theme" title="Toggle light and dark">Theme</button>
+</header>
+<main>
+  <aside>
+    <div id="controls"></div>
+    <button class="primary" id="run">Run</button>
+    <div id="status"></div>
+  </aside>
+  <section class="work">
+    <nav>
+      <button data-pane="map" class="on">Map</button>
+      <button data-pane="bn">BN</button>
+      <button data-pane="schema">Schema</button>
+      <button data-pane="assume">Assumptions</button>
+      <button data-pane="proposals">Proposals</button>
+    </nav>
+    <div class="pane on" id="pane-map">
+      <div id="map-wrap">
+        <svg id="map" role="img" aria-label="Network map"></svg>
+        <div id="legend"></div>
+        <section id="map-ask" aria-labelledby="ask-heading">
+          <h2 id="ask-heading">Ask</h2>
+          <p class="meta" id="chat-status"></p>
+          <label class="meta"><input type="checkbox" id="review-queries"> Review each query before computing</label>
+          <div id="chat-log" role="log" aria-label="Ask conversation" aria-live="polite" aria-relevant="additions"></div>
+          <form id="chat-form">
+            <textarea id="chat-q" aria-label="Ask a question" placeholder="e.g. How likely is n4 to be cut off from n1 and n2 if the earthquake were M7?"></textarea>
+            <button class="primary" type="submit" id="chat-send">Ask</button>
+          </form>
+          <div id="chat-examples"></div>
+          <button type="button" id="chat-download" disabled title="The questions, each query as stated with its values, and the answers, as Markdown">Download conversation</button>
+        </section>
+      </div>
+      <div id="results"><p class="empty">Set the scenario on the left and press Run.</p></div>
+    </div>
+    <div class="pane" id="pane-bn">
+      <div id="bn-info"></div>
+      <svg id="bn" role="img" aria-label="The Bayesian network, layer by layer"></svg>
+    </div>
+    <div class="pane" id="pane-schema">
+      <div id="schema-info"></div>
+      <iframe id="schema-frame" title="The schema drawing"></iframe>
+    </div>
+    <div class="pane" id="pane-assume"></div>
+    <div class="pane" id="pane-proposals">
+      <p class="meta">Ask can draft new model inputs or saved scenarios. Review the source and values before activation.</p>
+      <div id="proposal-list"></div>
+      <details><summary>Draft from JSON</summary>
+        <p class="meta">Provide kind (parameter_set or scenario), title, reason, source, and payload.</p>
+        <textarea id="proposal-json" aria-label="Proposal JSON"></textarea>
+        <button id="proposal-draft">Validate and save draft</button>
+      </details>
+      <p class="meta" id="proposal-status"></p>
+    </div>
+  </section>
+</main>
+<div class="tip" id="tip"></div>
+
+<script src="/ask.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = { get: k => { try { return localStorage.getItem("quakenet." + k); } catch { return null; } },
+                set: (k, v) => { try { localStorage.setItem("quakenet." + k, v); } catch {} } };
+const fmtP = p => p == null ? "–" : p < 0.001 && p > 0 ? p.toExponential(1) : p.toFixed(3);
+
+// The families the map colours: which quantity means "failed" for each table, if this BN has it.
+const FAMILIES = [
+  { quantity: "SystemState", table: "Node", label: "origin fails", value: 0 },
+  { quantity: "EdgeOpen", table: "Edge", label: "edge closed", value: 0 },
+  { quantity: "Usable", table: "Bridge", label: "bridge unusable", value: 0 },
+];
+
+const state = { examples: [], ex: null, result: null, chat: [], scenarios: [], preset: {}, basemap: store.get("basemap") !== "off" };
+
+// ---- loading an example ---------------------------------------------------------------
+
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  const body = await r.json();
+  if (!r.ok) throw new Error(body.error || r.statusText);
+  return body;
+}
+
+async function init() {
+  const theme = store.get("theme");
+  if (theme) document.documentElement.dataset.theme = theme;
+  const params = new URLSearchParams(location.hash.slice(1));
+  state.examples = (await getJSON("/api/examples")).examples;
+  const wanted = params.get("example") || store.get("example") || "toy-ca/demo";
+  $("#example").innerHTML = state.examples.map(e =>
+    `<option value="${esc(e.id)}"${e.id === wanted ? " selected" : ""}>${esc(e.id)}</option>`).join("");
+  await load($("#example").value);
+  chatStatus();
+  renderProposals();
+  if (params.get("tab")) document.querySelector(`nav button[data-pane="${CSS.escape(params.get("tab"))}"]`)?.click();
+  if (params.get("run") === "1") run();
+}
+
+async function load(id, {preserveChat = false} = {}) {
+  setStatus("Loading…");
+  state.result = null;
+  state.preset = preserveChat ? structuredClone(currentScenario()) : {};
+  if (!preserveChat) { state.chat = []; $("#chat-log").innerHTML = ""; }
+  try {
+    state.ex = await getJSON(`/api/example?assembly=${encodeURIComponent(id)}`);
+  } catch (err) { setStatus(err.message, true); return; }
+  store.set("example", id);
+  history.replaceState(null, "", `#example=${encodeURIComponent(id)}`);
+  $("#subtitle").textContent = state.ex.assembly.label;
+  renderControls(); applyScenarioControls(); renderMap(); renderResults(); renderBN(); renderSchema(); renderAssumptions(); renderExamples();
+  state.scenarios = (await getJSON(`/api/scenarios?assembly=${encodeURIComponent(id)}`)).scenarios;
+  $("#scenario-preset").innerHTML = `<option value="">Current scenario</option>` + state.scenarios.map((s, i) =>
+    `<option value="${i}">${esc(s.title)}</option>`).join("");
+  const r = state.ex.rules;
+  setStatus(r.origins ? `${r.stored} of ${r.origins} origins have stored rsr rules.` : "");
+}
+
+// ---- controls: the scenario and the choices the assembly leaves open ---------------------
+
+const GROUPS = { Event: "Scenario (Event row)", SystemEvent: "System event" };
+
+function renderControls() {
+  const menu = state.ex.menu, s = menu.settable;
+  let h = "";
+  const byEntity = {};
+  for (const r of s.rows) (byEntity[r.entity] ??= []).push(r);
+  for (const [entity, rows] of Object.entries(byEntity)) {
+    h += `<h2>${esc(GROUPS[entity] || entity)}</h2>`;
+    for (const r of rows) {
+      const id = `row:${r.row}:${r.attribute}`;
+      h += `<div class="field"><label for="${esc(id)}">${esc(r.attribute)}${r.unit ? ` (${esc(r.unit)})` : ""}</label>` +
+           `<input type="number" step="${esc(r.step ?? "any")}" id="${esc(id)}" data-row="${esc(r.row)}" data-attr="${esc(r.attribute)}"${r.minimum != null ? ` min="${esc(r.minimum)}"` : ""} value="${esc(r.value)}"></div>`;
+    }
+  }
+  if (s.parameters.length) {
+    h += `<h2>Parameters</h2>`;
+    for (const p of s.parameters) {
+      const id = `par:${p.function}:${p.name}`;
+      h += `<div class="field"><label for="${esc(id)}">${esc(p.name)}</label>` +
+           `<input type="text" id="${esc(id)}" data-fn="${esc(p.function)}" data-name="${esc(p.name)}" value="${esc(JSON.stringify(p.value))}"></div>`;
+    }
+  }
+  h += `<h2>Models</h2>`;
+  for (const c of s.parameter_sets) {
+    if (c.by_location) {
+      const used = Object.entries(c.by_location).filter(([k]) => k !== "null").map(([k, n]) => `<code>${esc(k)}</code> ×${n}`).join(", ");
+      h += `<p class="fixed"><b>${esc(c.function)}</b>: chosen by location, ${used}</p>`;
+    } else if (c.choices.length > 1) {
+      const id = `set:${c.function}`;
+      h += `<div class="field"><label for="${esc(id)}">${esc(c.function)}</label><select id="${esc(id)}" data-fn="${esc(c.function)}" data-current="${esc(c.current)}">` +
+           c.choices.map(o => `<option value="${esc(o.id)}"${o.id === c.current ? " selected" : ""} title="${esc(o.label)}">${esc(o.label)}</option>`).join("") +
+           `</select></div>`;
+    }
+  }
+  const templated = state.ex.assembly.bindings.filter(b => (b.parameter_set || "").includes("{"));
+  for (const b of templated) h += `<p class="fixed"><b>${esc(b.function)}</b>: <code>${esc(b.parameter_set)}</code> per row</p>`;
+  h += `<h2>Sampling</h2><div class="field"><label for="samples">samples</label>` +
+       `<input type="number" id="samples" min="100" max="1000000" step="10000" value="100000"></div>`;
+  $("#controls").innerHTML = h;
+  for (const el of $("#controls").querySelectorAll("input[data-attr]")) {
+    el.addEventListener("input", renderMap);
+    // min only bounds the spinner; a typed value below it snaps back when the field is left.
+    if (el.min !== "") el.addEventListener("change", () => {
+      if (el.value !== "" && Number(el.value) < Number(el.min)) { el.value = el.min; renderMap(); }
+    });
+  }
+}
+
+function interventions() {
+  const out = {};
+  for (const el of document.querySelectorAll("#controls input[data-row]")) {
+    const original = state.ex.menu.settable.rows.find(r => r.row === el.dataset.row && r.attribute === el.dataset.attr);
+    const v = el.value === "" ? null : Number(el.value);
+    if (v != null && (v !== original.value || state.preset.rows?.[el.dataset.row]?.[el.dataset.attr] != null)) ((out.rows ??= {})[el.dataset.row] ??= {})[el.dataset.attr] = v;
+  }
+  for (const el of document.querySelectorAll("#controls input[data-fn]")) {
+    const original = state.ex.menu.settable.parameters.find(p => p.function === el.dataset.fn && p.name === el.dataset.name);
+    let v; try { v = JSON.parse(el.value); } catch { v = el.value; }
+    if (JSON.stringify(v) !== JSON.stringify(original.value) || state.preset.parameters?.[el.dataset.fn]?.[el.dataset.name] != null) ((out.parameters ??= {})[el.dataset.fn] ??= {})[el.dataset.name] = v;
+  }
+  for (const el of document.querySelectorAll("#controls select[data-fn]"))
+    if (el.value !== el.dataset.current || state.preset.parameter_sets?.[el.dataset.fn]) (out.parameter_sets ??= {})[el.dataset.fn] = el.value;
+  return out;
+}
+
+function eventRow() {
+  // The Event row as the controls now set it, so the map's epicentre follows the inputs.
+  const ev = { ...(state.ex.network.tables.Event || [])[0] };
+  Object.assign(ev, state.preset.rows?.[ev.id] || {});
+  for (const el of document.querySelectorAll("#controls input[data-row]"))
+    if (el.dataset.row === ev.id && el.value !== "") ev[el.dataset.attr] = Number(el.value);
+  return ev.id ? ev : null;
+}
+
+// ---- run ----------------------------------------------------------------------------------
+
+async function run() {
+  const families = FAMILIES.filter(f => state.ex.menu.quantities.some(q => q.id === f.quantity));
+  const samples = Math.round(Number($("#samples").value) || 100000);
+  const query = { assembly: state.ex.assembly.id, ...currentScenario(), samples,
+                  events: families.map(f => ({ node: `${f.quantity}::*`, op: "==", value: f.value })) };
+  $("#run").disabled = true;
+  setStatus(`Sampling ${samples.toLocaleString()} scenarios…`);
+  try {
+    state.result = await getJSON("/api/query", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(query) });
+    const extracting = state.result.warnings.find(w => w.includes("in the background"));
+    setStatus(`${state.result.samples.toLocaleString()} samples in ${state.result.elapsed_s} s.` +
+              (extracting ? ` ${extracting.split(";")[0]}; run again in a moment to use them.` : ""));
+  } catch (err) {
+    state.result = null; setStatus(err.message, true);
+  } finally { $("#run").disabled = false; }
+  renderMap(); renderResults();
+}
+
+function setStatus(text, err = false) { const s = $("#status"); s.textContent = text; s.classList.toggle("err", err); }
+
+// Probability by row id, from the last run: {rowId: {p, ci95, family}}.
+function probabilities() {
+  const out = {};
+  if (!state.result) return out;
+  for (const e of state.result.events) {
+    const [quantity, row] = e.node.split("::");
+    const fam = FAMILIES.find(f => f.quantity === quantity);
+    // Map labels describe failure; a requested success probability must not be labelled as failure.
+    if (fam && e.op === "==" && Number(e.value) === fam.value) out[row] = { p: e.p, ci95: e.ci95, family: fam };
+  }
+  return out;
+}
+
+// ---- colour: one sequential ramp for every probability on the map --------------------------
+
+const SEQ = [0, 1, 2, 3, 4, 5, 6].map(i => `var(--seq-${i})`);
+function scaleMax(probs) {
+  const m = Math.max(0, ...Object.values(probs).map(v => v.p));
+  for (const top of [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1]) if (m <= top) return top;
+  return 1;
+}
+function colour(p, top) {
+  if (p == null) return "var(--idle)";
+  const i = Math.min(SEQ.length - 1, Math.floor((p / top) * SEQ.length));
+  return SEQ[i];
+}
+
+// ---- map ------------------------------------------------------------------------------------
+
+function renderMap() {
+  const svg = $("#map"), t = state.ex.network.tables;
+  const nodes = t.Node || [], edges = t.Edge || [], bridges = t.Bridge || [];
+  const ev = eventRow();
+  const pts = [...nodes, ...bridges, ...(ev && ev.lat != null ? [ev] : [])];
+  if (!pts.length) { svg.innerHTML = ""; return; }
+  const xs = pts.map(p => mercX(p.lon)), ys = pts.map(p => mercY(p.lat));
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) || 1e-4, pad = span * 0.08;
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad, y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
+  const W = 1000, s = W / (x1 - x0), H = (y1 - y0) * s;   // viewBox units per world unit, the same on both axes
+  const X = lon => (mercX(lon) - x0) * s;
+  const Y = lat => (mercY(lat) - y0) * s;
+  const u = W / 1000;                                   // one "pixel" in viewBox units
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  const probs = probabilities(), top = scaleMax(probs);
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const big = nodes.length <= 40;
+  let h = state.basemap ? tiles(x0, y0, x1, y1, s) : "";
+  for (const e of edges) {
+    const a = byId[e.source], b = byId[e.target];
+    if (!a || !b) continue;
+    const pe = probs[e.id];
+    h += `<g data-tip="edge" data-id="${esc(e.id)}"><line x1="${X(a.lon)}" y1="${Y(a.lat)}" x2="${X(b.lon)}" y2="${Y(b.lat)}" ` +
+         `stroke="${colour(pe?.p, top)}" stroke-width="${(big ? 6 : 3) * u}" stroke-linecap="round"/>` +
+         `<line x1="${X(a.lon)}" y1="${Y(a.lat)}" x2="${X(b.lon)}" y2="${Y(b.lat)}" stroke="transparent" stroke-width="${18 * u}"/></g>`;
+  }
+  for (const b of bridges) {
+    const pb = probs[b.id], s = (big ? 14 : 8) * u;
+    h += `<g data-tip="bridge" data-id="${esc(b.id)}"><rect x="${X(b.lon) - s / 2}" y="${Y(b.lat) - s / 2}" width="${s}" height="${s}" rx="${2 * u}" ` +
+         `fill="${colour(pb?.p, top)}" stroke="var(--surface)" stroke-width="${2 * u}"/>` +
+         `<rect x="${X(b.lon) - s}" y="${Y(b.lat) - s}" width="${2 * s}" height="${2 * s}" fill="transparent"/></g>`;
+  }
+  for (const n of nodes) {
+    const pn = probs[n.id], r = (big ? 9 : 5) * u, cx = X(n.lon), cy = Y(n.lat);
+    const fill = n.key_destination ? "var(--surface)" : pn ? colour(pn.p, top) : "var(--idle)";
+    h += `<g data-tip="node" data-id="${esc(n.id)}">` +
+         (n.key_destination ? `<circle cx="${cx}" cy="${cy}" r="${r + 5 * u}" fill="none" stroke="var(--ink)" stroke-width="${2 * u}"/>` : "") +
+         `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="var(--ink)" stroke-width="${1.5 * u}"/>` +
+         `<circle cx="${cx}" cy="${cy}" r="${r * 2.2}" fill="transparent"/>` +
+         (big ? `<text x="${cx + r + 6 * u}" y="${cy - r - 2 * u}" font-size="${13 * u}">${esc(n.id)}</text>` : "") + `</g>`;
+  }
+  if (ev && ev.lat != null) {
+    const cx = X(ev.lon), cy = Y(ev.lat), R = 13 * u;
+    const star = Array.from({ length: 10 }, (_, i) => {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? R * 0.45 : R;
+      return `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
+    }).join(" ");
+    h += `<g data-tip="event" data-id="${esc(ev.id)}"><polygon points="${star}" fill="var(--ink)" stroke="var(--surface)" stroke-width="${2 * u}"/>` +
+         `<text x="${cx + R + 4 * u}" y="${cy + 4 * u}" font-size="${13 * u}">M${esc(ev.mw)}</text>` +
+         `<circle cx="${cx}" cy="${cy}" r="${R * 1.6}" fill="transparent"/></g>`;
+  }
+  svg.innerHTML = h;
+  renderLegend(top, !!state.result);
+}
+
+// Web Mercator in world units [0, 1], the projection map tiles are drawn in.
+const mercX = lon => (lon + 180) / 360;
+const mercY = lat => (1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2;
+const darkTheme = () => document.documentElement.dataset.theme
+  ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+
+function tiles(x0, y0, x1, y1, s) {
+  // OpenStreetMap's standard tiles, greyed so the network's colours stay readable (inverted in dark mode),
+  // at the zoom whose tiles are about 128-256 viewBox units across.
+  const z = Math.max(0, Math.min(18, Math.ceil(Math.log2(s / 256)))), n = 2 ** z, size = s / n;
+  const filter = darkTheme() ? "grayscale(1) invert(1) brightness(0.75) contrast(0.9)" : "grayscale(1) brightness(1.05) contrast(0.85)";
+  let h = `<g opacity="0.7" style="filter:${filter}">`;
+  for (let i = Math.floor(x0 * n); i <= Math.floor(x1 * n); i++)
+    for (let j = Math.floor(y0 * n); j <= Math.floor(y1 * n); j++)
+      h += `<image href="https://tile.openstreetmap.org/${z}/${i}/${j}.png" ` +
+           `x="${(i / n - x0) * s}" y="${(j / n - y0) * s}" width="${size + 0.5}" height="${size + 0.5}" preserveAspectRatio="none"/>`;
+  return h + `</g>`;
+}
+
+function renderLegend(top, ran) {
+  const ramp = `<div class="ramp">${SEQ.map(c => `<span style="background:${c}"></span>`).join("")}</div>`;
+  $("#legend").innerHTML = (ran
+    ? `<span class="scale">P(failure) <span>0</span>${ramp}<span>${top}</span></span>`
+    : `<span class="scale">Not run yet: grey</span>`) +
+    `<span class="key"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="var(--idle)" stroke="var(--ink)"/></svg>origin: fails to reach a key destination in time</span>` +
+    `<span class="key"><svg width="14" height="14"><circle cx="7" cy="7" r="4" fill="var(--surface)" stroke="var(--ink)"/><circle cx="7" cy="7" r="6.5" fill="none" stroke="var(--ink)"/></svg>key destination</span>` +
+    `<span class="key"><svg width="14" height="14"><line x1="1" y1="7" x2="13" y2="7" stroke="var(--idle)" stroke-width="4" stroke-linecap="round"/></svg>edge: closed</span>` +
+    `<span class="key"><svg width="14" height="14"><rect x="2" y="2" width="10" height="10" rx="2" fill="var(--idle)"/></svg>bridge: unusable</span>` +
+    `<span class="key"><svg width="14" height="14"><polygon points="7,1 8.8,5.5 13,5.5 9.6,8.3 10.9,13 7,10.2 3.1,13 4.4,8.3 1,5.5 5.2,5.5" fill="var(--ink)"/></svg>epicentre</span>` +
+    `<label><input type="checkbox" id="basemap"${state.basemap ? " checked" : ""}>Base map</label>` +
+    (state.basemap ? `<span class="credit">Base map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</span>` : "");
+}
+
+// ---- hover ------------------------------------------------------------------------------------
+
+function tipHTML(kind, id) {
+  const t = state.ex.network.tables, probs = probabilities(), pr = probs[id];
+  const pLine = pr ? `<div>P(${esc(pr.family.label)}) = <b class="v">${fmtP(pr.p)}</b> <span class="v">[${fmtP(pr.ci95[0])}, ${fmtP(pr.ci95[1])}]</span></div>` : "";
+  if (kind === "node") {
+    const n = t.Node.find(x => x.id === id);
+    return `<b>${esc(id)}</b>${n.name ? ` · ${esc(n.name)}` : ""}<div>${n.key_destination ? "key destination" : pr ? "origin" : "node"}</div>${pLine}`;
+  }
+  if (kind === "edge") {
+    const e = t.Edge.find(x => x.id === id), on = (t.Bridge || []).filter(b => b.edge === id).map(b => b.id);
+    return `<b>${esc(id)}</b> · ${esc(e.source)}–${esc(e.target)}<div>${e.length_km.toFixed(1)} km at ${e.avg_speed_kph} km/h; bridges: ${on.length ? esc(on.join(", ")) : "none"}</div>${pLine}`;
+  }
+  if (kind === "bridge") {
+    const b = t.Bridge.find(x => x.id === id);
+    return `<b>${esc(id)}</b> on ${esc(b.edge)}<div>class ${esc(b.hazus_class)}${b.vs30 ? `; Vs30 ${b.vs30} m/s` : ""}</div>${pLine}`;
+  }
+  const ev = eventRow();
+  return `<b>${esc(ev.id)}</b><div>M${esc(ev.mw)} at ${ev.lat}, ${ev.lon}; depth ${ev.depth_km} km</div>${ev.description ? `<div>${esc(ev.description)}</div>` : ""}`;
+}
+
+function showTip(html, e) {
+  const tip = $("#tip");
+  tip.innerHTML = html; tip.style.display = "block";
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 330) + "px";
+  tip.style.top = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8) + "px";
+}
+const hideTip = () => { $("#tip").style.display = "none"; };
+
+document.addEventListener("mousemove", e => {
+  const g = e.target.closest?.("[data-tip]");
+  if (!g) return hideTip();
+  if (g.dataset.tip === "bar") return showTip(g.dataset.html, e);
+  if (g.dataset.tip === "bnnode") return showTip(bnTip(g.dataset.id), e);
+  showTip(tipHTML(g.dataset.tip, g.dataset.id), e);
+});
+
+// ---- results panel ------------------------------------------------------------------------------
+
+function bars(rows, label) {
+  // Horizontal bars with 95% intervals; one series, so the heading names it and no legend is needed.
+  if (!rows.length) return "";
+  rows = [...rows].sort((a, b) => b.p - a.p);
+  const top = Math.max(0.01, ...rows.map(r => r.ci95[1]));
+  const W = 320, L = 52, R = 52, rowH = 20, H = rows.length * rowH + 22;
+  const x = v => L + (v / top) * (W - L - R);
+  let h = `<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">`;
+  for (const t of [0, top / 2, top]) h += `<line x1="${x(t)}" x2="${x(t)}" y1="0" y2="${H - 18}" stroke="var(--grid)"/>` +
+    `<text x="${x(t)}" y="${H - 4}" text-anchor="middle">${fmtP(t)}</text>`;
+  rows.forEach((r, i) => {
+    const y = i * rowH + 3, bh = rowH - 8;
+    const tip = `<b>${esc(r.id)}</b><div>P(${esc(label)}) = <b>${fmtP(r.p)}</b></div><div>95% interval [${fmtP(r.ci95[0])}, ${fmtP(r.ci95[1])}]</div>`;
+    h += `<g data-tip="bar" data-html="${esc(tip)}">` +
+         `<rect x="0" y="${y - 2}" width="${W}" height="${rowH}" fill="transparent"/>` +
+         `<text x="${L - 6}" y="${y + bh - 2}" text-anchor="end">${esc(r.id)}</text>` +
+         `<rect x="${L}" y="${y}" width="${Math.max(0, x(r.p) - L)}" height="${bh}" rx="2" fill="var(--bar)"/>` +
+         `<line x1="${x(r.ci95[0])}" x2="${x(r.ci95[1])}" y1="${y + bh / 2}" y2="${y + bh / 2}" stroke="var(--ci)" stroke-width="1.5"/>` +
+         `<text x="${x(r.ci95[1]) + 4}" y="${y + bh - 2}">${fmtP(r.p)}</text></g>`;
+  });
+  return h + `</svg>`;
+}
+
+function renderResults() {
+  const res = state.result, el = $("#results");
+  if (!res) { el.innerHTML = `<p class="empty">Set the scenario on the left and press Run.</p>`; return; }
+  const probs = probabilities(), groups = {};
+  for (const [id, v] of Object.entries(probs)) (groups[v.family.quantity] ??= []).push({ id, ...v });
+  let h = "";
+  for (const f of FAMILIES) {
+    const rows = groups[f.quantity];
+    if (!rows) continue;
+    const shown = rows.length > 25 ? [...rows].sort((a, b) => b.p - a.p).slice(0, 25) : rows;
+    h += `<h3>P(${esc(f.label)})${rows.length > shown.length ? ` · top ${shown.length} of ${rows.length}` : ""}</h3>${bars(shown, f.label)}` +
+         `<details><summary>Table</summary><table class="data"><tr><th>${esc(f.table)}</th><th class="num">P</th><th class="num">95% interval</th></tr>` +
+         [...rows].sort((a, b) => b.p - a.p).map(r => `<tr><td>${esc(r.id)}</td><td class="num">${fmtP(r.p)}</td><td class="num">${fmtP(r.ci95[0])}–${fmtP(r.ci95[1])}</td></tr>`).join("") +
+         `</table></details>`;
+  }
+  if (res.rules) {
+    const extract = new Set(res.rules.extract);
+    h += `<h3>rsr rules at target_add_h = ${res.rules.target_add_h} h</h3>` +
+         `<table class="data"><tr><th>origin</th><th>rules used</th><th class="num">left to ndtools</th></tr>` +
+         res.rules.origins.map(o => `<tr><td>${esc(o.origin)}</td><td>${esc(o.rules)}${extract.has(o.origin) ? " · extracting" : ""}</td>` +
+                                    `<td class="num">${(100 * o.unclassified).toFixed(1)}%</td></tr>`).join("") +
+         `</table><p class="meta">Each threshold gets its own rules, in rsr/&lt;origin&gt;/target_add_h=&lt;h&gt;/. ` +
+         `Until they are extracted, rules that still hold from other thresholds classify what they can and ndtools ` +
+         `decides the rest, so the probabilities are the same, only slower.</p>`;
+  }
+  const rec = res.record;
+  h += `<h3>This run</h3><p class="meta">${esc(res.statement)}</p>` +
+       (rec ? `<p class="meta">Samples from ${esc(res.samples_from)}` +
+              (rec.samples_file.bank ? ` (${(rec.samples_file.bytes / 2 ** 20).toFixed(1)} MB)` : "") +
+              `; scope ${res.scope.relevant} of ${res.scope.of} variables. Recorded as <code>${esc(rec.id)}</code>; ` +
+              `reproduce with <code>python -m src replay ${esc(rec.id)}</code>.</p>` : "") +
+       `<p class="meta">${res.samples.toLocaleString()} samples, ${res.elapsed_s} s. Computed: ${res.computed.map(esc).join(" → ")}.</p>` +
+       (res.warnings.length ? `<ul class="notes">${res.warnings.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : "");
+  el.innerHTML = h;
+}
+
+// ---- the BN: every variable, layer by layer, at its row's location ----------------------------------------
+
+const LAYER_NAMES = { hazard: "intensity", fragility: "damage", functionality: "usability", edge: "edge state", system: "system state" };
+
+function bnLayout() {
+  // One plane per quantity, in sampling order; on it each node sits where its row is.
+  const ex = state.ex, t = ex.network.tables, nodes = ex.nodes;
+  const where = {};
+  for (const n of t.Node || []) where[`Node:${n.id}`] = n;
+  for (const b of t.Bridge || []) where[`Bridge:${b.id}`] = b;
+  for (const e of t.Edge || []) {
+    const a = where[`Node:${e.source}`], b = where[`Node:${e.target}`];
+    if (a && b) where[`Edge:${e.id}`] = { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2 };
+  }
+  const ev = (t.Event || [])[0];
+  if (ev && ev.lat != null) where[`Event:${ev.id}`] = ev;
+  const located = Object.values(where);
+  const xs = located.map(p => mercX(p.lon)), ys = located.map(p => mercY(p.lat));
+  const gx0 = Math.min(...xs), gx1 = Math.max(...xs), gy0 = Math.min(...ys), gy1 = Math.max(...ys);
+  const norm = p => [(mercX(p.lon) - gx0) / ((gx1 - gx0) || 1), (mercY(p.lat) - gy0) / ((gy1 - gy0) || 1)];
+  const layers = [];
+  for (const n of nodes) if (!layers.some(l => l.quantity === n.quantity)) layers.push({ quantity: n.quantity, function: n.function, nodes: [] });
+  for (const n of nodes) layers.find(l => l.quantity === n.quantity).nodes.push(n);
+  return { where, norm, layers };
+}
+
+function renderBN() {
+  const ex = state.ex, { where, norm, layers } = bnLayout();
+  const L = 230, PW = 700, PH = 120, SK = 170, GAP = 150, TOP = 30;
+  const W = L + PW + SK + 40, H = TOP + (layers.length - 1) * GAP + PH + 30;
+  const at = (i, uv) => [L + uv[0] * PW + (1 - uv[1]) * SK, TOP + i * GAP + uv[1] * PH];
+  const pos = {}, layerOf = {};
+  layers.forEach((l, i) => l.nodes.forEach(n => {
+    const p = where[`${n.entity}:${n.row}`];
+    pos[n.id] = at(i, p ? norm(p) : [0.5, 0.5]); layerOf[n.id] = i;
+  }));
+  const links = ex.nodes.reduce((k, n) => k + n.parents.length, 0), dense = ex.nodes.length > 120;
+  let h = "";
+  // Planes, each with the network drawn faintly on it for orientation.
+  const t = ex.network.tables, byNode = Object.fromEntries((t.Node || []).map(n => [n.id, n]));
+  layers.forEach((l, i) => {
+    const c = [[0, 0], [1, 0], [1, 1], [0, 1]].map(uv => at(i, uv).join(",")).join(" ");
+    h += `<polygon points="${c}" fill="var(--plane)" stroke="var(--grid)"/>`;
+    for (const e of t.Edge || []) {
+      const a = byNode[e.source], b = byNode[e.target];
+      if (!a || !b) continue;
+      const [ax, ay] = at(i, norm(a)), [bx, by] = at(i, norm(b));
+      h += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="var(--grid)" stroke-width="1"/>`;
+    }
+    const joint = ex.joint.includes(l.function);
+    const role = LAYER_NAMES[l.function.split(".")[0]] || l.function;
+    const [lx, ly] = at(i, [0, 0.5]);
+    h += `<text x="${lx - 14}" y="${ly - 6}" text-anchor="end" font-size="13" font-weight="600" style="fill:var(--ink)">${esc(l.quantity)}</text>` +
+         `<text x="${lx - 14}" y="${ly + 10}" text-anchor="end" font-size="11">${esc(role)} · ${l.nodes.length} node${l.nodes.length === 1 ? "" : "s"}</text>` +
+         `<text x="${lx - 14}" y="${ly + 24}" text-anchor="end" font-size="11">${joint ? "one joint object" : "one object per node"}</text>`;
+  });
+  // Parent -> child links, then the nodes on top.
+  for (const n of ex.nodes) for (const pid of n.parents) {
+    if (!pos[pid]) continue;
+    const [ax, ay] = pos[pid], [bx, by] = pos[n.id];
+    h += `<line class="link" data-from="${esc(pid)}" data-to="${esc(n.id)}" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke-width="${dense ? 0.5 : 1}"${dense ? ' stroke-opacity="0.35"' : ""}/>`;
+  }
+  const r = dense ? 3 : 6;
+  layers.forEach((l, i) => {
+    const fill = i < 7 ? `var(--cat-${i + 1})` : "var(--idle)";
+    for (const n of l.nodes) {
+      const [x, y] = pos[n.id];
+      h += `<g data-tip="bnnode" data-id="${esc(n.id)}"><circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="var(--surface)" stroke-width="1.5"/>` +
+           `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="transparent"/></g>`;
+    }
+  });
+  const svg = $("#bn");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = h;
+  $("#bn-info").textContent = `${ex.nodes.length} nodes and ${links.toLocaleString()} parent links, one plane per variable, in sampling order. ` +
+    `Each node sits at its row's location: bridges at their coordinates, edges at their midpoints, origins at their nodes. ` +
+    `Hover a node to trace its parents and children. Drawn to show the whole structure, not to be read link by link.`;
+}
+
+function renderSchema() {
+  const ex = state.ex;
+  $("#schema-info").textContent = `The functions this example binds, the quantities between them and the tables they read: ` +
+    `${ex.functions.join(" → ")}. ${ex.variables} variables in ${ex.objects} tbnpy probability objects.`;
+  const src = `/bn#view=${encodeURIComponent(ex.assembly.id)}&tab=functions&embed=1`;
+  if (paneOn("schema")) $("#schema-frame").src = src; else $("#schema-frame").dataset.src = src;
+}
+
+function bnTip(id) {
+  const n = state.ex.nodes.find(x => x.id === id), children = state.ex.nodes.filter(x => x.parents.includes(id));
+  const pr = probabilities()[n.row], fam = pr && pr.family.quantity === n.quantity ? pr : null;
+  return `<b>${esc(n.id)}</b><div>${esc(n.function)}${n.parameter_set ? ` · ${esc(n.parameter_set)}` : ""}</div>` +
+         `<div>${n.parents.length} parent${n.parents.length === 1 ? "" : "s"}${n.parents.length && n.parents.length <= 4 ? `: ${n.parents.map(esc).join(", ")}` : ""}</div>` +
+         `<div>${children.length} child${children.length === 1 ? "" : "ren"}${children.length && children.length <= 4 ? `: ${children.map(c => esc(c.id)).join(", ")}` : ""}</div>` +
+         (fam ? `<div>P(${esc(fam.family.label)}) = <b class="v">${fmtP(fam.p)}</b></div>` : "");
+}
+
+$("#bn").addEventListener("mouseover", e => {
+  const g = e.target.closest("[data-tip=bnnode]"), svg = $("#bn");
+  for (const l of svg.querySelectorAll(".link.hot")) l.classList.remove("hot");
+  svg.classList.toggle("focus", !!g);
+  if (!g) return;
+  const id = g.dataset.id;
+  for (const l of svg.querySelectorAll(".link")) if (l.dataset.from === id || l.dataset.to === id) l.classList.add("hot");
+});
+
+// ---- assumptions ------------------------------------------------------------------------------------------
+
+function renderAssumptions() {
+  const net = state.ex.network;
+  $("#pane-assume").innerHTML = `<h2>${esc(net.title)}</h2>` +
+    `<p class="meta">${esc(state.ex.assembly.description || "")}</p>` +
+    `<dl>${Object.entries(net.assumptions).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
+}
+
+// ---- ask in words -------------------------------------------------------------------------------------
+
+async function chatStatus() {
+  try {
+    const s = await getJSON("/api/chat-status");
+    $("#chat-status").dataset.model = `${s.provider} · ${s.model}`;
+    $("#chat-status").textContent = s.available
+      ? `${s.provider} · ${s.model}. The model chooses the query; the engine computes every number. The scenario on the left applies.`
+      : `No language model is ready: ${s.reason} The Run button works without one.`;
+  } catch (err) { $("#chat-status").textContent = err.message; }
+}
+
+// Questions from the answer sheet (examples/toy-ca/answer-sheet.md); any other example gets general ones.
+const EXAMPLES = {
+  "toy-ca/demo": [
+    "How likely is each origin to be cut off from n1 and n2?",
+    "What would retrofitting b2 to HWB11 do to n4's chance of being cut off?",
+    "How likely is edge e6 to close if the earthquake were M7?",
+    "Which bridges are most likely to be unusable?",
+  ],
+};
+const GENERAL = ["Which edges are most likely to close?", "How likely is each origin to fail?"];
+
+function renderExamples() {
+  const list = EXAMPLES[state.ex?.assembly.id] || GENERAL;
+  $("#chat-examples").innerHTML = list.map(q => `<button type="button" class="chip">${esc(q)}</button>`).join("");
+  for (const b of $("#chat-examples").querySelectorAll(".chip")) b.addEventListener("click", () => ask(b.textContent));
+}
+
+function currentScenario() {
+  const deepMerge = (a, b) => {
+    const out = structuredClone(a);
+    for (const [k, v] of Object.entries(b)) out[k] = v && typeof v === "object" && !Array.isArray(v)
+      ? deepMerge(out[k] || {}, v) : v;
+    return out;
+  };
+  return deepMerge(state.preset, interventions());
+}
+
+async function renderProposals() {
+  try {
+    const data = await getJSON("/api/proposals");
+    $("#proposal-list").innerHTML = data.proposals.map(p => proposalCard(p, {activate: true})).join("") || `<p class="meta">No proposals yet.</p>`;
+    if (state.asking) $("#proposal-list").querySelectorAll("button[data-activate]").forEach(b => { b.disabled = true; });
+  } catch (err) { $("#proposal-status").textContent = err.message; }
+}
+
+document.addEventListener("click", async e => {
+  const button = e.target.closest("button[data-activate]");
+  if (!button || button.disabled || state.asking) return;
+  const card = button.closest(".proposal-card");
+  const reviewer = card.querySelector("[data-reviewer]").value.trim();
+  if (!reviewer) { card.querySelector(".review-error").textContent = "Enter the reviewer's name before activating."; return; }
+  button.disabled = true;
+  try {
+      const active = await getJSON("/api/proposals/activate", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({id: button.dataset.activate, sha256: button.dataset.sha, reviewer})});
+      for (const turn of conversation) turn.proposals = turn.proposals.map(p => p.id === active.id ? active : p);
+      for (const el of $("#chat-log").querySelectorAll("[data-proposal-id]")) {
+        if (el.dataset.proposalId === active.id) el.outerHTML = proposalCard(active);
+      }
+      await renderProposals(); await load(state.ex.assembly.id, {preserveChat: true});
+      $("#proposal-status").textContent = "Activated. The model inputs have been refreshed.";
+  } catch (err) { button.disabled = false; card.querySelector(".review-error").textContent = err.message; }
+});
+$("#proposal-draft").onclick = async () => {
+  try {
+    await getJSON("/api/proposals", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(JSON.parse($("#proposal-json").value))});
+    await renderProposals();
+  } catch (err) { $("#proposal-status").textContent = err.message; }
+};
+$("#scenario-preset").onchange = () => {
+  const value = $("#scenario-preset").value;
+  const query = value === "" ? {} : state.scenarios[Number(value)].query;
+  state.preset = Object.fromEntries(Object.entries(query).filter(([k]) => ["rows", "parameters", "parameter_sets", "do", "evidence"].includes(k)));
+  renderControls();
+  applyScenarioControls();
+  state.chat = []; $("#chat-log").innerHTML = ""; state.result = null; renderMap(); renderResults();
+};
+
+function applyScenarioControls() {
+  for (const input of document.querySelectorAll("#controls input[data-row]")) {
+    const v = state.preset.rows?.[input.dataset.row]?.[input.dataset.attr];
+    if (v != null) input.value = v;
+  }
+  for (const input of document.querySelectorAll("#controls input[data-fn]")) {
+    const v = state.preset.parameters?.[input.dataset.fn]?.[input.dataset.name];
+    if (v != null) input.value = JSON.stringify(v);
+  }
+  for (const input of document.querySelectorAll("#controls select[data-fn]")) {
+    const v = state.preset.parameter_sets?.[input.dataset.fn];
+    if (v != null) input.value = v;
+  }
+}
+
+// ---- wiring ---------------------------------------------------------------------------------------------
+
+const paneOn = name => $(`#pane-${name}`).classList.contains("on");
+for (const b of document.querySelectorAll("nav button")) b.addEventListener("click", () => {
+  for (const x of document.querySelectorAll("nav button")) x.classList.toggle("on", x === b);
+  for (const p of document.querySelectorAll(".pane")) p.classList.toggle("on", p.id === `pane-${b.dataset.pane}`);
+  const frame = $("#schema-frame");
+  if (b.dataset.pane === "schema" && frame.dataset.src) { frame.src = frame.dataset.src; delete frame.dataset.src; }
+});
+$("#example").addEventListener("change", e => load(e.target.value));
+$("#run").addEventListener("click", run);
+$("#theme").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  store.set("theme", document.documentElement.dataset.theme);
+  if (state.ex) renderMap();                       // the base map follows the theme
+});
+document.addEventListener("change", e => {
+  if (e.target.id !== "basemap") return;
+  state.basemap = e.target.checked;
+  store.set("basemap", state.basemap ? "on" : "off");
+  renderMap();
+});
+mountAsk();
+init().catch(err => setStatus(err.message, true));
+</script>
+</body>
+</html>

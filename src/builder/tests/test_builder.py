@@ -224,15 +224,13 @@ def test_campbell_reproduces_the_dataset_script(lib, mw, r, expected):
     assert float(campbell_2003_ln_median(mw, r, c)) == pytest.approx(expected)
 
 
-def _prob(cls, rows, params=None, *, inputs=None, states=None, tables=None, parent_rows=None, output=None):
+def _prob(cls, rows, params=None, *, inputs=None, states=None, tables=None, parent_rows=None):
     """One probability object over ``rows``, as bn_builder builds it. ``inputs``: {port: [parent columns per row]}."""
     params = params if isinstance(params, list) else [params] * len(rows)
     columns = [{port: cols[r] for port, cols in (inputs or {}).items()} for r in range(len(rows))]
     n_parents = 1 + max((c for row in columns for cols in row.values() for c in cols), default=-1)
     spec = {"rows": rows, "parameters": params, "input_columns": columns, "states": states or {},
             "tables": tables or {}, "parent_rows": parent_rows or {}}
-    if output:
-        spec["output"] = output
     return cls([SimpleNamespace(name=f"child{j}") for j in range(len(rows))],
                [SimpleNamespace(name=f"parent{i}") for i in range(n_parents)], spec)
 
@@ -336,45 +334,46 @@ def test_an_edge_closes_with_any_bridge_and_is_open_without_one():
     assert out.tolist() == [[1, 1], [0, 1]]
 
 
-def _diamond(output, target_max=0.5, directed=False, key="t", origins="sab"):
+def _diamond(target_add_h=0.5, directed=False, key="t", origins="sab"):
     """s-a-t is 1 h and s-b-t 2 h at 80 km/h; ``key`` is the key destination."""
     nodes = [{"id": x, "key_destination": x == key} for x in "sabt"]
     edges = [{"id": eid, "source": u, "target": v, "directed": directed, "length_km": km, "avg_speed_kph": 80.0}
              for eid, u, v, km in (("sa", "s", "a", 40.0), ("at", "a", "t", 40.0), ("sb", "s", "b", 80.0),
                                    ("bt", "b", "t", 80.0))]
     rows = [{"id": x} for x in origins]
-    return _prob(TravelTimeToNearest, rows, {"target_max": target_max}, inputs={"open": [[0, 1, 2, 3]] * len(rows)},
-                 tables={"Node": nodes, "Edge": edges}, parent_rows={"open": [[e["id"] for e in edges]] * len(rows)},
-                 output=output)
+    event = {"id": "reach", "analysis": "system.travel-time-to-nearest", "target_add_h": target_add_h}
+    return _prob(TravelTimeToNearest, rows, None, inputs={"open": [[0, 1, 2, 3]] * len(rows)},
+                 tables={"Node": nodes, "Edge": edges, "SystemEvent": [event]},
+                 parent_rows={"open": [[e["id"] for e in edges]] * len(rows)})
 
 
-def test_travel_time_to_nearest_judges_each_origin_against_its_intact_time():
+def test_each_origin_is_judged_against_its_intact_travel_time():
     #                          sa at sb bt
     states = torch.tensor([[1, 1, 1, 1],      # intact: s 1.0 h (via a)
                            [0, 1, 1, 1],      # sa closed: s goes via b, 2.0 h, 1.0 h late
                            [0, 1, 0, 1]], dtype=torch.float64)     # s cut off
-    time, state = _diamond("travel_time"), _diamond("state")
-    assert time.evaluate(states)[:, 0].tolist() == [1.0, 2.0, float("inf")]
-    assert state.evaluate(states)[:, 0].tolist() == [1, 0, 0]          # 1.0 h late > target_max 0.5 h
-    assert time.evaluate(states)[:, 1].tolist() == [0.5, 0.5, 0.5]     # a reaches t directly throughout
+    state = _diamond()
+    out = state.evaluate(states)
+    assert out[:, 0].tolist() == [1, 0, 0]                             # 1.0 h late > target_add_h 0.5 h
+    assert out[:, 1].tolist() == [1, 1, 1]                             # a reaches t directly throughout
     assert not state.notes
 
-    lenient = _diamond("state", target_max=1.0).evaluate(states[1:2])
+    lenient = _diamond(target_add_h=1.0).evaluate(states[1:2])
     assert lenient[0, 0] == 1                                          # 1.0 h late is within 1.0 h
 
 
 def test_an_origin_with_no_route_even_intact_is_reported():
     # Every edge points away from s, so only s itself reaches s.
-    state = _diamond("state", directed=True, key="s", origins="sabt")
+    state = _diamond(directed=True, key="s", origins="sabt")
     assert state.evaluate(torch.ones((1, 4), dtype=torch.float64))[0].tolist() == [1, 0, 0, 0]
     assert "fail even with every edge open" in state.notes[0]
 
 
-def test_every_travel_time_node_reads_every_link(lib):
+def test_every_system_node_reads_every_edge(lib):
     c = _compile(lib, "ema-highway/gmm")
     nodes = {n["id"]: n for n in c.nodes()}
     origins = [r["id"] for r in c.network.rows("Node") if not r["key_destination"]]
-    assert len(origins) == 72 and "TravelTime::n22" not in nodes              # key destinations are not origins
+    assert len(origins) == 72 and "SystemState::n22" not in nodes             # key destinations are not origins
     assert len(nodes[f"SystemState::{origins[0]}"]["parents"]) == 129
 
 
@@ -437,3 +436,24 @@ def test_independent_sites_are_uncorrelated_and_say_so(lib):
 def test_truncation_bounds_the_independent_normals(lib):
     _, eps = _field(lib, "independent.any-im", [{"id": "a", "lat": 0.0, "lon": 0.0}], truncation=2.0)
     assert np.abs(eps).max() <= 2.0 and eps.std() < 0.9                # truncated at 2 sd: variance ~0.77
+
+
+# ---- the system event ---------------------------------------------------------------
+
+
+def test_a_system_event_takes_the_defaults_it_leaves_out(lib, tmp_path):
+    shutil.copytree(NETWORKS / "toy-ca", tmp_path / "toy-ca", ignore=shutil.ignore_patterns("tbnpy", "*_files"))
+    path = tmp_path / "toy-ca" / "network.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["tables"]["SystemEvent"] = [{"id": "reach"}]
+    path.write_text(json.dumps(data), encoding="utf-8")
+    event = load_network("toy-ca", lib, root=tmp_path).row("reach")
+    assert event["analysis"] == "system.travel-time-to-nearest" and event["target_add_h"] == 0.5
+
+
+def test_the_bound_system_function_must_be_the_events_analysis(lib):
+    def other_analysis(network):
+        network.tables["SystemEvent"][0]["analysis"] = "system.max-flow"
+
+    with pytest.raises(RegistryError, match="judged by system.max-flow, not system.travel-time-to-nearest"):
+        _compile(lib, "toy-ca/demo", network_edit=other_analysis)

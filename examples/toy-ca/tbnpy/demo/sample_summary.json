@@ -3,82 +3,62 @@
   "seed": 20261022,
   "device": "cpu",
   "variables": {
-    "Usable::b1": {
-      "P": {
-        "0": 0.018,
-        "1": 0.982
-      }
+    "SA(1.0)::b1": {
+      "mean_finite": 0.22818406980918915,
+      "P_inf": 0.0
     },
-    "Usable::b2": {
-      "P": {
-        "0": 0.086,
-        "1": 0.914
-      }
+    "SA(1.0)::b2": {
+      "mean_finite": 0.16740637894987703,
+      "P_inf": 0.0
     },
-    "Usable::b3": {
-      "P": {
-        "0": 0.014,
-        "1": 0.986
-      }
+    "SA(1.0)::b3": {
+      "mean_finite": 0.18541111626047274,
+      "P_inf": 0.0
     },
-    "Usable::b4": {
-      "P": {
-        "0": 0.2945,
-        "1": 0.7055
-      }
+    "SA(1.0)::b4": {
+      "mean_finite": 0.34013505021856905,
+      "P_inf": 0.0
     },
-    "Usable::b5": {
-      "P": {
-        "0": 0.011,
-        "1": 0.989
-      }
+    "SA(1.0)::b5": {
+      "mean_finite": 0.18215462389560375,
+      "P_inf": 0.0
     },
-    "Usable::b6": {
-      "P": {
-        "0": 0.4275,
-        "1": 0.5725
-      }
+    "SA(1.0)::b6": {
+      "mean_finite": 0.4569263989245789,
+      "P_inf": 0.0
     },
-    "Usable::b7": {
-      "P": {
-        "0": 0.1035,
-        "1": 0.8965
-      }
+    "SA(1.0)::b7": {
+      "mean_finite": 0.45994705608513253,
+      "P_inf": 0.0
     },
-    "Usable::b8": {
-      "P": {
-        "0": 0.0205,
-        "1": 0.9795
-      }
+    "SA(1.0)::b8": {
+      "mean_finite": 0.23563171075467618,
+      "P_inf": 0.0
     },
-    "Usable::b9": {
-      "P": {
-        "0": 0.0495,
-        "1": 0.9505
-      }
+    "SA(1.0)::b9": {
+      "mean_finite": 0.317845830044526,
+      "P_inf": 0.0
     },
-    "Usable::b10": {
-      "P": {
-        "0": 0.0265,
-        "1": 0.9735
-      }
+    "SA(1.0)::b10": {
+      "mean_finite": 0.23834978150300035,
+      "P_inf": 0.0
     },
     "SystemState::n3": {
       "P": {
-        "0": 0.014,
-        "1": 0.986
+        "0": 0.0075,
+        "1": 0.9925
       }
     },
     "SystemState::n4": {
       "P": {
-        "0": 0.1465,
-        "1": 0.8535
+        "0": 0.1225,
+        "1": 0.8775
       }
     },
     "SystemState::n5": {
       "P": {
-        "0": 0.086,
-        "1": 0.914
+        "0": 0.0825,
+        "1": 0.9175
       }
     },
     "SystemState::n6": {
@@ -89,86 +69,122 @@
     },
     "SystemState::n7": {
       "P": {
-        "0": 0.0035,
-        "1": 0.9965
+        "0": 0.0015,
+        "1": 0.9985
       }
     },
     "SystemState::n8": {
-      "P": {
-        "0": 0.025,
-        "1": 0.975
-      }
-    },
-    "TravelTime::n3": {
-      "mean_finite": 0.7577200674678682,
-      "P_inf": 0.0015
-    },
-    "TravelTime::n4": {
-      "mean_finite": 1.5808152400016944,
-      "P_inf": 0.0165
-    },
-    "TravelTime::n5": {
-      "mean_finite": 0.9916501703229584,
-      "P_inf": 0.004
-    },
-    "TravelTime::n6": {
-      "mean_finite": 1.30878225313755,
-      "P_inf": 0.004
-    },
-    "TravelTime::n7": {
-      "mean_finite": 1.8334054813794252,
-      "P_inf": 0.002
-    },
-    "TravelTime::n8": {
-      "mean_finite": 1.2552397039328655,
-      "P_inf": 0.002
-    },
-    "EdgeOpen::e1": {
       "P": {
         "0": 0.018,
         "1": 0.982
       }
     },
+    "Usable::b1": {
+      "P": {
+        "0": 0.0215,
+        "1": 0.9785
+      }
+    },
+    "Usable::b2": {
+      "P": {
+        "0": 0.0825,
+        "1": 0.9175
+      }
+    },
+    "Usable::b3": {
+      "P": {
+        "0": 0.0075,
+        "1": 0.9925
+      }
+    },
+    "Usable::b4": {
+      "P": {
+        "0": 0.2695,
+        "1": 0.7305
+      }
+    },
+    "Usable::b5": {
+      "P": {
+        "0": 0.0105,
+        "1": 0.9895
+      }
+    },
+    "Usable::b6": {
+      "P": {
+        "0": 0.4105,
+        "1": 0.5895
+      }
+    },
+    "Usable::b7": {
+      "P": {
+        "0": 0.1025,
+        "1": 0.8975
+      }
+    },
+    "Usable::b8": {
+      "P": {
+        "0": 0.0245,
+        "1": 0.9755
+      }
+    },
+    "Usable::b9": {
+      "P": {
+        "0": 0.0495,
+        "1": 0.9505
+      }
+    },
+    "Usable::b10": {
+      "P": {
+        "0": 0.024,
+        "1": 0.976
+      }
+    },
+    "EdgeOpen::e1": {
+      "P": {
+        "0": 0.0215,
+        "1": 0.9785
+      }
+    },
     "EdgeOpen::e2": {
       "P": {
-        "0": 0.086,
-        "1": 0.914
+        "0": 0.0825,
+        "1": 0.9175
       }
     },
     "EdgeOpen::e3": {
       "P": {
-        "0": 0.014,
-        "1": 0.986
+        "0": 0.0075,
+        "1": 0.9925
       }
     },
     "EdgeOpen::e4": {
       "P": {
-        "0": 0.2945,
-        "1": 0.7055
+        "0": 0.2695,
+        "1": 0.7305
       }
     },
     "EdgeOpen::e5": {
       "P": {
-        "0": 0.011,
-        "1": 0.989
+        "0": 0.0105,
+        "1": 0.9895
       }
     },
     "EdgeOpen::e6": {
       "P": {
-        "0": 0.4275,
-        "1": 0.5725
+        "0": 0.4105,
+        "1": 0.5895
       }
     },
     "EdgeOpen::e7": {
       "P": {
-        "0": 0.1035,
-        "1": 0.8965
+        "0": 0.1025,
+        "1": 0.8975
       }
     },
     "EdgeOpen::e8": {
       "P": {
-        "0": 0.0205,
-        "1": 0.9795
+        "0": 0.0245,
+        "1": 0.9755
       }
     },
     "EdgeOpen::e9": {
@@ -179,139 +195,99 @@
     },
     "EdgeOpen::e10": {
       "P": {
-        "0": 0.0265,
-        "1": 0.9735
+        "0": 0.024,
+        "1": 0.976
       }
     },
     "DamageState.HazusBridge::b1": {
       "P": {
-        "none": 0.9655,
+        "none": 0.967,
         "slight": 0.0,
-        "moderate": 0.0165,
-        "extensive": 0.01,
-        "complete": 0.008
+        "moderate": 0.0115,
+        "extensive": 0.013,
+        "complete": 0.0085
       }
     },
     "DamageState.HazusBridge::b2": {
       "P": {
-        "none": 0.7555,
-        "slight": 0.1045,
-        "moderate": 0.054,
-        "extensive": 0.0585,
-        "complete": 0.0275
+        "none": 0.756,
+        "slight": 0.1025,
+        "moderate": 0.059,
+        "extensive": 0.0515,
+        "complete": 0.031
       }
     },
     "DamageState.HazusBridge::b3": {
       "P": {
-        "none": 0.98,
+        "none": 0.984,
         "slight": 0.0,
-        "moderate": 0.006,
-        "extensive": 0.0105,
-        "complete": 0.0035
+        "moderate": 0.0085,
+        "extensive": 0.0035,
+        "complete": 0.004
       }
     },
     "DamageState.HazusBridge::b4": {
       "P": {
-        "none": 0.4345,
-        "slight": 0.162,
-        "moderate": 0.109,
-        "extensive": 0.148,
-        "complete": 0.1465
+        "none": 0.4575,
+        "slight": 0.155,
+        "moderate": 0.118,
+        "extensive": 0.1315,
+        "complete": 0.138
       }
     },
     "DamageState.HazusBridge::b5": {
       "P": {
-        "none": 0.9825,
+        "none": 0.981,
         "slight": 0.0,
-        "moderate": 0.0065,
+        "moderate": 0.0085,
         "extensive": 0.0065,
-        "complete": 0.0045
+        "complete": 0.004
       }
     },
     "DamageState.HazusBridge::b6": {
       "P": {
-        "none": 0.327,
-        "slight": 0.131,
-        "moderate": 0.1145,
-        "extensive": 0.187,
-        "complete": 0.2405
+        "none": 0.332,
+        "slight": 0.154,
+        "moderate": 0.1035,
+        "extensive": 0.177,
+        "complete": 0.2335
       }
     },
     "DamageState.HazusBridge::b7": {
       "P": {
-        "none": 0.851,
+        "none": 0.8445,
         "slight": 0.0,
-        "moderate": 0.0455,
-        "extensive": 0.0445,
-        "complete": 0.059
+        "moderate": 0.053,
+        "extensive": 0.05,
+        "complete": 0.0525
       }
     },
     "DamageState.HazusBridge::b8": {
       "P": {
-        "none": 0.96,
+        "none": 0.9545,
         "slight": 0.0,
-        "moderate": 0.0195,
-        "extensive": 0.012,
-        "complete": 0.0085
+        "moderate": 0.021,
+        "extensive": 0.013,
+        "complete": 0.0115
       }
     },
     "DamageState.HazusBridge::b9": {
       "P": {
-        "none": 0.9245,
+        "none": 0.917,
         "slight": 0.0,
-        "moderate": 0.026,
-        "extensive": 0.0265,
-        "complete": 0.023
+        "moderate": 0.0335,
+        "extensive": 0.03,
+        "complete": 0.0195
       }
     },
     "DamageState.HazusBridge::b10": {
       "P": {
-        "none": 0.958,
+        "none": 0.9585,
         "slight": 0.0,
-        "moderate": 0.0155,
-        "extensive": 0.017,
-        "complete": 0.0095
+        "moderate": 0.0175,
+        "extensive": 0.015,
+        "complete": 0.009
       }
-    },
-    "SA(1.0)::b1": {
-      "mean_finite": 0.22818406980918907,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b2": {
-      "mean_finite": 0.16740637894987706,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b3": {
-      "mean_finite": 0.18541111626047269,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b4": {
-      "mean_finite": 0.34013505021856916,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b5": {
-      "mean_finite": 0.18215462389560366,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b6": {
-      "mean_finite": 0.45692639892457904,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b7": {
-      "mean_finite": 0.45994705608513253,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b8": {
-      "mean_finite": 0.23563171075467612,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b9": {
-      "mean_finite": 0.317845830044526,
-      "P_inf": 0.0
-    },
-    "SA(1.0)::b10": {
-      "mean_finite": 0.23834978150300032,
-      "P_inf": 0.0
     }
   }
 }

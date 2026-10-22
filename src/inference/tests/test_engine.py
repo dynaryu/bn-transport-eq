@@ -68,13 +68,13 @@ def test_interventions_change_the_answer_in_the_right_direction():
 
 
 def test_statement_reads_back_the_query():
-    s = statement({"assembly": SHAKEMAP, "events": [{"node": "TravelTime::n1>n22:time", "op": "<=", "value": 600}],
+    s = statement({"assembly": SHAKEMAP, "events": [{"node": "SystemState::n1", "op": "==", "value": 0}],
                    "parameters": {"hazard.shakemap": {"event_id": "us7000abcd"}}})
-    assert s.startswith("P(TravelTime[n1>n22:time] ≤ 600) | do(hazard.shakemap.event_id = us7000abcd)")
+    assert s.startswith("P(SystemState[n1] = 0) | do(hazard.shakemap.event_id = us7000abcd)")
 
 
 @pytest.mark.parametrize("query, message", [
-    ({"assembly": EMA, "targets": ["SA(1.0)::*"], "evidence": {"EdgeOpen::e0001": 0}}, "forward inference only"),
+    ({"assembly": EMA, "targets": ["SA(1.0)::*"], "evidence": {"SA(1.0)::bridge-e0001": .5}}, "continuous observations"),
     ({"assembly": EMA, "targets": ["Nope::*"]}, "no node matches 'Nope::\\*'"),
     ({"assembly": EMA}, "query"),
     ({"assembly": "nowhere/x", "targets": ["SA(1.0)::*"]}, "no assembly 'nowhere/x'"),

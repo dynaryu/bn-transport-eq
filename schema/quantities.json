@@ -100,17 +100,6 @@
       "description": "0 closed, 1 open. The edge state the system functions read."
     },
     {
-      "id": "TravelTime",
-      "label": "Travel time to the nearest key destination",
-      "kind": "continuous",
-      "unit": "h",
-      "range": [
-        0,
-        null
-      ],
-      "description": "From one origin node, over the open edges. +inf when no key destination is reachable."
-    },
-    {
       "id": "SystemState",
       "label": "System event survives",
       "kind": "discrete",

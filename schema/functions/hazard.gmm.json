@@ -143,7 +143,7 @@
   },
   "implementation": "src.builder.kernels.hazard:Gmm",
   "deterministic": false,
-  "drawKind": "Marginal",
+  "drawKind": "Joint",
   "capabilities": [
     "SampleForward",
     "EvaluateLikelihood",
@@ -152,5 +152,5 @@
   "source": {
     "note": "Each parameter set cites its own model. The kernel holds the functional forms."
   },
-  "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. The event is fixed data: the one Event row's mw, lat, lon and depth_km, read like the bridge's own lat/lon, so it is no BN node. An uncertain rupture (e.g. sampled from a source model) would come back as a scenario function feeding an input here. Choose the set with parameter_set_by_location to use the model made for where the network is. Marginal: no spatial correlation yet; that needs the between- and within-event split of sigma."
+  "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. The event is fixed data: the one Event row's mw, lat, lon and depth_km, read like the bridge's own lat/lon, so it is no BN node. An uncertain rupture (e.g. sampled from a source model) would come back as a scenario function feeding an input here. Choose the set with parameter_set_by_location to use the model made for where the network is. Joint: one draw covers every bridge. The Campbell (2003) residuals are independent between bridges, which the result says; correlating them needs the between- and within-event split of sigma."
 }

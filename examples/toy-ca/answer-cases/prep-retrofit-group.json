@@ -1,0 +1,55 @@
+{
+  "id": "prep-retrofit-group",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "Compare n4 failure before and after retrofitting b2, b4 and b6 together to HWB11.",
+    "What is the probability that n4 fails under the current bridge models, and after changing b2, b4 and b6 together to HWB11?"
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "assembly": "toy-ca/demo",
+        "events": [
+          {
+            "node": "SystemState::n4",
+            "op": "==",
+            "value": 0
+          }
+        ],
+        "rows": {
+          "b2": {
+            "hazus_class": "HWB11"
+          },
+          "b4": {
+            "hazus_class": "HWB11"
+          },
+          "b6": {
+            "hazus_class": "HWB11"
+          }
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Alter the failure event",
+    "Replace the before-and-after probabilities with a benefit score",
+    "Label a probability difference as an event probability"
+  ]
+}

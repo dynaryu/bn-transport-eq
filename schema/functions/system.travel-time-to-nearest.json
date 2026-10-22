@@ -1,8 +1,8 @@
 {
   "$schema": "../meta/function.schema.json",
   "id": "system.travel-time-to-nearest",
-  "label": "Travel time to the nearest key destination",
-  "version": "0.1.0",
+  "label": "Reaches the nearest key destination in time",
+  "version": "0.3.0",
   "role": "system",
   "per": "Node",
   "inputs": [
@@ -16,33 +16,16 @@
   ],
   "outputs": [
     {
-      "name": "travel_time",
-      "quantity": "TravelTime"
-    },
-    {
       "name": "state",
       "quantity": "SystemState",
-      "description": "1 if the travel time is within target_max hours of the intact network's, else 0 (ndtools' system state)."
+      "description": "1 if the nearest key destination is reached within the system event's target_add_h hours of the intact network's travel time, else 0: ndtools' system state, which rsr's rules classify."
     }
   ],
   "tables": [
     "Node",
-    "Edge"
+    "Edge",
+    "SystemEvent"
   ],
-  "instance_schema": {
-    "type": "object",
-    "required": [
-      "target_max"
-    ],
-    "additionalProperties": false,
-    "properties": {
-      "target_max": {
-        "description": "Extra time allowed over the intact network's travel time, in hours.",
-        "type": "number",
-        "minimum": 0
-      }
-    }
-  },
   "implementation": "src.builder.kernels.system:TravelTimeToNearest",
   "deterministic": true,
   "drawKind": "Joint",
@@ -53,5 +36,5 @@
   "source": {
     "citation": "ndtools (pip install ndtools-duco), fun_binary_graph.eval_travel_time_to_nearest."
   },
-  "description": "For each origin node (bind it to the non-key nodes), the travel time to the nearest node marked key_destination, over the open edges, by ndtools. Each edge's weight is length_km / avg_speed_kph, in hours. Joint across the Node plate: every origin reads the same link states in the same sample."
+  "description": "For each origin node (bind it to the non-key nodes), whether it still reaches the nearest node marked key_destination in time, over the open edges, by ndtools' eval_travel_time_to_nearest. Each edge's weight is length_km / avg_speed_kph, in hours; the travel time itself is internal to the judgement, not a BN node. Joint across the Node plate: every origin reads the same edge states in the same sample."
 }

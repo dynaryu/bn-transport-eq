@@ -12,8 +12,8 @@ nothing downstream could catch it.
 
 Two properties follow from routing through the engine rather than around it:
 
-* The forward-only boundary holds. ``engine.answer`` refuses a query with
-  evidence whoever sent it, and the refusal goes back to the model to explain.
+* The engine enforces node-state types, intervention semantics and discrete
+  evidence acceptance limits; refusals go back to the model to explain.
 * Every answer carries the queries that produced it, each written as a
   probability statement and reported *before* the engine runs, then its values,
   then the prose. A reader checks the translation while it can still be read as
@@ -22,10 +22,11 @@ Two properties follow from routing through the engine rather than around it:
 Backends, chosen by ``BN_LLM`` (or ``serve --llm``), with ``BN_MODEL`` (or
 ``serve --model``) for another model of that backend:
 
-* ``ollama`` (the default): a local model served by Ollama, over its HTTP API
-  with the standard library alone. ``OLLAMA_BASE_URL`` overrides the address.
+* ``anthropic`` (the default): Claude through the ``anthropic`` SDK and a Console
+  credential, with server-side refusal fallbacks on.
+* ``ollama``: a local model served by Ollama, over its HTTP API with the standard
+  library alone. ``OLLAMA_BASE_URL`` overrides the address.
 * ``gemini``: Google Gemini through its OpenAI-compatible API. Needs ``GEMINI_API_KEY``.
-* ``anthropic``: Claude through the ``anthropic`` SDK and a Console credential.
 
 With no backend available the rest of the app works unchanged; ``available()``
 says why, and the page hides the panel.
@@ -56,13 +57,28 @@ GEMINI_ATTEMPTS = 2
 GEMINI_RETRY_DELAY = 3.0
 _GEMINI_TRANSIENT = {500, 502, 503, 504}
 ANTHROPIC_MODEL = "claude-opus-5-5"
+ANTHROPIC_MAX_TOKENS = 16000        # thinking is always on for this model; leave it room
+ANTHROPIC_EFFORT = "medium"         # this model's default, stated: choosing one query is not hard reasoning
+# On a policy decline the API re-runs the request on a fallback model in the same call.
+ANTHROPIC_BETAS = ["server-side-fallback-2026-07-01"]
 OLLAMA_MODEL = "qwen3:8b"
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TIMEOUT = 300    # seconds per model call; a CPU-only 8B model can be slow
 OLLAMA_KEEP_ALIVE = "30m"   # how long Ollama keeps the model loaded after a request
 MAX_TOOL_ROUNDS = 8     # a small model can loop on tool calls; stop it here
 MAX_TOKENS = 4000
-DEFAULT_SAMPLES = 2000
+DEFAULT_SAMPLES = 100_000
+CLARIFICATION_SCHEMA = {
+    "type": "object", "required": ["question", "missing"], "additionalProperties": False,
+    "properties": {
+        "question": {"type": "string", "minLength": 1},
+        "missing": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "choices": {"type": "array", "minItems": 2, "maxItems": 4, "items": {
+            "type": "object", "required": ["label", "definition"], "additionalProperties": False,
+            "properties": {"label": {"type": "string", "minLength": 1},
+                           "definition": {"type": "string", "minLength": 1}}}},
+    },
+}
 MAX_REPORTED = 60       # longest list of node results handed back to the model
 MAX_TURNS = 12          # cap the stored history so a long session cannot grow unbounded
 
@@ -72,8 +88,8 @@ class ChatUnavailable(RuntimeError):
 
 
 def provider() -> str:
-    """Which backend drives the chat: ``BN_LLM``, Ollama by default."""
-    return (os.environ.get("BN_LLM") or "ollama").strip().lower()
+    """Which backend drives the chat: ``BN_LLM``, Claude by default."""
+    return (os.environ.get("BN_LLM") or "anthropic").strip().lower()
 
 
 DEFAULT_MODELS = {"ollama": OLLAMA_MODEL, "gemini": GEMINI_MODEL, "anthropic": ANTHROPIC_MODEL}
@@ -84,7 +100,7 @@ def model_name() -> str:
     ``GEMINI_MODEL``, ``ANTHROPIC_MODEL``), else its default."""
     chosen = provider()
     return (os.environ.get("BN_MODEL") or os.environ.get(f"{chosen.upper()}_MODEL")
-            or DEFAULT_MODELS.get(chosen, OLLAMA_MODEL))
+            or DEFAULT_MODELS.get(chosen, ANTHROPIC_MODEL))
 
 
 def _ollama_keep_alive() -> str:
@@ -345,13 +361,6 @@ def _quantity_line(q: Mapping[str, Any]) -> str:
 def _examples(menu: Mapping[str, Any]) -> list[str]:
     by_id = {q["id"]: q for q in menu["quantities"]}
     out = []
-    if "TravelTime" in by_id:
-        node = by_id["TravelTime"]["example"]
-        out.append(f'{{"events": [{{"node": "{node}", "op": "==", "value": "inf"}}]}}  '
-                   f"= P(no open route for {node.partition('::')[2]})")
-        out.append(f'{{"targets": ["{node}"]}}  = the distribution of that travel time')
-    if "MaxFlow" in by_id:
-        out.append('{"targets": ["MaxFlow::*"]}  = max flow for every max-flow event')
     if "SystemState" in by_id:
         out.append('{"events": [{"node": "SystemState::*", "op": "==", "value": 0}]}  '
                    '= P(each system event fails, by its own definition)')
@@ -369,11 +378,50 @@ def system_prompt(menu: Mapping[str, Any], defaults: Mapping[str, Any] | None = 
         "Rules:",
         f"- Every number you state comes from a {TOOL_NAME} result. Never estimate, extrapolate or invent one.",
         "- Say in words which query you ran before giving its numbers.",
-        "- The engine is forward-only: scenario in, distribution out. A question conditioned on an "
-        "observation (which bridge failed, given that a route is closed) cannot be computed. Say so "
-        "rather than answering a different question; the engine refuses evidence if you pass it.",
+        "- Use do for forced discrete node states, evidence for observed discrete states, and "
+        "joint_events for AND/OR probabilities on the same draws. Evidence uses rejection conditioning; "
+        "too few accepted draws are refused. Continuous evidence and interventions on jointly owned "
+        "nodes are unsupported. Do not replace observation with intervention.",
         "- Results are Monte Carlo estimates: give probabilities to two significant figures, with the "
         "95% interval when it matters.",
+        "- Use probabilities, expectations or explicitly interpreted comparisons, not arbitrary "
+        "composite scores. Name the event/random quantity, conditions and units. For before-and-after "
+        "probability questions, report both probabilities with intervals. A requested reduction is "
+        "a probability difference (percentage points), not an event probability. VOI is a valid "
+        "expected loss reduction; do not replace it with a bridge-failure probability.",
+        "- 'Most important bridge' is ambiguous. Call clarification with 2–4 choices explaining "
+        "the mathematical meanings: forced-outage system failure P(F|do(B_i=0),H), a comparison of "
+        "forced-outage/forced-usable probabilities, or diagnostic P(B_i=0|F,H). Ask which meaning "
+        "the user wants and wait. Do not choose a definition or compute in that turn. On the user's "
+        "reply, use the conversation history to read back and calculate the selected quantity. "
+        "An explicitly requested closed-minus-open difference is a valid sensitivity comparison.",
+        "- For inspection priorities, use decision-theoretic value of information. Do not invent "
+        "inspection scores such as failure probability times survival probability times a change "
+        "in system failure probability. Define the available actions and their utility or loss, "
+        "and the inspection's possible observations and accuracy. If these are missing, ask for "
+        "them before ranking inspections.",
+        "- For current information I and inspection outcome Y_i, the expected value of sample "
+        "information is EVSI_i = E_{Y_i|I}[max_a E[U(a, X)|I, Y_i]] "
+        "- max_a E[U(a, X)|I]. Rank by net value EVSI_i minus inspection cost, in the same utility "
+        "units. Perfect inspection is the special case Y_i = B_i. The action is optimized after "
+        "each possible observation; uncertainty or sensitivity alone is not decision value.",
+        "- Use analysis.kind=voi for explicit finite loss tables over up to eight binary state_nodes, "
+        "actions with losses keyed by state combinations (e.g. '0|1'), loss_units, and inspections "
+        "with cost and a 2x2 accuracy matrix (true state rows, reported state columns). The table must "
+        "already encode action consequences; do not invent losses or repair effects. This supports "
+        "one inspection at a time, not sequential inspection policies.",
+        "- Use analysis.kind=compare for baseline/variant differences, importance for forced "
+        "closed/open bridge comparisons, paths for graph-generated routes to an exact destination. "
+        "For paths and voi, analysis.query contains scenario settings only; the analysis generates "
+        "its events. All arithmetic and rankings come from these tools, not your own calculations.",
+        "- If required meaning or inputs are missing, call clarification with a concise question "
+        "and a missing list, then ask the user. Do not run a substitute query. In particular, identify "
+        "the origin, system requirement and hazard. A 1,000-year return period alone defines no shaking field.",
+        "- New inputs can be drafted with proposal: kind parameter_set or scenario, title, reason, "
+        "source object, payload. Parameter-set payload uses the library's function/source/sets file shape; "
+        "scenario payload is {id: '<network>/<name>', query: <complete query>}. Ask for missing source "
+        "values, never invent model coefficients. Drafts are validated and need a named user's activation. "
+        "New mathematical forms need code and tests. You cannot activate proposals yourself.",
         "- Keep answers short.",
         "",
         f"The Bayesian network is {menu['assembly']}: {menu['label']}. {menu['description']}".strip(),
@@ -399,6 +447,19 @@ def system_prompt(menu: Mapping[str, Any], defaults: Mapping[str, Any] | None = 
     if menu["names"]:
         lines += ["", "Node names: " + "; ".join(f"{k} {v}" for k, v in menu["names"].items())]
     lines += ["", "Examples of tool arguments:", *_examples(menu)]
+    from .cases import few_shots
+    lines += few_shots(menu["assembly"])
+    proposal_functions = {q["function"] for q in menu["quantities"]}
+    lines += ["Instance value schemas (for proposals only): " + json.dumps({
+        fn: engine.library().functions[fn]["instance_schema"] for fn in sorted(proposal_functions)
+        if "instance_schema" in engine.library().functions[fn]})]
+    lines += ["Active parameter sets (activation adds availability, not automatic binding): " + json.dumps([
+        {"id": sid, "function": item["function"], "label": item["label"]}
+        for sid, item in engine.library().parameter_sets.items() if item["function"] in proposal_functions])]
+    from src import proposals
+    saved = proposals.scenarios(menu["assembly"])
+    if saved:
+        lines += ["Reviewed saved scenarios: " + json.dumps(saved)]
     if defaults:
         lines += ["", "The page currently sets " + json.dumps(defaults)
                   + ". These apply to every query unless the question changes them."]
@@ -408,33 +469,39 @@ def system_prompt(menu: Mapping[str, Any], defaults: Mapping[str, Any] | None = 
 def tool_spec(menu: Mapping[str, Any]) -> dict[str, Any]:
     """The tool's JSON schema: deliberately plainer than the query schema, which the engine enforces."""
     obj = {"type": "object"}
+    from src.inference.comparisons import SCHEMA
     return {
         "name": TOOL_NAME,
         "description": ("Run one probabilistic query on the Bayesian network and return per-node summaries "
                         "(targets) and event probabilities with 95% intervals (events). Call again to "
                         "compare scenarios."),
-        "parameters": {"type": "object", "properties": {
+        "parameters": {"type": "object", "$defs": engine._VALIDATOR.schema["$defs"], "properties": {
             "assembly": {"type": "string", "enum": [a["id"] for a in menu["alternatives"]],
                          "description": f"Which BN. Omit for {menu['assembly']}."},
             "targets": {"type": "array", "items": {"type": "string"},
-                        "description": "Node ids or patterns to summarise, e.g. TravelTime::n1>*."},
+                        "description": "Node ids or patterns to summarise, e.g. SA(1.0)::*."},
             "events": {"type": "array", "description": "Threshold events whose probability to compute.",
                        "items": {"type": "object", "required": ["node", "op", "value"], "properties": {
                            "node": {"type": "string"}, "op": {"type": "string", "enum": _OPS},
-                           "value": {"type": "string", "description": "A number, inf, or a state name."}}}},
+                           "value": {"type": ["string", "number"], "description": "A number, inf, or a state name."}}}},
+            "joint_events": engine._VALIDATOR.schema["properties"]["joint_events"],
+            "do": {**obj, "description": "Force exact discrete node names to states before descendants draw."},
             "rows": {**obj, "description": 'Set row attributes: {"<row id>": {"<attribute>": value}}.'},
             "parameters": {**obj, "description": 'Set inline parameters: {"<function id>": {"<name>": value}}.'},
             "parameter_sets": {**obj, "description": 'Swap parameter sets: {"<function id>": "<set id>"}.'},
-            "evidence": {**obj, "description": "Observed node values. Not supported: the engine refuses them."},
+            "evidence": {**obj, "description": "Observed discrete node states. Rejection conditioning."},
+            "analysis": {**SCHEMA, "description": "Deterministic comparisons, bridge importance, paths or VOI."},
+            "proposal": {**obj, "description": "Draft a reviewed addition: kind, title, reason, source, payload."},
+            "clarification": {**CLARIFICATION_SCHEMA, "description": "Ask for missing meaning/inputs; choices can explain mathematical definitions. Wait for the user's reply."},
             "samples": {"type": "integer",
-                        "description": f"Monte Carlo samples, 100 to 20000. Default {DEFAULT_SAMPLES}."},
+                        "description": f"Monte Carlo samples, 100 to 1000000. Default {DEFAULT_SAMPLES}."},
         }},
     }
 
 
 # ---- one tool call ---------------------------------------------------------
 
-_ARGUMENTS = {"assembly", "targets", "events", "rows", "parameters", "parameter_sets", "evidence", "samples"}
+_ARGUMENTS = {"assembly", "targets", "events", "joint_events", "do", "rows", "parameters", "parameter_sets", "evidence", "samples", "seed"}
 
 
 def coerce_arguments(arguments: Any, assembly: str, defaults: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -466,9 +533,8 @@ def coerce_arguments(arguments: Any, assembly: str, defaults: Mapping[str, Any] 
             event["value"] = int(number) if number.is_integer() else number
     query["samples"] = int(float(query["samples"])) if "samples" in query else DEFAULT_SAMPLES
     if defaults and query["assembly"] == assembly:
-        for key in ("rows", "parameters", "parameter_sets"):
-            if defaults.get(key) and key not in query:
-                query[key] = defaults[key]
+        from src.inference.comparisons import merge
+        query = merge(defaults, query)
     return query
 
 
@@ -493,22 +559,75 @@ def compact(result: Mapping[str, Any]) -> dict[str, Any]:
             out[f"{key}_omitted"] = len(items) - MAX_REPORTED
     if result["warnings"]:
         out["warnings"] = result["warnings"]
+    if result.get("inference"):
+        out["inference"] = result["inference"]
     return out
 
 
 def run_tool(arguments: Any, *, assembly: str, defaults: Mapping[str, Any] | None,
-             runs: list[dict[str, Any]], on_event: Callable[[dict[str, Any]], None] | None = None) -> str:
+             runs: list[dict[str, Any]], on_event: Callable[[dict[str, Any]], None] | None = None,
+             record: Mapping[str, Any] | None = None, review=None, translate_only=False) -> str:
     """Run one tool call: state the query, compute it, report it. Returns what the model reads."""
     emit = on_event or (lambda event: None)
+    try:
+        arguments = json.loads(arguments) if isinstance(arguments, str) else arguments
+    except ValueError as exc:
+        return json.dumps({"error": f"bad arguments: {exc}"})
+    special = [k for k in ("analysis", "proposal", "clarification") if isinstance(arguments, dict) and k in arguments]
+    if special:
+        if len(special) != 1 or len(arguments) != 1:
+            return json.dumps({"error": "Send exactly one analysis, proposal, clarification or probability query"})
+        kind = special[0]
+        value = arguments[kind]
+        emit({"type": "plan", "arguments": arguments})
+        if translate_only:
+            return json.dumps({"translation_only": True, "message": "Translation captured; do not compute or invent results."})
+        try:
+            if kind == "clarification":
+                from jsonschema import Draft202012Validator
+                errors = list(Draft202012Validator(CLARIFICATION_SCHEMA).iter_errors(value))
+                if errors:
+                    raise ValueError("Invalid clarification: " + errors[0].message)
+                return json.dumps({"clarification": value})
+            if kind == "proposal":
+                from src import proposals
+                draft = proposals.draft(value)
+                emit({"type": "proposal", "proposal": draft})
+                return json.dumps(draft)
+            from src.inference import comparisons
+            task_query = {"assembly": assembly, **value.get("query", {})}
+            value = {**value, "query": comparisons.merge(defaults or {} if task_query["assembly"] == assembly else {}, task_query)}
+            comparisons.validate(value)
+            emit({"type": "analysis_plan", "readback": comparisons.readback(value)})
+            def run(q):
+                reply = json.loads(run_tool(q, assembly=assembly, defaults=None, runs=runs,
+                                           on_event=on_event, record=record, review=review))
+                if reply.get("refused") or reply.get("error"):
+                    raise engine.QueryError(reply.get("error"))
+                return runs[-1]["result"]
+            result = comparisons.execute(value, run)
+            from src.inference import records
+            records.log_analysis(value, result, runs, record or {})
+            emit({"type": "analysis", "result": result})
+            return json.dumps(result)
+        except (engine.QueryError, ValueError, TypeError, KeyError) as exc:
+            return json.dumps({"error": str(exc)})
     try:
         query = coerce_arguments(arguments, assembly, defaults)
     except (ValueError, TypeError) as exc:
         return json.dumps({"error": f"bad arguments: {exc}"})
-    stated = engine.statement(query)
-    emit({"type": "query", "query": query, "statement": stated})
     try:
-        result = engine.answer(query)
+        engine.scope(query)
+        stated = engine.statement(query)
+        emit({"type": "plan", "arguments": query})
+        if translate_only:
+            return json.dumps({"translation_only": True, "message": "Translation captured; do not compute or invent results."})
+        emit({"type": "query", "query": query, "statement": stated, "readback": engine.readback(query)})
+        if review is not None and not review(query):
+            raise engine.QueryError("Query cancelled at read-back")
+        result = engine.answer(query, record=record)
     except engine.QueryError as exc:
+        stated = engine.statement(query)
         runs.append({"query": query, "statement": stated, "error": str(exc)})
         emit({"type": "refused", "query": query, "statement": stated, "error": str(exc)})
         return json.dumps({"refused": True, "error": str(exc)})
@@ -528,6 +647,20 @@ def _strip_thinking(text: str) -> str:
     return re.sub(r"<think>.*?</think>", "", text or "", flags=re.DOTALL).strip()
 
 
+class _NeedsClarification(Exception):
+    def __init__(self, value):
+        self.value = value
+
+
+def _has_clarification(arguments):
+    if isinstance(arguments, str):
+        try:
+            arguments = json.loads(arguments)
+        except ValueError:
+            return False
+    return isinstance(arguments, dict) and "clarification" in arguments
+
+
 # ---- the conversation ------------------------------------------------------
 
 
@@ -540,6 +673,8 @@ def ask(
     client: Any = None,
     model: str | None = None,
     on_event: Callable[[dict[str, Any]], None] | None = None,
+    review=None,
+    translate_only: bool = False,
 ) -> dict[str, Any]:
     """Answer one question about ``assembly`` by letting the configured model drive the engine.
 
@@ -561,27 +696,48 @@ def ask(
     spec = tool_spec(menu)
     runs: list[dict[str, Any]] = []
 
+    llm = {"provider": provider(), "model": model}
+    context = {"source": "ask", "question": question, "llm": llm}
+
     def call(arguments: Any) -> str:
-        return run_tool(arguments, assembly=assembly, defaults=defaults, runs=runs, on_event=on_event)
+        result = run_tool(arguments, assembly=assembly, defaults=defaults, runs=runs, on_event=on_event,
+                          record=context, review=review, translate_only=translate_only)
+        reply = json.loads(result)
+        if reply.get("clarification") and not translate_only:
+            raise _NeedsClarification(reply["clarification"])
+        return result
 
     messages = [{"role": turn["role"], "content": turn["content"]}
                 for turn in list(history)[-MAX_TURNS:]
                 if turn.get("role") in {"user", "assistant"} and turn.get("content")]
     messages.append({"role": "user", "content": question})
 
-    if provider() == "anthropic":
-        answer = _ask_anthropic(client, model, system, messages, spec, call)
-    elif provider() == "gemini":
-        answer = _ask_openai_compatible(client or _gemini_request, model, system, messages, spec, call)
-    else:
-        answer = _ask_ollama(client or _ollama_request, model, system, messages, spec, call)
+    clarification = None
+    try:
+        if provider() == "anthropic":
+            answer = _ask_anthropic(client, model, system, messages, spec, call)
+        elif provider() == "gemini":
+            answer = _ask_openai_compatible(client or _gemini_request, model, system, messages, spec, call)
+        else:
+            answer = _ask_ollama(client or _ollama_request, model, system, messages, spec, call)
+    except _NeedsClarification as exc:
+        clarification = exc.value
+        answer = clarification["question"]
+        for choice in clarification.get("choices", []):
+            answer += f"\n- {choice['label']}: {choice['definition']}"
 
     computed = [r for r in runs if "result" in r]
+    from src.inference import records
+
+    record_id = records.log_ask(question, answer or "No answer was produced.", llm, assembly, runs,
+                                clarification=clarification, history=messages[:-1])
     return {
+        "record": record_id,
         "answer": answer or "No answer was produced.",
         "model": model,
         "runs": [{k: v for k, v in r.items() if k != "result"} for r in runs],
         "result": computed[-1]["result"] if computed else None,
+        "clarification": clarification,
     }
 
 
@@ -615,7 +771,7 @@ def _ask_ollama(post: Callable[[str, Mapping[str, Any]], dict[str, Any]], model:
                              **({"tool_calls": calls} if calls else {})})
         if not calls:
             return _strip_thinking(message.get("content") or "")
-        for tool_call in calls:
+        for tool_call in sorted(calls, key=lambda c: not _has_clarification((c.get("function") or {}).get("arguments"))):
             function = tool_call.get("function") or {}
             result = _dispatch(function.get("name"), function.get("arguments"), call)
             conversation.append({"role": "tool", "tool_name": function.get("name"), "content": result})
@@ -636,7 +792,7 @@ def _ask_openai_compatible(post: Callable[[str, Mapping[str, Any]], dict[str, An
         conversation.append({**message, "role": "assistant", "content": message.get("content") or ""})
         if not calls:
             return _strip_thinking(message.get("content") or "")
-        for tool_call in calls:
+        for tool_call in sorted(calls, key=lambda c: not _has_clarification((c.get("function") or {}).get("arguments"))):
             function = tool_call.get("function") or {}
             result = _dispatch(function.get("name"), function.get("arguments"), call)
             conversation.append({"role": "tool", "tool_call_id": tool_call.get("id"), "content": result})
@@ -653,8 +809,14 @@ def _ask_anthropic(client: Any, model: str, system: str, messages: list[dict[str
     tools = [{"name": spec["name"], "description": spec["description"], "input_schema": spec["parameters"]}]
     conversation = list(messages)
     for _ in range(MAX_TOOL_ROUNDS):
-        reply = client.messages.create(model=model, max_tokens=MAX_TOKENS, system=system,
-                                       tools=tools, messages=conversation)
+        reply = client.beta.messages.create(
+            model=model, max_tokens=ANTHROPIC_MAX_TOKENS, system=system, tools=tools, messages=conversation,
+            output_config={"effort": ANTHROPIC_EFFORT}, betas=ANTHROPIC_BETAS, fallbacks="default")
+        if getattr(reply, "stop_reason", None) == "refusal":
+            details = getattr(reply, "stop_details", None)
+            category = getattr(details, "category", None) if details else None
+            return ("The model declined to answer that" + (f" ({category})" if category else "") +
+                    ". Rephrase the question, or use the Run button and the query form.")
         conversation.append({"role": "assistant", "content": reply.content})
         uses = [block for block in reply.content if getattr(block, "type", None) == "tool_use"]
         if not uses:
@@ -662,5 +824,5 @@ def _ask_anthropic(client: Any, model: str, system: str, messages: list[dict[str
                                if getattr(block, "type", None) == "text").strip()
         conversation.append({"role": "user", "content": [
             {"type": "tool_result", "tool_use_id": block.id, "content": _dispatch(block.name, block.input, call)}
-            for block in uses]})
+            for block in sorted(uses, key=lambda b: not _has_clarification(b.input))]})
     return _stopped()

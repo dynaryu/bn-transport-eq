@@ -26,9 +26,6 @@
       "function": "system.travel-time-to-nearest",
       "where": {
         "key_destination": false
-      },
-      "parameters": {
-        "target_max": 0.5
       }
     }
   ]

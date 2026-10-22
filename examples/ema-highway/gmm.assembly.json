@@ -29,9 +29,6 @@
       "where": {
         "key_destination": false
       },
-      "parameters": {
-        "target_max": 0.5
-      },
       "note": "One travel-time node per non-key node, to its nearest key destination; survives within 0.5 h of the intact time."
     }
   ]

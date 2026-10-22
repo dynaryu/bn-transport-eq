@@ -1,0 +1,30 @@
+{
+  "id": "clarify-1000-year-hazard",
+  "split": "few_shot",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "What happens to the system under a 1,000-year hazard?"
+  ],
+  "expected": {
+    "outcome": "clarify",
+    "tool_arguments": [
+      {
+        "clarification": {
+          "question": "Which hazard study or return-period ground-motion product, and which system failure requirement, should I use?",
+          "missing": [
+            "hazard_input",
+            "system_requirement"
+          ]
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Guess a magnitude from return period"
+  ]
+}

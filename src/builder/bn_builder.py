@@ -25,7 +25,7 @@ import json
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from jsonschema import Draft202012Validator
 
@@ -210,6 +210,11 @@ def compile_assembly(assembly: dict[str, Any], lib: Library, network: Network) -
             missing = [r["id"] for r in rows if r.get(attr) is None]
             if missing:
                 problems.append(f"{where_label}: {fn['id']} reads {per}.{attr}, missing on {_few(missing)}")
+        if fn["role"] == "system":
+            named = {e.get("analysis") for e in network.rows("SystemEvent")}
+            if named and fn["id"] not in named:
+                problems.append(f"{where_label}: the network's system event is judged by {', '.join(sorted(named))}, "
+                                f"not {fn['id']}")
         for table in fn.get("tables", []):
             if lib.entities[table].get("singleton") and len(network.rows(table)) != 1:
                 problems.append(f"{where_label}: {fn['id']} reads the {table} row, network {network.id} has "
@@ -334,14 +339,15 @@ def compile_path(path: Path | str, lib: Library | None = None) -> Compiled:
 
 
 def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, Any]:
-    """Scalar tbnpy variables and one probability specification per binding (or output).
+    """Scalar tbnpy variables and their probability specifications.
 
-    Every row and output of a binding are the childs of one object, so a hazard
-    binding's whole field is sampled together. A deterministic binding with several
-    outputs becomes one object per output: nothing is lost, and a question about one
-    output (a system state) need not compute the other (a travel time). ``bindings``
-    restricts the data to those bindings, which must be closed under ``upstream``.
-    The JSON is a portable snapshot of the selected inputs, not sampled data.
+    A stochastic binding drawn jointly (``drawKind: Joint``, e.g. a hazard field)
+    is one object whose childs are every row's outputs: its sites are sampled
+    together. Every other binding is one object per row, each child with its own
+    parents, as a Bayesian network has it: a bridge's damage depends on its own
+    intensity, an origin's state on the edge states. ``bindings`` restricts the
+    data to those bindings, which must be closed under ``upstream``. The JSON is a
+    portable snapshot of the selected inputs, not sampled data.
     """
     variables, probabilities = {}, {}
     lib = compiled.library
@@ -352,21 +358,6 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
         b = compiled.bindings[index]
         fn = b.function
 
-        # One shared parent list, with explicit indices for each row and port.
-        parents, input_columns = [], []
-        for r, row in enumerate(b.rows):
-            ports = {}
-            for port in fn["inputs"]:
-                quantity = b.quantities[r][port["name"]]
-                columns = []
-                for pid in b.parents[port["name"]][r]:
-                    name = node_id(quantity, pid)
-                    if name not in parents:
-                        parents.append(name)
-                    columns.append(parents.index(name))
-                ports[port["name"]] = columns
-            input_columns.append(ports)
-
         # The states of each discrete port, which must agree across the binding's rows.
         states = {}
         for port in fn["inputs"] + fn["outputs"]:
@@ -375,33 +366,48 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
                 if len({tuple(lib.quantities[q]["states"]) for q in used}) != 1:
                     raise ValueError(f"{fn['id']}: {port['name']} has different states across rows")
                 states[port["name"]] = lib.quantities[next(iter(used))]["states"]
+        tables = {t: compiled.network.rows(t) for t in fn.get("tables", [])}
 
-        split = fn["deterministic"] and len(fn["outputs"]) > 1
-        for ports in ([[p] for p in fn["outputs"]] if split else [fn["outputs"]]):
+        joint = fn["drawKind"] == "Joint" and not fn["deterministic"]
+        for group in ([list(range(len(b.rows)))] if joint else [[r] for r in range(len(b.rows))]):
+            # The group's parent list, with explicit indices for each row and port.
+            parents, input_columns = [], []
+            for r in group:
+                ports = {}
+                for port in fn["inputs"]:
+                    quantity = b.quantities[r][port["name"]]
+                    columns = []
+                    for pid in b.parents[port["name"]][r]:
+                        name = node_id(quantity, pid)
+                        if name not in parents:
+                            parents.append(name)
+                        columns.append(parents.index(name))
+                    ports[port["name"]] = columns
+                input_columns.append(ports)
+
             childs = []
-            for r, row in enumerate(b.rows):
-                for port in ports:
+            for r in group:
+                for port in fn["outputs"]:
                     q = lib.quantities[b.quantities[r][port["name"]]]
-                    name = node_id(q["id"], row["id"])
+                    name = node_id(q["id"], b.rows[r]["id"])
                     childs.append(name)
                     variables[name] = ({"states": q["states"]} if q["kind"] == "discrete"
                                        else {"range": q.get("range", [None, None])})
-            key = f"{fn['id']}:{ports[0]['name']}" if split else fn["id"]
+            # A per-row object is keyed by its child, as tbnpy's examples key theirs.
+            key = (fn["id"] if joint else childs[0] if len(childs) == 1
+                   else node_id(fn["id"], b.rows[group[0]]["id"]))
             if key in probabilities:
                 key = f"{key}#{index}"
-            spec = {
-                "function": fn["id"], "implementation": fn["implementation"], "binding": index,
+            probabilities[key] = {
+                "function": fn["id"], "role": fn["role"], "implementation": fn["implementation"], "binding": index,
                 "childs": childs, "parents": parents, "input_columns": input_columns,
-                "parent_rows": b.parents, "rows": b.rows, "parameters": b.parameters,
-                "parameter_sets": b.parameter_sets, "states": states,
-                "tables": {t: compiled.network.rows(t) for t in fn.get("tables", [])},
+                "parent_rows": {p: [b.parents[p][r] for r in group] for p in b.parents},
+                "rows": [b.rows[r] for r in group], "parameters": [b.parameters[r] for r in group],
+                "parameter_sets": [b.parameter_sets[r] for r in group], "states": states, "tables": tables,
             }
-            if split:
-                spec["output"] = ports[0]["name"]
-            probabilities[key] = spec
 
     return {
-        "format": "quakenet.tbnpy.v2", "assembly": compiled.assembly,
+        "format": "quakenet.tbnpy.v3", "assembly": compiled.assembly,
         "network": compiled.network.id,
         "network_assumptions": compiled.network.assumptions,
         "instance_sources": {
@@ -435,9 +441,8 @@ def define_tbn_probabilities(data: dict[str, Any], variables: dict[str, Any], de
     if directory:
         for spec in data["probabilities"].values():
             for j, ref in enumerate(spec.get("references", [])):
-                stored = _rules_meta(Path(directory) / ref["upper"]).get("rules_sha256") if ref else None
-                if ref and stored != rules_fingerprint(spec, j):
-                    raise ValueError("RSR references belong to a different system definition; regenerate")
+                if ref:
+                    _check_reference(Path(directory), spec, j, ref)
     return {
         key: resolve_implementation(spec["implementation"])(
             [variables[n] for n in spec["childs"]], [variables[n] for n in spec["parents"]],
@@ -455,11 +460,26 @@ def _tbn_fingerprint(data: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
 
 
+# rsr's extraction stops when the unknown region's probability, under its 50/50 search proposal, falls
+# below RSR_UNKNOWN_TARGET, or after RSR_MAX_ROUNDS rounds: each round resolves one unclassified state with
+# ndtools and adds the rule it yields, so the rounds also bound the number of rules.
+RSR_UNKNOWN_TARGET = 0.01
+RSR_MAX_ROUNDS = 3000
+
+
+def rules_threshold(spec: dict[str, Any]) -> float:
+    """The system event's threshold a system-state spec is judged by: its target_add_h, in hours."""
+    return float(spec["tables"]["SystemEvent"][0]["target_add_h"])
+
+
 def rules_fingerprint(spec: dict[str, Any], j: int) -> str:
-    """What origin j's system rules depend on: the graph, the destinations, the origin, its
-    threshold and the edge order. Not the hazard: rules extracted once serve every scenario."""
-    snapshot = {"function": spec["function"], "tables": spec["tables"], "origin": spec["rows"][j]["id"],
-                "parameters": spec["parameters"][j], "edges": spec["parent_rows"]["open"][j]}
+    """What origin j's system rules depend on, apart from the threshold: the graph, the destinations,
+    the analysis, the origin and the edge order. Not the hazard: rules extracted once serve every
+    scenario. The threshold is stored beside the rules, since some rules hold across thresholds."""
+    tables = {name: rows for name, rows in spec["tables"].items() if name != "SystemEvent"}
+    events = [{"analysis": e.get("analysis")} for e in spec["tables"].get("SystemEvent", [])]
+    snapshot = {"function": spec["function"], "tables": tables, "events": events,
+                "origin": spec["rows"][j]["id"], "edges": spec["parent_rows"]["open"][j]}
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
 
 
@@ -474,20 +494,77 @@ def model_dir(assembly_file: Path | str) -> Path:
     return assembly_file.parent / "tbnpy" / assembly_file.name.removesuffix(".assembly.json")
 
 
+def rules_folder(directory: Path, origin: str, threshold: float) -> Path:
+    """rsr/<origin>/target_add_h=<value>/: one set of rules per origin and threshold."""
+    return Path(directory) / "rsr" / origin / f"target_add_h={threshold:g}"
+
+
+def stored_rules(directory: Path, spec: dict[str, Any], j: int) -> list[tuple[float, Path]]:
+    """(threshold, folder) for every set of rules stored for origin j's definition, by threshold."""
+    fingerprint, found = rules_fingerprint(spec, j), []
+    for folder in (Path(directory) / "rsr" / spec["rows"][j]["id"]).glob("target_add_h=*"):
+        meta = _rules_meta(folder / "refs_up_1.pt")
+        if meta.get("rules_sha256") == fingerprint and (folder / "refs_up_1.pt").is_file():
+            found.append((float(meta["target_add_h"]), folder))
+    return sorted(found)
+
+
+_SAME = 1e-12
+
+
+def choose_rules(stored: list[tuple[float, Path]], threshold: float) -> dict[str, Any] | None:
+    """The rules that hold at ``threshold``, from those stored at any threshold.
+
+    The state is monotone in the threshold: reaching a destination within t_s of the
+    intact time means reaching it within any t >= t_s, and failing within t_f means
+    failing within any t <= t_f. So survival rules hold when extracted at the nearest
+    t_s <= t, and failure rules at the nearest t_f >= t. Only an exact match has both.
+    """
+    survival = [(t, f) for t, f in stored if t <= threshold + _SAME]
+    failure = [(t, f) for t, f in stored if t >= threshold - _SAME]
+    upper, lower = (survival[-1] if survival else None), (failure[0] if failure else None)
+    if upper is None and lower is None:
+        return None
+    return {"upper": upper[1] / "refs_up_1.pt" if upper else None, "upper_at": upper[0] if upper else None,
+            "lower": lower[1] / "refs_low_0.pt" if lower else None, "lower_at": lower[0] if lower else None}
+
+
+def rules_source(ref: dict[str, Any] | None, threshold: float) -> str:
+    """How a system state's rules were found: in words, for notes and the page."""
+    if ref is None:
+        return "no stored rules"
+    up, low = ref.get("upper_at"), ref.get("lower_at")
+    if up is not None and low is not None and abs(up - threshold) < _SAME and abs(low - threshold) < _SAME:
+        return "exact"
+    parts = ([f"survival rules from target_add_h={up:g}"] if up is not None else []) + \
+            ([f"failure rules from target_add_h={low:g}"] if low is not None else [])
+    return " and ".join(parts)
+
+
 def attach_rules(data: dict[str, Any], directory: Path) -> int:
-    """Give each system-state origin the stored rules extracted for exactly its definition. Returns how many."""
+    """Give each system-state origin the stored rules that hold at its threshold. Returns how many have any."""
     found = 0
     for spec in data["probabilities"].values():
-        if spec.get("output") != "state":
+        if spec["role"] != "system":
             continue
-        spec["references"] = []
-        for j, row in enumerate(spec["rows"]):
-            upper = directory / "rsr" / row["id"] / "refs_up_1.pt"
-            ok = upper.is_file() and _rules_meta(upper).get("rules_sha256") == rules_fingerprint(spec, j)
-            spec["references"].append({"upper": f"rsr/{row['id']}/refs_up_1.pt",
-                                       "lower": f"rsr/{row['id']}/refs_low_0.pt"} if ok else None)
-            found += ok
+        threshold, spec["references"] = rules_threshold(spec), []
+        for j in range(len(spec["rows"])):
+            ref = choose_rules(stored_rules(directory, spec, j), threshold)
+            if ref:
+                ref = {k: (v.relative_to(directory).as_posix() if isinstance(v, Path) else v) for k, v in ref.items()}
+            spec["references"].append(ref)
+            found += ref is not None
     return found
+
+
+def _check_reference(directory: Path, spec: dict[str, Any], j: int, ref: dict[str, Any]) -> None:
+    threshold, fingerprint = rules_threshold(spec), rules_fingerprint(spec, j)
+    for side, holds in (("upper", lambda t: t <= threshold + _SAME), ("lower", lambda t: t >= threshold - _SAME)):
+        if ref.get(side) is None:
+            continue
+        meta = _rules_meta(Path(directory) / ref[side])
+        if meta.get("rules_sha256") != fingerprint or not holds(float(meta.get("target_add_h", "nan"))):
+            raise ValueError("RSR references belong to a different system definition; regenerate")
 
 
 def build_tbn(compiled: Compiled, bindings: set[int] | None = None, device: str = "cpu",
@@ -495,8 +572,8 @@ def build_tbn(compiled: Compiled, bindings: set[int] | None = None, device: str 
     """tbnpy's two dictionaries, variables and probabilities, for a compiled assembly.
 
     With ``rules``, system states reuse the rsr rules stored with the assembly's
-    generated model wherever they were extracted for the same system definition;
-    any other origin is evaluated by ndtools throughout.
+    generated model that hold at the query's threshold (see ``choose_rules``);
+    whatever they leave unclassified is evaluated by ndtools.
     """
     data = tbn_data(compiled, bindings)
     directory = None
@@ -511,77 +588,83 @@ def build_tbn(compiled: Compiled, bindings: set[int] | None = None, device: str 
     return variables, define_tbn_probabilities(data, variables, device=device, directory=directory)
 
 
-def generate_tbn(path: Path | str, *, extract_rules: bool = True, seed: int = 20261022) -> Path:
-    """Write a runnable tbnpy model beneath the assembly's example folder."""
-    import importlib.metadata
+def extract_system_rules(compiled: Compiled, directory: Path, origins: set[str] | None = None, *,
+                  seed: int = 20261022, log: Callable[[str], None] = print) -> list[str]:
+    """Run rsr for each origin (or those in ``origins``) at the system event's threshold, and store the
+    rules in rules_folder(). Returns the origins extracted."""
     import random
     import torch
+    from rsr.rsr import run_ref_extraction_by_mcs
+
+    data = tbn_data(compiled)
+    probabilities = define_tbn_probabilities(data, define_tbn_variables(data))
+    done = []
+    python_state = random.getstate()
+    try:
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(seed)
+            random.seed(seed)
+            for key, prob in probabilities.items():
+                spec = data["probabilities"][key]
+                if spec["role"] != "system":
+                    continue
+                threshold = rules_threshold(spec)
+                for j, row in enumerate(spec["rows"]):
+                    if origins is not None and row["id"] not in origins:
+                        continue
+                    folder = rules_folder(directory, row["id"], threshold)
+                    folder.mkdir(parents=True, exist_ok=True)
+                    # RSR appends metrics; a new extraction starts a fresh record.
+                    (folder / "metrics.json").write_text("", encoding="utf-8")
+                    log(f"Extracting system rules for {row['id']} at target_add_h={threshold:g}...")
+                    evaluate = prob.system_function(j)
+
+                    def binary_system(comps):
+                        # The system value rsr sees is the binary state itself; travel times
+                        # (infinite when cut off) stay internal to ndtools' judgement.
+                        _, state, _ = evaluate(comps)
+                        return state, state, None
+
+                    edges = spec["parent_rows"]["open"][j]
+                    # The independent 50/50 proposal explores topology; it does not replace
+                    # the BN's component distribution or its hazard-induced dependence.
+                    run_ref_extraction_by_mcs(
+                        sfun=binary_system, probs=torch.full((len(edges), 2), 0.5),
+                        row_names=edges, n_state=2, sys_upper_st=1,
+                        unk_prob_thres=RSR_UNKNOWN_TARGET, unk_prob_opt="abs", max_rounds=RSR_MAX_ROUNDS,
+                        prob_update_every=10, save_every=128, n_sample=4096,
+                        sample_batch_size=4096, max_search_loops=2,
+                        ref_update_verbose=False, output_dir=str(folder))
+                    (folder / "model.json").write_text(json.dumps({
+                        "rules_sha256": rules_fingerprint(spec, j), "target_add_h": threshold,
+                        "origin": row["id"], "edge_order": edges, "seed": seed,
+                        "unknown_target": RSR_UNKNOWN_TARGET, "max_rounds": RSR_MAX_ROUNDS,
+                        "proposal": "independent Bernoulli(0.5), for rule search only",
+                        "system_value": "binary state",
+                        "unclassified": "evaluate with ndtools",
+                    }, indent=2) + "\n", encoding="utf-8")
+                    done.append(row["id"])
+    finally:
+        random.setstate(python_state)
+    return done
+
+
+def generate_tbn(path: Path | str, *, extract_rules: bool = True, seed: int = 20261022) -> Path:
+    """Write a runnable tbnpy model beneath the assembly's example folder, with rules at its threshold."""
+    import importlib.metadata
 
     path = Path(path).resolve()
     compiled = compile_path(path)
     data = tbn_data(compiled)
-    variables = define_tbn_variables(data)
-    probabilities = define_tbn_probabilities(data, variables)
+    define_tbn_probabilities(data, define_tbn_variables(data))       # every object builds before anything is written
     fingerprint = _tbn_fingerprint(data)
     out = model_dir(path)
     out.mkdir(parents=True, exist_ok=True)
     data["source_sha256"] = fingerprint
     data["versions"] = {n: importlib.metadata.version(n) for n in ("tbnpy", "torch", "ndtools-duco", "rsr-duco")}
-
-    # Extraction's independent 50/50 proposal explores topology; it does not
-    # replace the BN's component distribution or its hazard-induced dependence.
     if extract_rules:
-        from rsr.rsr import run_ref_extraction_by_mcs
-
-        python_state = random.getstate()
-        try:
-            with torch.random.fork_rng(devices=[]):
-                torch.manual_seed(seed)
-                random.seed(seed)
-                for key, prob in probabilities.items():
-                    spec = data["probabilities"][key]
-                    if spec.get("output") != "state":
-                        continue
-                    references = []
-                    for j, row in enumerate(spec["rows"]):
-                        folder = out / "rsr" / row["id"]
-                        folder.mkdir(parents=True, exist_ok=True)
-                        # RSR appends metrics; regeneration starts a fresh run.
-                        (folder / "metrics.json").write_text("", encoding="utf-8")
-                        print(f"Extracting system rules for {row['id']}...")
-                        evaluate = prob.system_function(j)
-
-                        def binary_system(comps):
-                            # RSR 0.2.0 rounds its diagnostic fval and cannot
-                            # accept infinite travel times. Extract the binary
-                            # event itself; actual times remain unchanged.
-                            _, state, _ = evaluate(comps)
-                            return state, state, None
-
-                        edges = spec["parent_rows"]["open"][j]
-                        run_ref_extraction_by_mcs(
-                            sfun=binary_system,
-                            probs=torch.full((len(edges), 2), 0.5),
-                            row_names=edges, n_state=2, sys_upper_st=1,
-                            unk_prob_thres=0.001, unk_prob_opt="abs", max_rounds=128,
-                            prob_update_every=10, save_every=128, n_sample=4096,
-                            sample_batch_size=4096, max_search_loops=2,
-                            ref_update_verbose=False, output_dir=str(folder))
-                        references.append({
-                            "upper": (folder / "refs_up_1.pt").relative_to(out).as_posix(),
-                            "lower": (folder / "refs_low_0.pt").relative_to(out).as_posix(),
-                        })
-                        (folder / "model.json").write_text(json.dumps({
-                            "rules_sha256": rules_fingerprint(spec, j), "origin": row["id"],
-                            "edge_order": edges, "seed": seed,
-                            "proposal": "independent Bernoulli(0.5), for rule search only",
-                            "system_value": "binary state (travel times may be infinite)",
-                            "unclassified": "evaluate with ndtools",
-                        }, indent=2) + "\n", encoding="utf-8")
-                    spec["references"] = references
-        finally:
-            random.setstate(python_state)
-
+        extract_system_rules(compiled, out, seed=seed)
+        attach_rules(data, out)
     (out / "model.json").write_text(json.dumps(data, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     script = _GENERATED_MODEL.replace("python -m src build toy-ca/demo", f"python -m src build {compiled.assembly['id']}")
     (out / "model.py").write_text(script, encoding="utf-8")

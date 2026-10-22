@@ -1,0 +1,66 @@
+{
+  "id": "emergency-inspection-voi",
+  "split": "held_out",
+  "assembly": "toy-ca/demo",
+  "context": {
+    "defaults": {},
+    "system_failure": "SystemState::n4 == 0",
+    "scenario": "demo.assembly.json and network.json; checked against the current model"
+  },
+  "questions": [
+    "For b2, compare repair (loss 20 in either state) versus defer (loss 100 if unusable, 0 if usable). A perfect inspection costs 2. Use demo loss units and calculate net VOI."
+  ],
+  "expected": {
+    "outcome": "compute",
+    "tool_arguments": [
+      {
+        "analysis": {
+          "kind": "voi",
+          "query": {
+            "assembly": "toy-ca/demo"
+          },
+          "state_nodes": [
+            "Usable::b2"
+          ],
+          "loss_units": "demo loss units",
+          "actions": [
+            {
+              "name": "repair",
+              "losses": {
+                "0": 20,
+                "1": 20
+              }
+            },
+            {
+              "name": "defer",
+              "losses": {
+                "0": 100,
+                "1": 0
+              }
+            }
+          ],
+          "inspections": [
+            {
+              "node": "Usable::b2",
+              "cost": 2,
+              "accuracy": [
+                [
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  1
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "must_not": [
+    "Treat an inspection as repair",
+    "Claim these illustrative losses are engineering facts"
+  ]
+}

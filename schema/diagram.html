@@ -292,18 +292,6 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
    "description": "0 closed, 1 open. The edge state the system functions read.",
    "type": "{0,1}"
   },
-  "TravelTime": {
-   "id": "TravelTime",
-   "label": "Travel time to the nearest key destination",
-   "kind": "continuous",
-   "unit": "h",
-   "range": [
-    0,
-    null
-   ],
-   "description": "From one origin node, over the open edges. +inf when no key destination is reachable.",
-   "type": "h"
-  },
   "SystemState": {
    "id": "SystemState",
    "label": "System event survives",
@@ -437,6 +425,33 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     }
    },
    "description": "A bridge, where it is and what kind it is. Its location is what every hazard function reads, so ground motion is one node per bridge."
+  },
+  {
+   "id": "SystemEvent",
+   "label": "System event",
+   "singleton": true,
+   "description": "What counts as the network surviving, for the system function to judge. One per network for now. Its destinations are the nodes marked key_destination; its origins are the nodes the assembly binds the system function to.",
+   "attributes": {
+    "analysis": {
+     "type": "string",
+     "required": false,
+     "default": "system.travel-time-to-nearest",
+     "description": "The system function that judges this event; the assembly must bind that one."
+    },
+    "target_add_h": {
+     "type": "number",
+     "unit": "h",
+     "minimum": 0,
+     "step": 0.5,
+     "required": false,
+     "default": 0.5,
+     "description": "Extra time allowed over the intact network's travel time to the nearest key destination, in hours."
+    },
+    "description": {
+     "type": "string",
+     "required": false
+    }
+   }
   }
  ],
  "views": [
@@ -766,13 +781,13 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "has_parameters": true,
      "implementation": "src.builder.kernels.hazard:Gmm",
      "deterministic": false,
-     "drawKind": "Marginal",
+     "drawKind": "Joint",
      "capabilities": [
       "SampleForward",
       "EvaluateLikelihood",
       "EvaluateDensity"
      ],
-     "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. The event is fixed data: the one Event row's mw, lat, lon and depth_km, read like the bridge's own lat/lon, so it is no BN node. An uncertain rupture (e.g. sampled from a source model) would come back as a scenario function feeding an input here. Choose the set with parameter_set_by_location to use the model made for where the network is. Marginal: no spatial correlation yet; that needs the between- and within-event split of sigma.",
+     "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. The event is fixed data: the one Event row's mw, lat, lon and depth_km, read like the bridge's own lat/lon, so it is no BN node. An uncertain rupture (e.g. sampled from a source model) would come back as a scenario function feeding an input here. Choose the set with parameter_set_by_location to use the model made for where the network is. Joint: one draw covers every bridge. The Campbell (2003) residuals are independent between bridges, which the result says; correlating them needs the between- and within-event split of sigma.",
      "parameter_sets": [
       {
        "id": "campbell-2003.ema-script-sa1",
@@ -901,7 +916,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     {
      "key": "system.travel-time-to-nearest",
      "function": "system.travel-time-to-nearest",
-     "label": "Travel time to the nearest key destination",
+     "label": "Reaches the nearest key destination in time",
      "role": "system",
      "per": "Node",
      "inputs": [
@@ -920,17 +935,9 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      ],
      "outputs": [
       {
-       "name": "travel_time",
-       "quantity": "TravelTime",
-       "choices": [
-        "TravelTime"
-       ],
-       "template": null
-      },
-      {
        "name": "state",
        "quantity": "SystemState",
-       "description": "1 if the travel time is within target_max hours of the intact network's, else 0 (ndtools' system state).",
+       "description": "1 if the nearest key destination is reached within the system event's target_add_h hours of the intact network's travel time, else 0: ndtools' system state, which rsr's rules classify.",
        "choices": [
         "SystemState"
        ],
@@ -940,9 +947,10 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "attributes": [],
      "tables": [
       "Node",
-      "Edge"
+      "Edge",
+      "SystemEvent"
      ],
-     "has_parameters": true,
+     "has_parameters": false,
      "implementation": "src.builder.kernels.system:TravelTimeToNearest",
      "deterministic": true,
      "drawKind": "Joint",
@@ -950,7 +958,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
       "SampleForward",
       "EvaluateLikelihood"
      ],
-     "description": "For each origin node (bind it to the non-key nodes), the travel time to the nearest node marked key_destination, over the open edges, by ndtools. Each edge's weight is length_km / avg_speed_kph, in hours. Joint across the Node plate: every origin reads the same link states in the same sample.",
+     "description": "For each origin node (bind it to the non-key nodes), whether it still reaches the nearest node marked key_destination in time, over the open edges, by ndtools' eval_travel_time_to_nearest. Each edge's weight is length_km / avg_speed_kph, in hours; the travel time itself is internal to the judgement, not a BN node. Joint across the Node plate: every origin reads the same edge states in the same sample.",
      "parameter_sets": [],
      "n_parameter_sets": 0
     }
@@ -1036,8 +1044,9 @@ const store = {
   del(k) { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } },
 };
 const hash = new URLSearchParams(location.hash.slice(1));        // #view=ema-highway/gmm&tab=plates&sel=b2
+const EMBED = hash.get("embed") === "1";   // inside quakenet's BN tab: the drawing and details; quakenet runs queries
 const state = { view: hash.get("view") || store.get("view"), tab: hash.get("tab") || store.get("tab") || "model",
-                pane: STATIC ? "details" : "query", k: 1, tx: 0, ty: 0, pos: {}, sel: null, wires: [], chat: [], ran: [] };
+                pane: STATIC || EMBED ? "details" : "query", k: 1, tx: 0, ty: 0, pos: {}, sel: null, wires: [], chat: [], ran: [] };
 
 const view = () => DATA.views.find(v => v.id === state.view);
 const qty = id => DATA.quantities[id] || { label: id, type: "?" };
@@ -1701,9 +1710,12 @@ function switchView(id) {
 }
 
 async function start() {
-  if (STATIC) {
-    // Drawings and details only: queries and questions need the engine, so the server.
+  if (STATIC || EMBED) {
+    // Drawings and details only: queries and questions need the engine (or, embedded, are quakenet's).
     document.querySelectorAll('#sidetabs button[data-pane="query"], #sidetabs button[data-pane="ask"]').forEach(b => b.remove());
+  }
+  if (EMBED) for (const sel of [".brand", "#view", "#theme"]) { const el = $(sel); if (el) el.style.display = "none"; }
+  if (STATIC) {
     $("#pane-details").innerHTML = `<p>Select a card to see its signature, parameter sets and an example node.</p>` +
       `<p class="note">Written by <code>${esc(DATA.generated_by || "python -m src export")}</code>${DATA.exported ? " on " + esc(DATA.exported) : ""}. ` +
       `Run <code>python -m src serve --open</code> to query the BN or ask in words.</p>`;
@@ -1728,7 +1740,7 @@ async function start() {
   switchView(state.view);
   fit();
   if (hash.get("sel") && cardEl(hash.get("sel"))) select(hash.get("sel"));
-  if (STATIC) return;
+  if (STATIC || EMBED) return;
   try {
     chatStatus = await (await fetch("/api/chat-status")).json();
   } catch { chatStatus = { available: false, reason: "the status check failed" }; }
