@@ -6,20 +6,22 @@ import copy
 import json
 import shutil
 from math import log
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import torch
 from scipy.special import ndtr
 
-from src.builder.compile import compile_assembly, compile_path
-from src.builder.kernels import Call
+from src.builder.bn_builder import compile_assembly, compile_path
 from src.builder.kernels.fragility import Fragility
 from src.builder.kernels.hazard import (ShakeMap, SpatialCorrelationField, campbell_2003_ln_median,
                                         great_circle_km, jayaram_baker_2009_range_km)
 from src.builder.kernels.edge import EdgeOpen
+from src.builder.kernels.system import TravelTimeToNearest
 from src.builder.load import (INSTANCES, NETWORKS, SCHEMA, RegistryError, assembly_path, assembly_paths,
                               load_assembly, load_library, load_network)
-from src.inference.sample import forward_sample
+from src.inference import engine
 
 
 @pytest.fixture(scope="module")
@@ -83,7 +85,7 @@ def test_two_producers_for_one_node_is_refused(lib):
 
 def test_missing_producer_is_named(lib):
     def drop_hazard(a):
-        del a["bindings"][1]
+        a["bindings"] = [b for b in a["bindings"] if b["function"] != "hazard.gmm"]
 
     with pytest.raises(RegistryError, match=r"no binding produces SA\(1\.0\) for Bridge bridge-e0001"):
         _compile(lib, "ema-highway/gmm", drop_hazard)
@@ -219,30 +221,43 @@ CAMPBELL_REFERENCE = [
 @pytest.mark.parametrize("mw,r,expected", CAMPBELL_REFERENCE)
 def test_campbell_reproduces_the_dataset_script(lib, mw, r, expected):
     c = lib.parameter_sets["campbell-2003.ema-script-sa1"]["values"]["coefficients"]
-    assert campbell_2003_ln_median(np.array(mw), np.array(r), c) == pytest.approx(expected)
+    assert float(campbell_2003_ln_median(mw, r, c)) == pytest.approx(expected)
 
 
-def _call(lib, inputs, rows, params=None, parents=None, tables=None, ports=None, n=None):
-    n = n or next(iter(v if not isinstance(v, list) else v[0] for v in inputs.values())).shape[0]
-    quantities = {name: lib.quantities[q] for name, q in (ports or {}).items()}
-    return Call(n, rows, inputs, parents or {}, params, tables or {}, quantities, np.random.default_rng(7))
+def _prob(cls, rows, params=None, *, inputs=None, states=None, tables=None, parent_rows=None, output=None):
+    """One probability object over ``rows``, as bn_builder builds it. ``inputs``: {port: [parent columns per row]}."""
+    params = params if isinstance(params, list) else [params] * len(rows)
+    columns = [{port: cols[r] for port, cols in (inputs or {}).items()} for r in range(len(rows))]
+    n_parents = 1 + max((c for row in columns for cols in row.values() for c in cols), default=-1)
+    spec = {"rows": rows, "parameters": params, "input_columns": columns, "states": states or {},
+            "tables": tables or {}, "parent_rows": parent_rows or {}}
+    if output:
+        spec["output"] = output
+    return cls([SimpleNamespace(name=f"child{j}") for j in range(len(rows))],
+               [SimpleNamespace(name=f"parent{i}") for i in range(n_parents)], spec)
+
+
+DAMAGE = {"damage": ["none", "slight", "moderate", "extensive", "complete"]}
+
+
+def _curves(params, n_rows):
+    return _prob(Fragility, [{"id": str(i)} for i in range(n_rows)], params,
+                 inputs={"im": [[i] for i in range(n_rows)]}, states=DAMAGE)
 
 
 def test_fragility_density_and_sampling(lib):
     params = lib.parameter_sets["hazus61.HWB11"]["values"]
-    im = np.array([[0.0, 0.5, 1.1, 3.0]])
-    call = _call(lib, {"im": im}, [{"id": str(i)} for i in range(4)], params,
-                 ports={"im": "SA(1.0)", "damage": "DamageState.HazusBridge"})
-    p = Fragility().evaluate_density(call)["damage"][0]
+    im = torch.tensor([[0.0, 0.5, 1.1, 3.0]], dtype=torch.float64)
+    p = _curves(params, 4).distribution(im)[0].numpy()
     assert np.allclose(p.sum(-1), 1) and np.all(p >= 0)
     assert p[0, 0] == 1.0                                         # no shaking, no damage
     extensive_or_worse = p[:, 3:].sum(-1)
-    assert np.allclose(extensive_or_worse[1:], ndtr(np.log(im[0, 1:] / 1.1) / 0.6))
+    assert np.allclose(extensive_or_worse[1:], ndtr(np.log(im[0, 1:].numpy() / 1.1) / 0.6))
 
-    big = _call(lib, {"im": np.full((20000, 1), 1.1)}, [{"id": "b"}], params,
-                ports={"im": "SA(1.0)", "damage": "DamageState.HazusBridge"})
-    ds = Fragility().sample_forward(big)["damage"][:, 0]
-    assert np.mean(ds >= 3) == pytest.approx(0.5, abs=0.02)      # the median of Extensive
+    torch.manual_seed(7)
+    ds, logp = _curves(params, 1).sample(torch.full((20000, 1), 1.1, dtype=torch.float64))
+    assert (ds[:, 0] >= 3).double().mean().item() == pytest.approx(0.5, abs=0.02)      # the median of Extensive
+    assert torch.isfinite(logp).all()
 
 
 # ---- fragility: one schema, curves as instances ---------------------------------------
@@ -258,14 +273,12 @@ def test_per_state_betas_and_crossing_curves_are_capped_with_a_note(lib):
     hazus = lib.parameter_sets["hazus61.HWB11"]["values"]
     params = {**hazus, "parameters": {"medians": hazus["parameters"]["medians"],
                                       "betas": {"slight": 0.3, "moderate": 0.4, "extensive": 0.9, "complete": 0.9}}}
-    im = np.array([[0.05, 1.1, 5.0]])
-    call = _call(lib, {"im": im}, [{"id": str(i)} for i in range(3)], params,
-                 ports={"im": "SA(1.0)", "damage": "DamageState.HazusBridge"})
-    p = Fragility().evaluate_density(call)["damage"][0]
+    prob = _curves(params, 3)
+    p = prob.distribution(torch.tensor([[0.05, 1.1, 5.0]], dtype=torch.float64))[0].numpy()
     assert np.allclose(p.sum(-1), 1) and np.all(p >= 0)
     assert p[1, 3:].sum() == pytest.approx(ndtr(0.0))           # Extensive's own beta, at its median
     # Moderate (beta 0.4) and Extensive (beta 0.9) cross at low im: P(DS >= extensive) is capped there.
-    assert any("cross" in w for w in call.warnings)
+    assert any("cross" in w for w in prob.notes)
 
 
 def _library_with(tmp_path, folder, name, data):
@@ -304,67 +317,57 @@ def test_the_gmm_gives_each_bridge_its_own_median_and_sigma(lib):
     """ln SA(1.0) at a bridge is N(Campbell median at its hypocentral distance, total sigma)."""
     c = _compile(lib, "ema-highway/gmm")
     gmm = next(b for b in c.bindings if b.function["id"] == "hazard.gmm")
-    samples = forward_sample(c, 20000, seed=3, bindings=c.ancestors({gmm.index}))
+    samples = engine.sample_nodes(c, 20000, seed=3, bindings=c.ancestors({gmm.index}))
     event = c.network.row("ema-reference")
     values = lib.parameter_sets["campbell-2003.ema-script-sa1"]["values"]
     s = values["sigma"]
     sigma = np.hypot(s["a"] + s["b"] * event["mw"] if event["mw"] < s["m_break"] else s["sigma_above"],
                      values["sigma_epistemic"])
     for bridge in c.network.rows("Bridge")[:5]:
-        r = np.hypot(great_circle_km(event["lat"], event["lon"], bridge["lat"], bridge["lon"]), event["depth_km"])
+        r = np.hypot(float(great_circle_km(event["lat"], event["lon"], bridge["lat"], bridge["lon"])), event["depth_km"])
         x = np.log(samples[f"SA(1.0)::{bridge['id']}"])
         assert x.mean() == pytest.approx(float(campbell_2003_ln_median(event["mw"], r, values["coefficients"])), abs=0.02)
         assert x.std() == pytest.approx(sigma, rel=0.03)
 
 
-def test_an_edge_closes_with_any_bridge_and_is_open_without_one(lib):
-    usable = [np.array([[1, 1], [1, 0]]), np.empty((2, 0), dtype=int)]
-    out = EdgeOpen().sample_forward(_call(lib, {"usable": usable}, [{"id": "a"}, {"id": "b"}], n=2))["open"]
+def test_an_edge_closes_with_any_bridge_and_is_open_without_one():
+    prob = _prob(EdgeOpen, [{"id": "a"}, {"id": "b"}], inputs={"usable": [[0, 1], []]})
+    out = prob.evaluate(torch.tensor([[1.0, 1.0], [1.0, 0.0]], dtype=torch.float64))
     assert out.tolist() == [[1, 1], [0, 1]]
 
 
-def _diamond(lib, open_states, target_max=0.5, directed=False):
-    """s-a-t is 1 h and s-b-t 2 h at 80 km/h; t is the key destination, s, a and b the origins."""
-    nodes = [{"id": x, "key_destination": x == "t"} for x in "sabt"]
+def _diamond(output, target_max=0.5, directed=False, key="t", origins="sab"):
+    """s-a-t is 1 h and s-b-t 2 h at 80 km/h; ``key`` is the key destination."""
+    nodes = [{"id": x, "key_destination": x == key} for x in "sabt"]
     edges = [{"id": eid, "source": u, "target": v, "directed": directed, "length_km": km, "avg_speed_kph": 80.0}
              for eid, u, v, km in (("sa", "s", "a", 40.0), ("at", "a", "t", 40.0), ("sb", "s", "b", 80.0),
                                    ("bt", "b", "t", 80.0))]
-    ids = [e["id"] for e in edges]
-    rows = [{"id": x} for x in "sab"]
-    opened = np.asarray(open_states)
-    return _call(lib, {"open": [opened] * len(rows)}, rows, {"target_max": target_max},
-                 parents={"open": [ids] * len(rows)}, tables={"Node": nodes, "Edge": edges})
+    rows = [{"id": x} for x in origins]
+    return _prob(TravelTimeToNearest, rows, {"target_max": target_max}, inputs={"open": [[0, 1, 2, 3]] * len(rows)},
+                 tables={"Node": nodes, "Edge": edges}, parent_rows={"open": [[e["id"] for e in edges]] * len(rows)},
+                 output=output)
 
 
-def test_travel_time_to_nearest_judges_each_origin_against_its_intact_time(lib):
-    from src.builder.kernels.system import TravelTimeToNearest
+def test_travel_time_to_nearest_judges_each_origin_against_its_intact_time():
+    #                          sa at sb bt
+    states = torch.tensor([[1, 1, 1, 1],      # intact: s 1.0 h (via a)
+                           [0, 1, 1, 1],      # sa closed: s goes via b, 2.0 h, 1.0 h late
+                           [0, 1, 0, 1]], dtype=torch.float64)     # s cut off
+    time, state = _diamond("travel_time"), _diamond("state")
+    assert time.evaluate(states)[:, 0].tolist() == [1.0, 2.0, float("inf")]
+    assert state.evaluate(states)[:, 0].tolist() == [1, 0, 0]          # 1.0 h late > target_max 0.5 h
+    assert time.evaluate(states)[:, 1].tolist() == [0.5, 0.5, 0.5]     # a reaches t directly throughout
+    assert not state.notes
 
-    #                 sa at sb bt
-    call = _diamond(lib, [[1, 1, 1, 1],      # intact: s 1.0 h (via a)
-                          [0, 1, 1, 1],      # sa closed: s goes via b, 2.0 h, 1.0 h late
-                          [0, 1, 0, 1]])     # s cut off
-    out = TravelTimeToNearest().sample_forward(call)
-    assert out["travel_time"][:, 0].tolist() == [1.0, 2.0, np.inf]
-    assert out["state"][:, 0].tolist() == [1, 0, 0]                 # 1.0 h late > target_max 0.5 h
-    assert out["travel_time"][:, 1].tolist() == [0.5, 0.5, 0.5]      # a reaches t directly throughout
-    assert not call.warnings
-
-    lenient = TravelTimeToNearest().sample_forward(_diamond(lib, [[0, 1, 1, 1]], target_max=1.0))
-    assert lenient["state"][0, 0] == 1                               # 1.0 h late is within 1.0 h
+    lenient = _diamond("state", target_max=1.0).evaluate(states[1:2])
+    assert lenient[0, 0] == 1                                          # 1.0 h late is within 1.0 h
 
 
-def test_an_origin_with_no_route_even_intact_is_reported(lib):
-    from src.builder.kernels.system import TravelTimeToNearest
-
-    call = _diamond(lib, [[1, 1, 1, 1]], directed=True)               # every edge points away from s, so t->s is impossible
-    call.rows.append({"id": "t"})
-    call.parents["open"].append(call.parents["open"][0])
-    call.inputs["open"].append(call.inputs["open"][0])
-    for node in call.tables["Node"]:
-        node["key_destination"] = node["id"] == "s"
-    out = TravelTimeToNearest().sample_forward(call)
-    assert out["state"][0].tolist() == [1, 0, 0, 0]                 # only s itself reaches s
-    assert "fail even with every edge open" in call.warnings[0]
+def test_an_origin_with_no_route_even_intact_is_reported():
+    # Every edge points away from s, so only s itself reaches s.
+    state = _diamond("state", directed=True, key="s", origins="sabt")
+    assert state.evaluate(torch.ones((1, 4), dtype=torch.float64))[0].tolist() == [1, 0, 0, 0]
+    assert "fail even with every edge open" in state.notes[0]
 
 
 def test_every_travel_time_node_reads_every_link(lib):
@@ -375,7 +378,7 @@ def test_every_travel_time_node_reads_every_link(lib):
     assert len(nodes[f"SystemState::{origins[0]}"]["parents"]) == 129
 
 
-def test_shakemap_kernel_samples_and_refuses_outside(lib, monkeypatch):
+def test_shakemap_kernel_samples_and_refuses_outside(monkeypatch):
     from src.builder import shakemap
 
     grid = shakemap.ShakeMapGrid(
@@ -384,16 +387,15 @@ def test_shakemap_kernel_samples_and_refuses_outside(lib, monkeypatch):
     )
     monkeypatch.setattr(shakemap, "load", lambda *a, **k: grid)
     rows = [{"id": "in", "lat": 0.5, "lon": 0.5}]
-    epsilon = np.array([[-1.0], [0.0], [2.0]])
-    call = _call(lib, {"epsilon": epsilon}, rows, {"event_id": "test", "imt": "SA(1.0)"})
-    sa = ShakeMap().sample_forward(call)["im"][:, 0]
-    assert np.allclose(np.log(sa), log(0.4) + 0.5 * epsilon[:, 0])     # deterministic given the residual
-    assert any("no seismic station" in w for w in call.warnings)
+    params = {"event_id": "test", "imt": "SA(1.0)"}
+    prob = _prob(ShakeMap, rows, params, inputs={"epsilon": [[0]]})
+    epsilon = torch.tensor([[-1.0], [0.0], [2.0]], dtype=torch.float64)
+    sa = prob.evaluate(epsilon)[:, 0]
+    assert np.allclose(np.log(sa.numpy()), log(0.4) + 0.5 * epsilon[:, 0].numpy())     # deterministic given the residual
+    assert any("no seismic station" in w for w in prob.notes)
 
-    outside = _call(lib, {"epsilon": np.zeros((1, 2))}, rows + [{"id": "out", "lat": 5.0, "lon": 5.0}],
-                    {"event_id": "test", "imt": "SA(1.0)"})
     with pytest.raises(ValueError, match="outside ShakeMap"):
-        ShakeMap().sample_forward(outside)
+        _prob(ShakeMap, rows + [{"id": "out", "lat": 5.0, "lon": 5.0}], params, inputs={"epsilon": [[0], [1]]})
 
 
 @pytest.mark.parametrize("period, clustered, expected", [
@@ -406,31 +408,32 @@ def test_jayaram_baker_ranges(period, clustered, expected):
 
 def _field(lib, set_id, rows, n=40000, truncation=None):
     values = {**lib.parameter_sets[set_id]["values"], "truncation_level": truncation}
-    return _call(lib, {}, rows, values, n=n)
+    prob = _prob(SpatialCorrelationField, rows, values)
+    torch.manual_seed(7)
+    eps, logp = prob.sample(n_sample=n)
+    torch.testing.assert_close(logp, prob.log_prob(eps))               # sample and likelihood agree
+    return prob, eps.numpy()
 
 
 def test_the_field_reproduces_the_correlation_model(lib):
     # 0.08993 deg of latitude is 10.0 km; the third site sits on the first.
     rows = [{"id": "a", "lat": 0.0, "lon": 0.0}, {"id": "b", "lat": 0.08993, "lon": 0.0},
             {"id": "c", "lat": 0.0, "lon": 0.0}]
-    call = _field(lib, "jayaram-baker-2009.sa1p0", rows)
-    eps = SpatialCorrelationField().sample_forward(call)["epsilon"]
+    prob, eps = _field(lib, "jayaram-baker-2009.sa1p0", rows)
     r = np.corrcoef(eps.T)
     assert np.allclose(eps.std(axis=0), 1.0, atol=0.02)
     assert r[0, 1] == pytest.approx(np.exp(-3 * 10.0 / 25.7), abs=0.02)
     assert r[0, 2] == pytest.approx(1.0, abs=1e-6)                     # co-located: no failure, fully correlated
-    assert not call.warnings
+    assert not prob.notes
 
 
 def test_independent_sites_are_uncorrelated_and_say_so(lib):
     rows = [{"id": "a", "lat": 0.0, "lon": 0.0}, {"id": "b", "lat": 0.0, "lon": 0.0}]
-    call = _field(lib, "independent.any-im", rows)
-    eps = SpatialCorrelationField().sample_forward(call)["epsilon"]
+    prob, eps = _field(lib, "independent.any-im", rows)
     assert abs(np.corrcoef(eps.T)[0, 1]) < 0.03
-    assert "independently" in call.warnings[0]
+    assert "independently" in prob.notes[0]
 
 
 def test_truncation_bounds_the_independent_normals(lib):
-    call = _field(lib, "independent.any-im", [{"id": "a", "lat": 0.0, "lon": 0.0}], truncation=2.0)
-    eps = SpatialCorrelationField().sample_forward(call)["epsilon"]
+    _, eps = _field(lib, "independent.any-im", [{"id": "a", "lat": 0.0, "lon": 0.0}], truncation=2.0)
     assert np.abs(eps).max() <= 2.0 and eps.std() < 0.9                # truncated at 2 sd: variance ~0.77

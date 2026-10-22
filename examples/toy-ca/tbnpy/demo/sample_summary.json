@@ -1,0 +1,317 @@
+{
+  "samples": 2000,
+  "seed": 20261022,
+  "device": "cpu",
+  "variables": {
+    "Usable::b1": {
+      "P": {
+        "0": 0.018,
+        "1": 0.982
+      }
+    },
+    "Usable::b2": {
+      "P": {
+        "0": 0.086,
+        "1": 0.914
+      }
+    },
+    "Usable::b3": {
+      "P": {
+        "0": 0.014,
+        "1": 0.986
+      }
+    },
+    "Usable::b4": {
+      "P": {
+        "0": 0.2945,
+        "1": 0.7055
+      }
+    },
+    "Usable::b5": {
+      "P": {
+        "0": 0.011,
+        "1": 0.989
+      }
+    },
+    "Usable::b6": {
+      "P": {
+        "0": 0.4275,
+        "1": 0.5725
+      }
+    },
+    "Usable::b7": {
+      "P": {
+        "0": 0.1035,
+        "1": 0.8965
+      }
+    },
+    "Usable::b8": {
+      "P": {
+        "0": 0.0205,
+        "1": 0.9795
+      }
+    },
+    "Usable::b9": {
+      "P": {
+        "0": 0.0495,
+        "1": 0.9505
+      }
+    },
+    "Usable::b10": {
+      "P": {
+        "0": 0.0265,
+        "1": 0.9735
+      }
+    },
+    "SystemState::n3": {
+      "P": {
+        "0": 0.014,
+        "1": 0.986
+      }
+    },
+    "SystemState::n4": {
+      "P": {
+        "0": 0.1465,
+        "1": 0.8535
+      }
+    },
+    "SystemState::n5": {
+      "P": {
+        "0": 0.086,
+        "1": 0.914
+      }
+    },
+    "SystemState::n6": {
+      "P": {
+        "0": 0.105,
+        "1": 0.895
+      }
+    },
+    "SystemState::n7": {
+      "P": {
+        "0": 0.0035,
+        "1": 0.9965
+      }
+    },
+    "SystemState::n8": {
+      "P": {
+        "0": 0.025,
+        "1": 0.975
+      }
+    },
+    "TravelTime::n3": {
+      "mean_finite": 0.7577200674678682,
+      "P_inf": 0.0015
+    },
+    "TravelTime::n4": {
+      "mean_finite": 1.5808152400016944,
+      "P_inf": 0.0165
+    },
+    "TravelTime::n5": {
+      "mean_finite": 0.9916501703229584,
+      "P_inf": 0.004
+    },
+    "TravelTime::n6": {
+      "mean_finite": 1.30878225313755,
+      "P_inf": 0.004
+    },
+    "TravelTime::n7": {
+      "mean_finite": 1.8334054813794252,
+      "P_inf": 0.002
+    },
+    "TravelTime::n8": {
+      "mean_finite": 1.2552397039328655,
+      "P_inf": 0.002
+    },
+    "EdgeOpen::e1": {
+      "P": {
+        "0": 0.018,
+        "1": 0.982
+      }
+    },
+    "EdgeOpen::e2": {
+      "P": {
+        "0": 0.086,
+        "1": 0.914
+      }
+    },
+    "EdgeOpen::e3": {
+      "P": {
+        "0": 0.014,
+        "1": 0.986
+      }
+    },
+    "EdgeOpen::e4": {
+      "P": {
+        "0": 0.2945,
+        "1": 0.7055
+      }
+    },
+    "EdgeOpen::e5": {
+      "P": {
+        "0": 0.011,
+        "1": 0.989
+      }
+    },
+    "EdgeOpen::e6": {
+      "P": {
+        "0": 0.4275,
+        "1": 0.5725
+      }
+    },
+    "EdgeOpen::e7": {
+      "P": {
+        "0": 0.1035,
+        "1": 0.8965
+      }
+    },
+    "EdgeOpen::e8": {
+      "P": {
+        "0": 0.0205,
+        "1": 0.9795
+      }
+    },
+    "EdgeOpen::e9": {
+      "P": {
+        "0": 0.0495,
+        "1": 0.9505
+      }
+    },
+    "EdgeOpen::e10": {
+      "P": {
+        "0": 0.0265,
+        "1": 0.9735
+      }
+    },
+    "DamageState.HazusBridge::b1": {
+      "P": {
+        "none": 0.9655,
+        "slight": 0.0,
+        "moderate": 0.0165,
+        "extensive": 0.01,
+        "complete": 0.008
+      }
+    },
+    "DamageState.HazusBridge::b2": {
+      "P": {
+        "none": 0.7555,
+        "slight": 0.1045,
+        "moderate": 0.054,
+        "extensive": 0.0585,
+        "complete": 0.0275
+      }
+    },
+    "DamageState.HazusBridge::b3": {
+      "P": {
+        "none": 0.98,
+        "slight": 0.0,
+        "moderate": 0.006,
+        "extensive": 0.0105,
+        "complete": 0.0035
+      }
+    },
+    "DamageState.HazusBridge::b4": {
+      "P": {
+        "none": 0.4345,
+        "slight": 0.162,
+        "moderate": 0.109,
+        "extensive": 0.148,
+        "complete": 0.1465
+      }
+    },
+    "DamageState.HazusBridge::b5": {
+      "P": {
+        "none": 0.9825,
+        "slight": 0.0,
+        "moderate": 0.0065,
+        "extensive": 0.0065,
+        "complete": 0.0045
+      }
+    },
+    "DamageState.HazusBridge::b6": {
+      "P": {
+        "none": 0.327,
+        "slight": 0.131,
+        "moderate": 0.1145,
+        "extensive": 0.187,
+        "complete": 0.2405
+      }
+    },
+    "DamageState.HazusBridge::b7": {
+      "P": {
+        "none": 0.851,
+        "slight": 0.0,
+        "moderate": 0.0455,
+        "extensive": 0.0445,
+        "complete": 0.059
+      }
+    },
+    "DamageState.HazusBridge::b8": {
+      "P": {
+        "none": 0.96,
+        "slight": 0.0,
+        "moderate": 0.0195,
+        "extensive": 0.012,
+        "complete": 0.0085
+      }
+    },
+    "DamageState.HazusBridge::b9": {
+      "P": {
+        "none": 0.9245,
+        "slight": 0.0,
+        "moderate": 0.026,
+        "extensive": 0.0265,
+        "complete": 0.023
+      }
+    },
+    "DamageState.HazusBridge::b10": {
+      "P": {
+        "none": 0.958,
+        "slight": 0.0,
+        "moderate": 0.0155,
+        "extensive": 0.017,
+        "complete": 0.0095
+      }
+    },
+    "SA(1.0)::b1": {
+      "mean_finite": 0.22818406980918907,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b2": {
+      "mean_finite": 0.16740637894987706,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b3": {
+      "mean_finite": 0.18541111626047269,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b4": {
+      "mean_finite": 0.34013505021856916,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b5": {
+      "mean_finite": 0.18215462389560366,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b6": {
+      "mean_finite": 0.45692639892457904,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b7": {
+      "mean_finite": 0.45994705608513253,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b8": {
+      "mean_finite": 0.23563171075467612,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b9": {
+      "mean_finite": 0.317845830044526,
+      "P_inf": 0.0
+    },
+    "SA(1.0)::b10": {
+      "mean_finite": 0.23834978150300032,
+      "P_inf": 0.0
+    }
+  }
+}

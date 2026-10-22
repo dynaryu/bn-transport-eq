@@ -66,7 +66,8 @@
   "deterministic": false,
   "drawKind": "Joint",
   "capabilities": [
-    "SampleForward"
+    "SampleForward",
+    "EvaluateLikelihood"
   ],
   "source": {
     "citation": "Jayaram, N. and Baker, J. W. (2009). Correlation model for spatially distributed ground-motion intensities. Earthquake Engineering & Structural Dynamics 38(15), 1687-1708.",

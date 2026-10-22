@@ -16,3 +16,14 @@ tools take, checked against the [schema](../schema/README.md) like everything el
 
 The EMA and Hebei networks came from the `network-datasets` repository through the
 earlier pilot's packages (commit `784e6cc`). These files are now the source.
+
+The tbnpy builder stores generated models beneath the corresponding
+example, in `tbnpy/<assembly-name>/` (for example, `toy-ca/tbnpy/demo/`). Each
+generated model defines tbnpy variables and probability objects using the
+shared PyTorch implementations in `src/builder/kernels/`. RSR reference tensors
+and their metadata live alongside that model in `rsr/`. Separate assembly
+directories keep different model selections for the same network from overwriting
+one another. Generate toy-ca with `python -m src build toy-ca/demo`, then run
+`python examples/toy-ca/tbnpy/demo/model.py --samples 2000`. Queries (`python -m
+src query`, the page, the chat) build the same tbnpy model in memory and reuse the
+stored rules for every origin whose network and threshold they were extracted for.

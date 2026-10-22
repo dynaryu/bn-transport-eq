@@ -24,7 +24,8 @@
   "deterministic": true,
   "drawKind": "Marginal",
   "capabilities": [
-    "SampleForward"
+    "SampleForward",
+    "EvaluateLikelihood"
   ],
   "description": "Each bridge sits on one edge (Bridge.edge); the edge closes if any of its bridges is unusable. An edge with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here."
 }

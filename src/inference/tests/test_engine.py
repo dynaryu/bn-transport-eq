@@ -43,7 +43,7 @@ def test_event_probability_matches_the_closed_form():
 
 def test_only_the_bindings_a_target_needs_are_run():
     r = answer({"assembly": EMA, "targets": ["EdgeOpen::e0001"], "samples": 100})
-    assert r["computed"] == ["hazard.scenario-fixed", "hazard.gmm", "fragility.bridge",
+    assert r["computed"] == ["hazard.gmm", "fragility.bridge",
                              "functionality.usable-from-damage", "edge.open"]
 
 

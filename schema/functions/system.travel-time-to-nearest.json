@@ -47,7 +47,8 @@
   "deterministic": true,
   "drawKind": "Joint",
   "capabilities": [
-    "SampleForward"
+    "SampleForward",
+    "EvaluateLikelihood"
   ],
   "source": {
     "citation": "ndtools (pip install ndtools-duco), fun_binary_graph.eval_travel_time_to_nearest."

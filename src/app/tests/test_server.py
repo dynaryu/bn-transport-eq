@@ -42,7 +42,7 @@ def test_view_data_has_the_schema_and_every_bn():
     links = {(x["from"], x["to"]) for x in views["library"]["links"]}
     for hazard in ("hazard.gmm", "hazard.shakemap"):
         assert (hazard, "fragility.bridge") in links          # alternatives, all type-compatible
-    assert views["ema-highway/gmm"]["n_nodes"] == 661            # 517 + travel time and state for 72 origins
+    assert views["ema-highway/gmm"]["n_nodes"] == 660            # 516 + travel time and state for 72 origins
     assert views["ema-highway/gmm"]["menu"]["settable"]["rows"]
 
 

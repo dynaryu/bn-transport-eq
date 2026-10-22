@@ -67,7 +67,8 @@
   "deterministic": true,
   "drawKind": "Marginal",
   "capabilities": [
-    "SampleForward"
+    "SampleForward",
+    "EvaluateLikelihood"
   ],
   "source": {
     "citation": "USGS ShakeMap grid.xml and uncertainty.xml, PSA(1.0 s), read through src/builder/shakemap.py."

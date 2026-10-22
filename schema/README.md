@@ -44,10 +44,12 @@ A function's `per` is its plate. Each input names the plate its parent lives on
 | `self` | the same row | `Usable[bridge] ← DamageState[bridge]` |
 | `<fk>` | the row this foreign key points at | e.g. `X[bridge] ← EdgeOpen[bridge.edge]`, a bridge reading its own edge's state; none in use yet |
 | `<Over>.<fk>` | every `Over` row whose key points here | `EdgeOpen[edge] ← Usable[b] for every b with b.edge = edge` |
-| `*` | every row of `Over` | `Rupture[event]` for every bridge's GMM; a system function reading every `EdgeOpen` |
+| `*` | every row of `Over` | a system function reading every `EdgeOpen` |
 
-`*` over a singleton plate is how global variables enter: `Rupture` lives on the
-one `Event` row, and every bridge's ground-motion node shares it as a parent.
+A fixed scenario is not a variable: the GMM reads the one `Event` row as a whole table
+(`tables: ["Event"]`), fixed data like each bridge's lat/lon. Only an uncertain
+rupture would be a node, from a scenario function on `Event` feeding every bridge's
+GMM through `*`.
 
 ## Intensity measures are left open
 
@@ -70,9 +72,9 @@ on the same IM:
 - **GMM** (`hazard.gmm`): one function for every ground-motion model. Each parameter
   set is one model: its functional `form` (a kernel in `GMM_FORMS`), the `imt` it
   predicts, its coefficients and σ, and a `region` where it applies. Campbell (2003)
-  is one such set. The parent is `Rupture[Event]`, the global parameters; fixed data,
-  the bridge's lat/lon. The scenario is itself a root node (`hazard.scenario-fixed`), so
-  making magnitude uncertain means swapping that one function for a prior.
+  is one such set. It has no parents: its fixed data are the `Event` row (magnitude,
+  epicentre, depth) and the bridge's lat/lon. Making the rupture uncertain would add a
+  scenario function and a `rupture` input here.
 
   **Which GMM is chosen by where the network is.** A binding with
   `"parameter_set_by_location": ["model.a", "model.b"]` gives each bridge the first
@@ -153,10 +155,12 @@ silently: the check names the bridges and the IM they do have.
   under `attributes`.
 - **Curves on another IM**: a parameter set for `fragility.bridge` with that `imt`.
 - **A system function**: one that reads every `EdgeOpen` via `*` and the `Node`/`Edge`
-  tables, and calls an ndtools evaluator (`src/builder/kernels/system.py`). Rules
-  from rsr, stored per network, are the next step.
-- **A kernel** lives in `src/builder/kernels/`. It gets a `Call` (rows, input
-  arrays, θ) and returns `(n_samples, n_rows)` arrays, one per output port.
+  tables, and calls an ndtools evaluator (`src/builder/kernels/system.py`). Its rsr
+  rules are extracted once by `python -m src build` and stored with the example.
+- **A kernel** is a tbnpy probability class in `src/builder/kernels/`, built for one
+  binding as `Class(childs, parents, spec)`: its childs are every row's outputs, its
+  parents every input they read. It samples with `sample()` and evaluates `log_prob()`,
+  in PyTorch.
 
 The records map one-to-one onto relational tables (quantity, entity, function,
 port, parameter_set, binding), so they could be loaded into Postgres or Supabase.

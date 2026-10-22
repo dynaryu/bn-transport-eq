@@ -84,7 +84,7 @@
       "type": "object"
     },
     "implementation": {
-      "description": "\"python.module:callable\" taking one Call and returning {output name: array}.",
+      "description": "\"python.module:Class\": a tbnpy probability class, built as Class(childs, parents, spec) for one binding, whose childs are all its rows' outputs. See src/builder/kernels/__init__.py.",
       "type": "string",
       "pattern": "^[A-Za-z_][\\w.]*:[A-Za-z_]\\w*$"
     },
@@ -92,14 +92,14 @@
       "type": "boolean"
     },
     "drawKind": {
-      "description": "Joint: one call returns dependent draws across the plate's rows. Marginal: rows are drawn independently given their parents; using it where a joint is needed silently imposes independence.",
+      "description": "Joint: one probability object draws its rows dependently. Marginal: rows are drawn independently given their parents; using it where a joint is needed silently imposes independence.",
       "enum": [
         "Joint",
         "Marginal"
       ]
     },
     "capabilities": {
-      "description": "Only what the implementation actually provides: each needs its method on the kernel (load.CAPABILITY_METHOD), and the check reports a missing one as OVERCLAIM.",
+      "description": "Only what the implementation actually provides: each needs its method on the class (load.CAPABILITY_METHOD: SampleForward sample, EvaluateLikelihood log_prob, EvaluateDensity distribution), and the check reports a missing one as OVERCLAIM.",
       "type": "array",
       "uniqueItems": true,
       "items": {

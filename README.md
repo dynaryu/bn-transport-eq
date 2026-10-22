@@ -13,8 +13,8 @@ assembly of functions over a network's rows gives the Bayesian network. A query
 |---|---|---|---|
 | 1 | **Schema**: what can exist | [`schema/`](schema/README.md) | quantities (the types), entity types (the plates), functions (typed signatures), and in `meta/` the JSON Schema every file obeys. [`diagram.md`](schema/diagram.md) draws it |
 | 2 | **Instances**: what does exist | [`instances/`](instances/README.md) | parameter sets, filed by role: GMMs and correlation models under `hazard/`, the 28 Hazus bridge curves under `fragility/`, closure policies under `functionality/` |
-| 3 | **BN builder** | `src/builder/` | validate 1 and 2, then compile an assembly into BN nodes and parents; the kernels behind each function; the ShakeMap reader |
-| 4 | **Inference engine** | `src/inference/` | a probabilistic query ([`query.schema.json`](src/inference/query.schema.json)) in, an answer out, by forward Monte Carlo |
+| 3 | **BN builder** | `src/builder/bn_builder.py` | validate 1 and 2, then build BN nodes and parents; the kernels behind each function and the ShakeMap reader live alongside it |
+| 4 | **Inference engine** | `src/inference/` | a probabilistic query ([`query.schema.json`](src/inference/query.schema.json)) in, an answer out, by forward sampling with [tbnpy](https://pypi.org/project/tbnpy/) (PyTorch) |
 | 5 | **Language** | `src/llm/` | a question in words becomes a query, the engine's numbers become an answer |
 | 6 | **App** | `src/app/` | one local page: the BN drawn like Supabase's schema visualiser, a query form and a chat panel |
 
@@ -42,6 +42,8 @@ Set up once, with either conda or uv:
 ```bash
 python -m src check                          # 1-3: validate everything, compile every assembly
 python -m src compile ema-highway/gmm        # 3: what one assembly expands to, binding by binding
+python -m src build toy-ca/demo              # 3: generate runnable tbnpy data, model.py and RSR rules
+python examples/toy-ca/tbnpy/demo/model.py --samples 2000  # sample with tbnpy/PyTorch
 python -m src query ema-highway/gmm --event "EdgeOpen::*==0" --set ema-reference.mw=7
 python -m src ask ema-highway/gmm "Would n1 still reach n66 after an M7?"             # 5: needs a model
 python -m src serve --open                   # 6: the page, at http://127.0.0.1:8765
@@ -131,7 +133,7 @@ has them, else from the USGS catalogue, cached in `.cache/shakemaps/`
 
 ## Limits, stated
 
-- Inference is forward Monte Carlo only. Backward queries (diagnosis, criticality
+- Inference is forward sampling only. Backward queries (diagnosis, criticality
   given an outage) are refused, not approximated.
 - ShakeMap residuals are spatially correlated, but with the unconditional
   Jayaram & Baker model applied to ShakeMap's station-conditioned σ (OpenQuake's

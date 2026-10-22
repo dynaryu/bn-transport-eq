@@ -1,8 +1,9 @@
 """Answer a probabilistic query on a compiled BN.
 
     query (query.schema.json) --> interventions applied to a copy of the
-    assembly and network --> compile --> forward Monte Carlo over the bindings
-    the targets depend on --> per-node summaries and event probabilities
+    assembly and network --> compile --> tbnpy variables and probabilities for
+    the bindings the targets depend on --> tbnpy forward sampling (PyTorch) -->
+    per-node summaries and event probabilities
 
 The engine is forward-only: a query with evidence is refused, here, whatever
 asked for it, the page or a language model. Every result carries ``statement``,
@@ -24,14 +25,13 @@ from typing import Any, Mapping
 import numpy as np
 from jsonschema import Draft202012Validator
 
-from src.builder.compile import Compiled, compile_assembly, node_id
+from src.builder.bn_builder import Compiled, build_tbn, compile_assembly, node_id
 from src.builder.load import (Library, RegistryError, assembly_id_of, assembly_path, assembly_paths,
                               check_tables, load_assembly, load_library, load_network)
 
-from .sample import forward_sample, summarise
-
 DEFAULT_SAMPLES = 2000
 DEFAULT_SEED = 20261021
+BATCH_SIZE = 50_000
 MAX_NODES = 500                    # per query; a pattern matching more is a sign to narrow it
 _OPS = {"<": np.less, "<=": np.less_equal, ">": np.greater, ">=": np.greater_equal,
         "==": np.equal, "!=": np.not_equal}
@@ -132,6 +132,47 @@ def compile_query(query: Mapping[str, Any]) -> Compiled:
         raise QueryError("; ".join(exc.problems)) from exc
 
 
+def sample_nodes(compiled: Compiled, n: int, seed: int | None = None, bindings: set[int] | None = None,
+                 notes: list[str] | None = None, nodes: set[str] | None = None) -> dict[str, np.ndarray]:
+    """{node id: (n,) samples} by tbnpy. Discrete nodes hold the index into their quantity's states.
+
+    ``bindings`` restricts the model to those bindings, which must be closed under
+    ``upstream`` (``Compiled.ancestors`` gives such a set): a query about an edge
+    need not pay for travel times. ``notes``, if given, collects what the
+    probability objects report, such as which ShakeMap version supplied the shaking.
+    ``nodes``, if given, samples only the objects owning them and their ancestors.
+    """
+    import torch
+    from tbnpy import inference
+
+    if n < 1:
+        raise ValueError("n must be at least 1")
+    _, probs = build_tbn(compiled, bindings)
+    with torch.random.fork_rng(devices=[]):
+        if seed is not None:
+            torch.manual_seed(seed)
+        keys = [k for k, p in probs.items() if nodes is None or any(v.name in nodes for v in p.childs)]
+        sampled = inference.sample(probs, keys, n_sample=n, batch_size=BATCH_SIZE)
+    if notes is not None:
+        for prob in probs.values():
+            notes.extend(w for w in prob.notes if w not in notes)
+    return {v.name: sampled[key].Cs[:, j].cpu().numpy()
+            for key, prob in sampled.items() for j, v in enumerate(prob.childs)}
+
+
+def summarise(quantity: dict[str, Any], x: np.ndarray) -> dict[str, Any]:
+    """State probabilities for a discrete quantity, moments for a continuous one."""
+    if quantity["kind"] == "discrete":
+        counts = np.bincount(np.asarray(x, int), minlength=len(quantity["states"])) / len(x)
+        return {"P": dict(zip(map(str, quantity["states"]), counts.round(6).tolist()))}
+    finite = x[np.isfinite(x)]
+    stats: dict[str, Any] = {"P_inf": float(np.mean(~np.isfinite(x)))}
+    if finite.size:
+        p5, p50, p95 = np.percentile(finite, [5, 50, 95])
+        stats.update(mean_finite=float(finite.mean()), p5=float(p5), p50=float(p50), p95=float(p95))
+    return stats
+
+
 def _match(pattern: str, ids: list[str], examples: list[str]) -> list[str]:
     found = [i for i in ids if fnmatchcase(i, pattern)]
     if not found:
@@ -189,7 +230,7 @@ def answer(query: Mapping[str, Any]) -> dict[str, Any]:
     bindings = compiled.ancestors({compiled.producer[(nodes[i]["quantity"], nodes[i]["row"])] for i in needed})
     kernel_warnings: list[str] = []
     try:
-        samples = forward_sample(compiled, query["samples"], query["seed"], bindings, kernel_warnings)
+        samples = sample_nodes(compiled, query["samples"], query["seed"], bindings, kernel_warnings, needed)
     except ValueError as exc:            # a kernel refusing its inputs, e.g. a site outside a ShakeMap
         raise QueryError(f"the scenario could not be computed: {exc}") from exc
 
@@ -247,12 +288,16 @@ def describe(assembly_id: str) -> dict[str, Any]:
     for i in compiled.order:
         b = compiled.bindings[i]
         fn = b.function
-        if lib.entities[fn["per"]].get("singleton"):
-            for row in b.rows:
-                for attr in fn.get("attributes", []):
-                    spec = lib.entities[fn["per"]]["attributes"][attr]
-                    rows.append({"row": row["id"], "entity": fn["per"], "attribute": attr,
-                                 "value": row.get(attr), "unit": spec.get("unit"), "type": spec.get("type")})
+        # A singleton table a function reads (the Event) is the scenario: its numbers can be set.
+        for table in fn.get("tables", []):
+            entity = lib.entities[table]
+            if not entity.get("singleton") or any(r["entity"] == table for r in rows):
+                continue
+            for row in network.rows(table):
+                for attr, spec in entity["attributes"].items():
+                    if spec.get("type") == "number":
+                        rows.append({"row": row["id"], "entity": table, "attribute": attr,
+                                     "value": row.get(attr), "unit": spec.get("unit"), "type": spec["type"]})
         if "parameters" in b.spec:
             props = fn["instance_schema"].get("properties", {})
             for name, value in b.spec["parameters"].items():

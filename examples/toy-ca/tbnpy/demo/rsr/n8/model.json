@@ -1,0 +1,20 @@
+{
+  "rules_sha256": "10fc6da4376f5f7133f65dc309f022df9c6b7f2e75c054f80219f2febeec8b07",
+  "origin": "n8",
+  "edge_order": [
+    "e1",
+    "e2",
+    "e3",
+    "e4",
+    "e5",
+    "e6",
+    "e7",
+    "e8",
+    "e9",
+    "e10"
+  ],
+  "seed": 20261022,
+  "proposal": "independent Bernoulli(0.5), for rule search only",
+  "system_value": "binary state (travel times may be infinite)",
+  "unclassified": "evaluate with ndtools"
+}

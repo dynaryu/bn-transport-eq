@@ -74,6 +74,7 @@
   "deterministic": true,
   "drawKind": "Marginal",
   "capabilities": [
-    "SampleForward"
+    "SampleForward",
+    "EvaluateLikelihood"
   ]
 }

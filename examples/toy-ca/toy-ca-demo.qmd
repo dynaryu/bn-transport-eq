@@ -1,19 +1,45 @@
 ---
 title: "Toy network demo"
-format: html
+format:
+  pdf:
+    toc: true
+    toc-depth: 2
+    geometry: margin=20mm
+    papersize: a4
+    fontsize: 10pt
+    code-block-font-size: "\\scriptsize"
+    include-in-header:
+      text: |
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines,breakanywhere}
+        \fvset{breaklines=true,breakanywhere=true}
 jupyter: quakenet
+execute:
+  warning: false
 ---
 
-This is an illustration using the toy network `toy-ca`.
+This is an illustration using the toy network `toy-ca`. The only user input required is `network.json`, which is explained in Section 1. The rest of the demo is automated.
 
 ```{python}
 #| label: setup
+#| include: false
 import json, os, sys
 from pathlib import Path
+from IPython.display import Markdown, display
+from pprint import pprint
+from textwrap import fill
 
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").is_file())
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
+
+def show_table(frame):
+    """Render small tables consistently in PDF."""
+    header = "| " + " | ".join(map(str, frame.columns)) + " |"
+    rule = "| " + " | ".join(["---"] * len(frame.columns)) + " |"
+    rows = ["| " + " | ".join(str(v).replace("|", "\\|") for v in row) + " |"
+            for row in frame.itertuples(index=False, name=None)]
+    display(Markdown("\n".join([header, rule, *rows])))
 ```
 
 ## 1. The network dataset
@@ -29,7 +55,7 @@ One row of each table:
 
 ```{python}
 for table in ("Node", "Edge", "Bridge", "Event"):
-    print(f"{table:7}", json.dumps(data["tables"][table][0]))
+    pprint({table: data["tables"][table][0]}, width=85, sort_dicts=False)
 ```
 
 The tables:
@@ -91,7 +117,7 @@ Every assumed value is named in the file:
 
 ```{python}
 for key, text in data["assumptions"].items():
-    print(f"- {key}: {text}")
+    print(fill(f"- {key}: {text}", width=90, subsequent_indent="  "))
 ```
 
 The map:
@@ -144,3 +170,272 @@ broken["Edge"][0].pop("avg_speed_kph")
 _, problems = check_tables(broken, lib, "toy-ca (edited)")
 problems
 ```
+
+## 2. Build the tbnpy model
+
+The builder resolves the assembly and saves the model and RSR rules under this example.
+
+```{python}
+#| output: false
+from src.builder.bn_builder import (
+    generate_tbn, define_tbn_variables, define_tbn_probabilities,
+)
+
+model_dir = generate_tbn(Path("examples/toy-ca/demo.assembly.json"))
+```
+
+Load the saved data into tbnpy's two dictionaries:
+
+```{python}
+model_data = json.loads((model_dir / "model.json").read_text(encoding="utf-8"))
+varis = define_tbn_variables(model_data)
+probs = define_tbn_probabilities(model_data, varis, directory=model_dir)
+print(f"{len(varis)} variables; {len(probs)} probability objects")
+```
+
+`varis` holds scalar variables, grouped below. The scenario (the Event row) is fixed data read by the hazard object, so it is not a variable.
+
+```{python}
+#| echo: false
+from collections import Counter
+
+counts = Counter(name.split("::")[0] for name in varis)
+show_table(pd.DataFrame([{
+    "quantity": quantity, "count": count,
+    "type": "discrete" if isinstance(next(v.values for k, v in varis.items()
+                                          if k.split("::")[0] == quantity), list) else "continuous",
+} for quantity, count in counts.items()]))
+kind_counts = Counter("discrete" if isinstance(v.values, list) else "continuous"
+                      for v in varis.values())
+display(Markdown(f"Total: **{kind_counts['continuous']} continuous** and "
+                 f"**{kind_counts['discrete']} discrete** variables."))
+```
+
+`probs` holds the numerical functions, each with `childs`, `parents`, `sample()` and `log_prob()`.
+
+```{python}
+show_table(pd.DataFrame([
+    {"key": k, "class": type(p).__name__,
+     "children": len(p.childs), "parents": len(p.parents)}
+    for k, p in probs.items()
+]))
+```
+
+The graph groups variables by quantity. Arrows show the conditional direction; travel time and system state both take edge states as inputs.
+
+```{python}
+#| label: fig-bn-families
+#| echo: false
+#| fig-cap: "Variable families and their scalar counts. Each family is calculated by one probability object."
+#| fig-width: 7
+#| fig-height: 2.1
+fig, ax = plt.subplots(figsize=(7, 2.1))
+positions = [(1.6, 0.5), (3.2, 0.5), (4.8, 0.5),
+             (6.4, 0.5), (8, 1), (8, 0)]
+labels = ["SA(1.0) (10)",
+          "DamageState (10)", "Usable (10)", "EdgeOpen (10)",
+          "TravelTime (6)", "SystemState (6)"]
+boxes = []
+for pos, label in zip(positions, labels):
+    boxes.append(ax.text(*pos, label, ha="center", va="center", fontsize=7,
+                         bbox=dict(boxstyle="round,pad=0.5", facecolor="#edf3f7", edgecolor="0.5")))
+ax.set(xlim=(0.7, 8.9), ylim=(-0.5, 1.5))
+ax.axis("off")
+plt.tight_layout()
+fig.canvas.draw()
+for i, j in [(0, 1), (1, 2), (2, 3), (3, 4), (3, 5)]:
+    ax.annotate("", xy=positions[j], xytext=positions[i],
+                arrowprops=dict(arrowstyle="->", color="0.35", shrinkA=3, shrinkB=3,
+                                patchA=boxes[i].get_bbox_patch(), patchB=boxes[j].get_bbox_patch()))
+plt.show()
+```
+
+### One instance of each type
+
+In tbnpy, a probability object's `parents` are its inputs and `childs` are its outputs. Objects batch variables together; the examples below follow bridge b4, edge e4 and origin n4.
+
+```{python}
+#| include: false
+import torch
+from tbnpy import inference
+
+with torch.random.fork_rng(devices=[]):
+    torch.manual_seed(20261022)
+    trace = inference.sample(probs, list(probs), n_sample=3)
+draws = {v.name: trace[k].Cs[:, j] for k, p in probs.items()
+         for j, v in enumerate(p.childs)}
+
+def example_parents(prob):
+    return torch.stack([draws[v.name] for v in prob.parents], dim=1)
+
+def prob_of(function):
+    return next(p for p in probs.values() if p.spec["function"] == function)
+
+def sampled_value(name):
+    return draws[name][0].item()
+
+hazard = prob_of("hazard.gmm")
+fragility = prob_of("fragility.bridge")
+bridge_index = next(i for i, v in enumerate(hazard.childs) if v.name == "SA(1.0)::b4")
+motion = hazard.distribution(1)
+mass = fragility.distribution(example_parents(fragility))[0, bridge_index]
+damage_states = fragility.spec["states"]["damage"]
+```
+
+**Intensity — `SA(1.0)::b4`.** No parents: the event's Mw, epicentre and depth are fixed data from `network.json`. Outputs: all ten bridge intensities jointly; b4's output feeds `DamageState.HazusBridge::b4`. The Campbell function calculates log-median $\mu$ and dispersion $\sigma$, then draws $I=\exp(\mu+\sigma Z)$ with $Z\sim N(0,1)$. This demo supplies only SA(1.0), with independent residuals between bridges.
+
+```{python}
+#| echo: false
+display(Markdown(f"For b4: median = {motion.loc[0, bridge_index].exp().item():.3f} g; "
+                 f"log-dispersion = {motion.scale[0, bridge_index].item():.3f}; "
+                 f"sampled intensity = {sampled_value('SA(1.0)::b4'):.3f} g."))
+```
+
+**Damage — `DamageState.HazusBridge::b4`.** The object takes ten intensities and produces ten damage states; b4 uses its own intensity. Its output feeds `Usable::b4`. Lognormal exceedances are differenced into five state probabilities, then `torch.multinomial` draws a state index. Indices 0–4 denote none through complete.
+
+```{python}
+#| echo: false
+show_table(pd.DataFrame({"damage state": damage_states,
+                         "P(state given sampled intensity)": [f"{p:.3f}" for p in mass.tolist()]}))
+display(Markdown("Sampled damage at b4: **"
+                 + damage_states[int(sampled_value("DamageState.HazusBridge::b4"))] + "**."))
+```
+
+**Usability — `Usable::b4`.** Parents: ten damage variables. Outputs: ten usability variables; b4's output feeds `EdgeOpen::e4`. The closure policy deterministically maps none/slight/moderate to 1, and extensive/complete to 0.
+
+**Edge state — `EdgeOpen::e4`.** Parents: the bridge usability variables. Outputs: ten edge states. An edge is open only if every bridge on it is usable; e4 has bridge b4. Edge states feed both system objects, for origins n3–n8.
+
+For example, this calls the edge object's sampling method directly. The tensor columns follow `parents`; returned columns follow `childs`.
+
+```{python}
+edge = prob_of("edge.open")
+Cs_pars = example_parents(edge)
+Cs_child, logp = edge.sample(Cs_pars=Cs_pars)
+j = next(i for i, v in enumerate(edge.childs) if v.name == "EdgeOpen::e4")
+print("b4 usability:", int(sampled_value("Usable::b4")))
+print("e4 state:", int(Cs_child[0, j]), "; log probability:", float(logp[0]))
+```
+
+**Travel time — `TravelTime::n4`.** Parents: all ten edge states. Outputs: six origin travel times, with no downstream variables. For each distinct edge configuration, ndtools finds the shortest open route to n1 or n2, using edge time = length/speed. Disconnected origins receive infinity.
+
+**System state — `SystemState::n4`.** The same ten edge parents produce six binary states, with no downstream variables. RSR first classifies the edge configuration; ndtools handles any unknowns. Survival means $T_{n4}\leq T_{n4}^{\mathrm{intact}}+0.5$ hours. The rule classifier determines this event directly from edges.
+
+```{python}
+#| echo: false
+show_table(pd.DataFrame([
+    {"variable": name, "sampled value": f"{sampled_value(name):.3f}"}
+    for name in ("TravelTime::n4", "SystemState::n4")
+]))
+```
+
+## 3. The RSR results
+
+Each origin has survival and failure rules under `rsr/<origin>/`. The counts below also check rule coverage across all 1,024 edge configurations.
+
+```{python}
+#| echo: false
+import itertools
+import torch
+from rsr.rsr import classify_samples_with_indices
+
+state_key = next(k for k, p in probs.items() if p.spec.get("output") == "state")
+system = probs[state_key]
+configurations = torch.tensor(list(itertools.product((0, 1), repeat=len(system.parents))))
+one_hot = torch.nn.functional.one_hot(configurations, 2).to(torch.int32)
+coverage = []
+for j, row in enumerate(system.spec["rows"]):
+    upper, lower = system.refs[j]
+    classified = classify_samples_with_indices(one_hot, upper, lower)
+    metrics = [json.loads(line) for line in
+               (model_dir / "rsr" / row["id"] / "metrics.json").read_text().splitlines()]
+    coverage.append({"origin": row["id"], "survival rules": len(upper),
+                     "failure rules": len(lower), "rounds": len(metrics),
+                     "unclassified / 1024": classified["unknown"]})
+show_table(pd.DataFrame(coverage))
+```
+
+For example, these rules determine whether n4 stays within 0.5 hours of its intact travel time. `1` means open; `0` means closed. Unlisted edges are unrestricted.
+
+```{python}
+for filename, outcome in (("refs_up_1.json", "survives"),
+                          ("refs_low_0.json", "fails")):
+    rules = json.loads((model_dir / "rsr/n4" / filename).read_text())
+    for rule in rules:
+        conditions = " and ".join(f"{edge}={value}" for edge, (_, value) in rule.items()
+                                  if edge != "sys")
+        print(f"{conditions} -> n4 {outcome}")
+```
+
+RSR classifies the BN's edge samples; ndtools resolves any unclassified configurations. The 50/50 edge probabilities used during rule search are not the BN's probabilities.
+
+## 4. Sample the BN
+
+tbnpy samples the system state and all its ancestors using PyTorch. These are Monte Carlo estimates under the demo scenario.
+
+```{python}
+from tbnpy import inference
+
+torch.manual_seed(20261022)
+state_key = next(k for k, p in probs.items() if p.spec.get("output") == "state")
+result = inference.sample(probs, [state_key], n_sample=5000)[state_key]
+show_table(pd.DataFrame([
+    {"origin": v.name.split("::")[1],
+     "P(survives)": f"{(result.Cs[:, j] == 1).double().mean().item():.3f}"}
+    for j, v in enumerate(result.childs)
+]))
+```
+
+### Sampling time
+
+CPU timings for the same six system states and their ancestors, using batches of 50,000. Each time is the median of three runs after a warm-up; model building and RSR extraction are excluded.
+
+```{python}
+#| label: sampling-timing
+#| echo: false
+#| output: false
+from time import perf_counter
+from statistics import median
+
+batch_size = 50_000
+inference.sample(probs, [state_key], n_sample=batch_size)  # warm-up
+measurements = []
+for n in range(100_000, 1_000_001, 100_000):
+    seconds = []
+    for repeat in range(3):
+        torch.manual_seed(20261022 + repeat)
+        start = perf_counter()
+        sampled = inference.sample(probs, [state_key], n_sample=n, batch_size=batch_size)
+        seconds.append(perf_counter() - start)
+        del sampled
+    measurements.append({"samples": n, "seconds": seconds, "median_s": median(seconds)})
+```
+
+```{python}
+#| echo: false
+import platform
+from datetime import datetime, timezone
+
+benchmark = {
+    "measured_at_utc": datetime.now(timezone.utc).isoformat(),
+    "assembly": model_data["assembly"]["id"],
+    "source_sha256": model_data["source_sha256"],
+    "query_nodes": [state_key], "origins": [v.name for v in system.childs],
+    "device": str(system.device), "processor": platform.processor(),
+    "torch_version": torch.__version__, "torch_threads": torch.get_num_threads(),
+    "dtype": "float64", "batch_size": batch_size, "repetitions": 3,
+    "warmup_samples": batch_size, "seed_base": 20261022,
+    "includes": "sampling all ancestors and accumulating system-state results",
+    "excludes": "model building, rule extraction, seed setting and reporting",
+    "measurements": measurements,
+}
+(model_dir / "sampling_benchmark.json").write_text(
+    json.dumps(benchmark, indent=2) + "\n", encoding="utf-8")
+display(Markdown(f"PyTorch {torch.__version__}; {torch.get_num_threads()} CPU threads; float64."))
+show_table(pd.DataFrame([
+    {"samples": f"{r['samples']:,}", "median time (s)": f"{r['median_s']:.3f}",
+     "samples/s": f"{r['samples'] / r['median_s']:,.0f}"}
+    for r in measurements
+]))
+```
+
+The individual timings and settings are saved in `tbnpy/demo/sampling_benchmark.json`.

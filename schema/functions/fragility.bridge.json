@@ -162,6 +162,7 @@
   "drawKind": "Marginal",
   "capabilities": [
     "SampleForward",
+    "EvaluateLikelihood",
     "EvaluateDensity"
   ],
   "source": {

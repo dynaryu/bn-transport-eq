@@ -17,7 +17,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from src.builder.compile import compile_path
+from src.builder.bn_builder import compile_path
 from src.builder.load import (Library, RegistryError, assembly_paths, load_assembly, load_network, port_choices,
                               quantity_template, via_kind)
 from src.inference import engine

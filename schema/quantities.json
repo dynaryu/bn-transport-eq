@@ -2,30 +2,6 @@
   "$schema": "meta/quantities.schema.json",
   "quantities": [
     {
-      "id": "Rupture",
-      "label": "Earthquake rupture (point source)",
-      "kind": "record",
-      "fields": {
-        "mw": {
-          "unit": "Mw",
-          "description": "Moment magnitude"
-        },
-        "lat": {
-          "unit": "deg",
-          "description": "Epicentre latitude"
-        },
-        "lon": {
-          "unit": "deg",
-          "description": "Epicentre longitude"
-        },
-        "depth_km": {
-          "unit": "km",
-          "description": "Hypocentral depth"
-        }
-      },
-      "description": "The global variable a ground-motion model conditions on. A BN node on the Event plate, so a fixed scenario and an uncertain one differ only in which function produces it."
-    },
-    {
       "id": "PGA",
       "label": "Peak ground acceleration",
       "kind": "continuous",

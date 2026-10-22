@@ -12,6 +12,9 @@ dependencies = [
     "pip>=26.2.1",
     "pytest>=9.1.1",
     "scipy>=1.17.1",
+    "torch>=2.0",
+    "tbnpy>=0.2.0",
+    "rsr-duco>=0.2.0",
 ]
 
 [project.optional-dependencies]

@@ -11,7 +11,6 @@ import pytest
 from src.builder import shakemap
 from src.builder.kernels.hazard import great_circle_km
 from src.inference import engine
-from src.inference.sample import forward_sample
 
 NS = 'xmlns="http://earthquake.usgs.gov/eqcenter/shakemap"'
 
@@ -312,7 +311,7 @@ def test_nearby_sites_share_their_residuals_unless_told_otherwise(shakecast_dir)
         compiled = engine.compile_query({"assembly": "hebei-transport/shakemap",
                                          "parameters": {"hazard.shakemap": {"event_id": "ev3"}},
                                          "parameter_sets": {"hazard.spatial-correlation": set_id}})
-        x = forward_sample(compiled, 20000, seed=5)
+        x = engine.sample_nodes(compiled, 20000, seed=5)
         return np.corrcoef(np.log(x[f"SA(1.0)::{a['id']}"]), np.log(x[f"SA(1.0)::{b['id']}"]))[0, 1]
 
     distance = float(great_circle_km(a["lat"], a["lon"], b["lat"], b["lon"]))

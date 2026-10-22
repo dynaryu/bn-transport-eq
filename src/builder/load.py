@@ -40,9 +40,9 @@ NETWORKS = ROOT / "examples"
 
 # The method a kernel must have for each capability its function declares.
 CAPABILITY_METHOD = {
-    "SampleForward": "sample_forward",
-    "EvaluateDensity": "evaluate_density",
-    "EvaluateLikelihood": "evaluate_likelihood",
+    "SampleForward": "sample",
+    "EvaluateLikelihood": "log_prob",
+    "EvaluateDensity": "distribution",
     "BatchClassify": "batch_classify",
     "Gradient": "gradient",
     "NormalisingConstant": "normalising_constant",
@@ -92,16 +92,16 @@ class Library:
     entities: dict[str, dict[str, Any]]
     functions: dict[str, dict[str, Any]]
     parameter_sets: dict[str, dict[str, Any]]      # id -> set, plus "function" and "file"
-    implementations: dict[str, Any] = field(default_factory=dict)   # function id -> kernel object
+    implementations: dict[str, Any] = field(default_factory=dict)   # function id -> probability class
 
     def kernel(self, function_id: str) -> Any:
         return self.implementations[function_id]
 
 
-def _resolve(spec: str) -> Any:
+def resolve_implementation(spec: str) -> type:
+    """"module:Class" -> the tbnpy probability class a function's `implementation` names."""
     module, _, name = spec.partition(":")
-    target = getattr(importlib.import_module(module), name)
-    return target() if isinstance(target, type) else target
+    return getattr(importlib.import_module(module), name)
 
 
 _TEMPLATE = re.compile(r"^\{([a-z][a-z0-9_]*)\}$")
@@ -199,7 +199,7 @@ def _check_function(fn: dict[str, Any], lib: Library, where: str, problems: list
             problems.append(f"{where}: instance_schema is not a valid JSON Schema: {exc.message}")
 
     try:
-        kernel = _resolve(fn["implementation"])
+        kernel = resolve_implementation(fn["implementation"])
     except Exception as exc:  # noqa: BLE001 - any import failure is a registry problem
         problems.append(f"{where}: implementation {fn['implementation']!r} does not load: {exc}")
         return

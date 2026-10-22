@@ -185,31 +185,6 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
 </main>
 <script>window.BN_DATA = {
  "quantities": {
-  "Rupture": {
-   "id": "Rupture",
-   "label": "Earthquake rupture (point source)",
-   "kind": "record",
-   "fields": {
-    "mw": {
-     "unit": "Mw",
-     "description": "Moment magnitude"
-    },
-    "lat": {
-     "unit": "deg",
-     "description": "Epicentre latitude"
-    },
-    "lon": {
-     "unit": "deg",
-     "description": "Epicentre longitude"
-    },
-    "depth_km": {
-     "unit": "km",
-     "description": "Hypocentral depth"
-    }
-   },
-   "description": "The global variable a ground-motion model conditions on. A BN node on the Event plate, so a fixed scenario and an uncertain one differ only in which function produces it.",
-   "type": "record(4)"
-  },
   "PGA": {
    "id": "PGA",
    "label": "Peak ground acceleration",
@@ -507,7 +482,8 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "deterministic": true,
      "drawKind": "Marginal",
      "capabilities": [
-      "SampleForward"
+      "SampleForward",
+      "EvaluateLikelihood"
      ],
      "description": "Each bridge sits on one edge (Bridge.edge); the edge closes if any of its bridges is unusable. An edge with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here.",
      "parameter_sets": [],
@@ -556,6 +532,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "drawKind": "Marginal",
      "capabilities": [
       "SampleForward",
+      "EvaluateLikelihood",
       "EvaluateDensity"
      ],
      "description": "Whichever curve the parameter set is, on whichever IM and damage scale it names: a curve on PGA wires only to a hazard that produces PGA, and one on a damage scale wires only to a functionality mapping on that scale. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`.",
@@ -740,7 +717,8 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "deterministic": true,
      "drawKind": "Marginal",
      "capabilities": [
-      "SampleForward"
+      "SampleForward",
+      "EvaluateLikelihood"
      ],
      "description": "",
      "parameter_sets": [
@@ -763,20 +741,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "label": "Ground-motion model",
      "role": "hazard",
      "per": "Bridge",
-     "inputs": [
-      {
-       "name": "rupture",
-       "quantity": "Rupture",
-       "over": "Event",
-       "via": "*",
-       "description": "The one Event row: the global parameters every site shares.",
-       "choices": [
-        "Rupture"
-       ],
-       "template": null,
-       "kind": "all"
-      }
-     ],
+     "inputs": [],
      "outputs": [
       {
        "name": "im",
@@ -795,15 +760,19 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
       "lat",
       "lon"
      ],
-     "tables": [],
+     "tables": [
+      "Event"
+     ],
      "has_parameters": true,
      "implementation": "src.builder.kernels.hazard:Gmm",
      "deterministic": false,
      "drawKind": "Marginal",
      "capabilities": [
-      "SampleForward"
+      "SampleForward",
+      "EvaluateLikelihood",
+      "EvaluateDensity"
      ],
-     "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. Choose the set with parameter_set_by_location to use the model made for where the network is. Marginal: no spatial correlation yet; that needs the between- and within-event split of sigma.",
+     "description": "Median ln IM at each bridge from the event's magnitude and the bridge's distance, plus an independent residual per bridge, for whichever GMM the parameter set is. The event is fixed data: the one Event row's mw, lat, lon and depth_km, read like the bridge's own lat/lon, so it is no BN node. An uncertain rupture (e.g. sampled from a source model) would come back as a scenario function feeding an input here. Choose the set with parameter_set_by_location to use the model made for where the network is. Marginal: no spatial correlation yet; that needs the between- and within-event split of sigma.",
      "parameter_sets": [
       {
        "id": "campbell-2003.ema-script-sa1",
@@ -817,41 +786,6 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
       }
      ],
      "n_parameter_sets": 2
-    },
-    {
-     "key": "hazard.scenario-fixed",
-     "function": "hazard.scenario-fixed",
-     "label": "Fixed earthquake scenario",
-     "role": "scenario",
-     "per": "Event",
-     "inputs": [],
-     "outputs": [
-      {
-       "name": "rupture",
-       "quantity": "Rupture",
-       "choices": [
-        "Rupture"
-       ],
-       "template": null
-      }
-     ],
-     "attributes": [
-      "mw",
-      "lat",
-      "lon",
-      "depth_km"
-     ],
-     "tables": [],
-     "has_parameters": false,
-     "implementation": "src.builder.kernels.hazard:ScenarioFixed",
-     "deterministic": true,
-     "drawKind": "Joint",
-     "capabilities": [
-      "SampleForward"
-     ],
-     "description": "Copies the Event row into the Rupture node: a degenerate root. Replace it with a prior over magnitude and location to make the scenario uncertain; nothing downstream changes, because the output quantity is the same.",
-     "parameter_sets": [],
-     "n_parameter_sets": 0
     },
     {
      "key": "hazard.shakemap",
@@ -897,7 +831,8 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "deterministic": true,
      "drawKind": "Marginal",
      "capabilities": [
-      "SampleForward"
+      "SampleForward",
+      "EvaluateLikelihood"
      ],
      "description": "ln IM = ln median + sigma * epsilon, with the median from grid.xml (e.g. PSA10 for SA(1.0)) and sigma from uncertainty.xml (STDPSA10), both interpolated bilinearly on the log scale at the site. Deterministic given epsilon: the randomness, and the dependence between sites, live in the residual field. A bridge outside the map is an error, not zero shaking; a map without uncertainty.xml gives sigma = 0 and says so.",
      "parameter_sets": [],
@@ -930,7 +865,8 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "deterministic": false,
      "drawKind": "Joint",
      "capabilities": [
-      "SampleForward"
+      "SampleForward",
+      "EvaluateLikelihood"
      ],
      "description": "One joint draw over every Bridge in the binding: epsilon = L z, with L L' = R, R_ij = exp(-3 h_ij / b) and h_ij the great-circle distance in km. L is the symmetric root from an eigendecomposition rather than a Cholesky factor, so bridges at the same location (correlation 1) do not make it fail. Applied to ShakeMap's conditional standard deviations this is OpenQuake's approximation: the correlation is the unconditional model's, not the one conditioned on the stations.",
      "parameter_sets": [
@@ -1011,7 +947,8 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "deterministic": true,
      "drawKind": "Joint",
      "capabilities": [
-      "SampleForward"
+      "SampleForward",
+      "EvaluateLikelihood"
      ],
      "description": "For each origin node (bind it to the non-key nodes), the travel time to the nearest node marked key_destination, over the open edges, by ndtools. Each edge's weight is length_km / avg_speed_kph, in hours. Joint across the Node plate: every origin reads the same link states in the same sample.",
      "parameter_sets": [],
@@ -1057,16 +994,6 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "quantity": "{damage_scale}",
      "via": "self",
      "kind": "self",
-     "parents": null
-    },
-    {
-     "from": "hazard.scenario-fixed",
-     "out": "rupture",
-     "to": "hazard.gmm",
-     "in": "rupture",
-     "quantity": "Rupture",
-     "via": "*",
-     "kind": "all",
      "parents": null
     },
     {

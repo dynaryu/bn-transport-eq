@@ -1,7 +1,8 @@
-"""python -m src {check,compile,query,ask,serve}
+"""python -m src {check,compile,build,query,ask,serve}
 
     check     validate schema/ and instances/, compile every assembly        (1, 2, 3)
     compile   show the BN one assembly expands to, or write its nodes         (3)
+    build     generate tbnpy models and RSR rules beneath each example        (3)
     query     answer a probabilistic query                                    (4)
     ask       answer a question in words through the configured model         (5)
     serve     the page: the BN, the query form and the chat                   (6)
@@ -20,7 +21,7 @@ from pathlib import Path
 
 
 def cmd_check(_: argparse.Namespace) -> int:
-    from src.builder.compile import compile_path
+    from src.builder.bn_builder import compile_path
     from src.builder.load import RegistryError, assembly_paths, load_library, rel
 
     lib = load_library()
@@ -39,7 +40,7 @@ def cmd_check(_: argparse.Namespace) -> int:
 
 
 def cmd_compile(args: argparse.Namespace) -> int:
-    from src.builder.compile import compile_path
+    from src.builder.bn_builder import compile_path
     from src.builder.load import assembly_path
 
     c = compile_path(assembly_path(args.assembly))
@@ -57,6 +58,15 @@ def cmd_compile(args: argparse.Namespace) -> int:
                 f"{port['parents_min']}-{port['parents_max']}"
             print(f"     <- {port['name']}: {port['quantity']} over {port['over']} via {port['via']} ({k} per node)")
     print(f"{c.n_nodes} BN nodes")
+    return 0
+
+
+def cmd_build(args: argparse.Namespace) -> int:
+    from src.builder.bn_builder import generate_tbn
+    from src.builder.load import assembly_path
+
+    out = generate_tbn(assembly_path(args.assembly), extract_rules=not args.no_rules)
+    print(f"wrote tbnpy model: {out}")
     return 0
 
 
@@ -202,6 +212,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("assembly", help="e.g. ema-highway/gmm")
     p.add_argument("-o", "--output", help="write nodes and parents as JSON")
     p.set_defaults(run=cmd_compile)
+
+    p = sub.add_parser("build", help="generate tbnpy model files beneath the example folder")
+    p.add_argument("assembly", help="e.g. toy-ca/demo")
+    p.add_argument("--no-rules", action="store_true", help="use ndtools directly, without extracting RSR rules")
+    p.set_defaults(run=cmd_build)
 
     p = sub.add_parser("query", help="answer a probabilistic query")
     p.add_argument("assembly", nargs="?", help="e.g. ema-highway/gmm (or give --json)")

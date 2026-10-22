@@ -6,9 +6,6 @@
   "description": "The forward pilot's reference scenario, with both system functions reading the same edge states.",
   "bindings": [
     {
-      "function": "hazard.scenario-fixed"
-    },
-    {
       "function": "hazard.gmm",
       "parameter_set_by_location": [
         "campbell-2003.ema-script-sa1"

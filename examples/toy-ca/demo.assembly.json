@@ -1,13 +1,10 @@
 {
   "$schema": "../../schema/meta/assembly.schema.json",
   "id": "toy-ca/demo",
-  "label": "Toy California network: an approximate M6.4 scenario, for communication",
+  "label": "Toy California network: an approximate M7.8 scenario, for communication",
   "network": "toy-ca",
   "description": "A small, approximate chain from scenario to travel time, to show the workflow. The ground-motion model is a demo-only stand-in.",
   "bindings": [
-    {
-      "function": "hazard.scenario-fixed"
-    },
     {
       "function": "hazard.gmm",
       "parameter_set_by_location": [

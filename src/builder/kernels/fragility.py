@@ -4,20 +4,23 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-from scipy.special import ndtr
+import torch
 
-from . import Call
+from . import Probability
 
 
-def lognormal(im: np.ndarray, limit_states: list[str], p: dict[str, Any]) -> np.ndarray:
-    """P(DS >= k | im) = Phi(ln(im / median_k) / beta_k), (n, rows, K-1); 0 at im = 0. ``p`` is the set's ``parameters``."""
-    medians = np.asarray([p["medians"][s] for s in limit_states], float)
-    if np.any(np.diff(medians) < 0):
+def lognormal(im: torch.Tensor, limit_states: list[str], params: list[dict[str, Any]]) -> torch.Tensor:
+    """P(DS >= k | im) = Phi(ln(im / median_k) / beta_k), (n, rows, K-1); 0 at im = 0.
+
+    ``params`` is each row's ``parameters``: medians, and one beta or a beta per limit state.
+    """
+    medians = torch.as_tensor([[p["medians"][s] for s in limit_states] for p in params], dtype=torch.float64)
+    if (torch.diff(medians, dim=1) < 0).any():
         raise ValueError(f"medians must not decrease with damage state, got {medians.tolist()}")
-    betas = np.asarray([p["betas"][s] for s in limit_states] if "betas" in p else p["beta"], float)
-    with np.errstate(divide="ignore"):
-        return ndtr((np.log(im)[..., None] - np.log(medians)) / betas)
+    betas = torch.as_tensor([[p["betas"][s] if "betas" in p else p["beta"] for s in limit_states] for p in params],
+                            dtype=torch.float64)
+    medians, betas = medians.to(im.device), betas.to(im.device)
+    return torch.special.ndtr((torch.log(im)[..., None] - torch.log(medians)) / betas)
 
 
 # Functional forms, by the parameter set's "form". A new curve with an existing form is only
@@ -27,33 +30,44 @@ FRAGILITY_FORMS = {
 }
 
 
-class Fragility:
-    """Damage state at each bridge, for whichever curve the parameter set is."""
+class Fragility(Probability):
+    """Damage state at each bridge, for whichever curve each row's parameter set is."""
 
-    @staticmethod
-    def _exceedance(call: Call) -> np.ndarray:
-        p = call.params
-        im = np.asarray(call.inputs["im"], float)
-        if np.any(im < 0) or np.any(~np.isfinite(im)):
-            raise ValueError(f"{p['imt']} must be finite and nonnegative")
-        q = FRAGILITY_FORMS[p["form"]](im, call.quantities["damage"]["states"][1:], p["parameters"])
-        # Curves with different betas cross somewhere; a worse state is never more likely than a milder one.
-        capped = np.minimum.accumulate(q, axis=-1)
-        crossed = np.any(capped < q, axis=-1)
-        if crossed.any():
-            call.warnings.append(f"fragility curves cross in {crossed.mean():.1%} of draws at "
-                                 f"{crossed.any(0).sum()} bridge(s); P(DS >= k) capped at P(DS >= k-1)")
-        return capped
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        forms = {p["form"] for p in self.spec["parameters"]}
+        if len(forms) != 1 or not forms <= FRAGILITY_FORMS.keys():
+            raise ValueError(f"one implemented fragility form per binding, got {sorted(forms)}")
+        self.form = FRAGILITY_FORMS[forms.pop()]
 
-    def evaluate_density(self, call: Call) -> dict[str, np.ndarray]:
+    def distribution(self, pars: torch.Tensor) -> torch.Tensor:
         """P(DS = k | im) as (n, rows, K)."""
-        q = self._exceedance(call)
-        ones = np.ones(q.shape[:-1] + (1,))
-        zeros = np.zeros_like(ones)
-        return {"damage": np.concatenate([ones, q], -1) - np.concatenate([q, zeros], -1)}
+        im = self.input(pars, "im")
+        if (im < 0).any() or not torch.isfinite(im).all():
+            raise ValueError(f"{self.spec['parameters'][0]['imt']} must be finite and nonnegative")
+        q = self.form(im, self.spec["states"]["damage"][1:], [p["parameters"] for p in self.spec["parameters"]])
+        # Curves with different betas cross somewhere; a worse state is never more likely than a milder one.
+        capped = torch.cummin(q, dim=-1).values
+        crossed = (capped < q).any(-1)
+        if crossed.any():
+            self.notes.add(f"fragility curves cross at {int(crossed.any(0).sum())} bridge(s); "
+                           "P(DS >= k) capped at P(DS >= k-1) there")
+        ones = torch.ones_like(capped[..., :1])
+        return (torch.cat([ones, capped], -1) - torch.cat([capped, torch.zeros_like(ones)], -1)).clamp_min(0)
 
-    def sample_forward(self, call: Call) -> dict[str, np.ndarray]:
-        # One uniform per bridge and draw: DS = number of limit states it falls under.
-        q = self._exceedance(call)
-        u = call.rng.random(q.shape[:-1] + (1,))
-        return {"damage": (u < q).sum(-1)}
+    def sample(self, Cs_pars=None, n_sample=None):
+        mass = self.distribution(self._pars(Cs_pars, n_sample))
+        # One uniform per bridge and draw: DS = the first state whose cumulative mass exceeds it.
+        u = torch.rand(mass.shape[:2] + (1,), dtype=torch.float64, device=self.device)
+        child = (u >= mass.cumsum(-1)[..., :-1]).sum(-1)
+        logp = torch.log(mass.gather(-1, child[..., None]).squeeze(-1)).sum(1)
+        return child.to(torch.float64), logp
+
+    def log_prob(self, Cs: torch.Tensor) -> torch.Tensor:
+        Cs = Cs.to(device=self.device, dtype=torch.float64)
+        child = Cs[:, :len(self.childs)]
+        mass = self.distribution(Cs[:, len(self.childs):])
+        valid = ((child == child.floor()) & (child >= 0) & (child < mass.shape[-1])).all(1)
+        index = child.nan_to_num().long().clamp(0, mass.shape[-1] - 1)
+        logp = torch.log(mass.gather(-1, index[..., None]).squeeze(-1)).sum(1)
+        return torch.where(valid, logp, -torch.inf)

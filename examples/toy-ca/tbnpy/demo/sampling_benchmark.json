@@ -1,0 +1,119 @@
+{
+  "measured_at_utc": "2026-10-22T13:05:35.685499+00:00",
+  "assembly": "toy-ca/demo",
+  "source_sha256": "eb8aeaf44b498d29ed3493ff3c72ea78c80ee002238eda74d00698363240a3f7",
+  "query_nodes": [
+    "system.travel-time-to-nearest:state"
+  ],
+  "origins": [
+    "SystemState::n3",
+    "SystemState::n4",
+    "SystemState::n5",
+    "SystemState::n6",
+    "SystemState::n7",
+    "SystemState::n8"
+  ],
+  "device": "cpu",
+  "processor": "Intel64 Family 6 Model 189 Stepping 1, GenuineIntel",
+  "torch_version": "2.14.1+cpu",
+  "torch_threads": 8,
+  "dtype": "float64",
+  "batch_size": 50000,
+  "repetitions": 3,
+  "warmup_samples": 50000,
+  "seed_base": 20261022,
+  "includes": "sampling all ancestors and accumulating system-state results",
+  "excludes": "model building, rule extraction, seed setting and reporting",
+  "measurements": [
+    {
+      "samples": 100000,
+      "seconds": [
+        0.24828980001620948,
+        0.23379379999823868,
+        0.22865919989999384
+      ],
+      "median_s": 0.23379379999823868
+    },
+    {
+      "samples": 200000,
+      "seconds": [
+        0.4077912999782711,
+        0.3929827999090776,
+        0.38820839999243617
+      ],
+      "median_s": 0.3929827999090776
+    },
+    {
+      "samples": 300000,
+      "seconds": [
+        0.6907872000010684,
+        0.5985601000720635,
+        0.6402272999985144
+      ],
+      "median_s": 0.6402272999985144
+    },
+    {
+      "samples": 400000,
+      "seconds": [
+        0.7596323000034317,
+        0.772189800045453,
+        0.7901656000176445
+      ],
+      "median_s": 0.772189800045453
+    },
+    {
+      "samples": 500000,
+      "seconds": [
+        0.9683769999537617,
+        1.0747363000409678,
+        0.9720426999265328
+      ],
+      "median_s": 0.9720426999265328
+    },
+    {
+      "samples": 600000,
+      "seconds": [
+        1.153522799955681,
+        1.1444246999453753,
+        1.1883287000237033
+      ],
+      "median_s": 1.153522799955681
+    },
+    {
+      "samples": 700000,
+      "seconds": [
+        1.3491659000283107,
+        1.379025400034152,
+        1.3520241000223905
+      ],
+      "median_s": 1.3520241000223905
+    },
+    {
+      "samples": 800000,
+      "seconds": [
+        1.5840578000061214,
+        1.5584422999527305,
+        1.5583503999514505
+      ],
+      "median_s": 1.5584422999527305
+    },
+    {
+      "samples": 900000,
+      "seconds": [
+        1.7571086001116782,
+        2.1342280000681058,
+        1.8730849000858143
+      ],
+      "median_s": 1.8730849000858143
+    },
+    {
+      "samples": 1000000,
+      "seconds": [
+        2.221714199986309,
+        2.093501999974251,
+        1.9227998000569642
+      ],
+      "median_s": 2.093501999974251
+    }
+  ]
+}
