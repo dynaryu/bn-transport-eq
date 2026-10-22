@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schema/meta/network.schema.json",
+  "$schema": "../../schema/meta/network.schema.json",
   "network": "hebei-transport",
   "title": "Hebei directed transport network",
   "description": "Earthquake connectivity through directed arcs to n22 (Handan).",
@@ -14,10 +14,11 @@
     "coordinates": "x/y are unitless figure coordinates, so no spatial GMPE is applied. lat/lon are georeferenced from the figure: city coordinates for labelled nodes, fitted positions (about +/-22 km) for junctions. ShakeMap shaking is read at arc midpoints.",
     "dependence": "Bridge states are sampled independently conditional on the hazard scenario.",
     "functionality": "Moved out of the data: the usable-from-damage parameter set the assembly binds (policy.closed-at-extensive) states it.",
-    "length_km": "Great-circle distance between a link's end nodes; the dataset gives no lengths.",
+    "length_km": "Great-circle distance between an edge's end nodes; the dataset gives no lengths.",
     "capacity": "The dataset's highest capacity state per arc (unitless capacity levels).",
-    "bridge_location": "Each bridge sits at the midpoint of its link's end nodes; bridge locations are not surveyed.",
-    "system_events": "Each origin-destination pair has two events: a shortest-path event that survives if the journey takes at most 1.5 x its intact-network time (travel_time_tolerance 0.5), and a max-flow event that survives if at least 1 capacity unit gets through (min_flow 1). Both thresholds are assumptions, chosen for illustration."
+    "bridge_location": "Each bridge sits at the midpoint of its edge's end nodes; bridge locations are not surveyed.",
+    "avg_speed_kph": "60 km/h on every edge, assumed (the value the rsr and ndtools demos use); no measured speeds are in the dataset.",
+    "key_destination": "Key destinations n22: the dataset's destinations."
   },
   "tables": {
     "Node": [
@@ -25,125 +26,147 @@
         "id": "n1",
         "lat": 40.973889,
         "lon": 117.932222,
-        "name": "Chengde"
+        "name": "Chengde",
+        "key_destination": false
       },
       {
         "id": "n2",
         "lat": 40.81078,
         "lon": 114.88114,
-        "name": "Zhangjiakou"
+        "name": "Zhangjiakou",
+        "key_destination": false
       },
       {
         "id": "n3",
         "lat": 39.90403,
         "lon": 116.407526,
-        "name": "Beijing"
+        "name": "Beijing",
+        "key_destination": false
       },
       {
         "id": "n4",
         "lat": 39.93978,
         "lon": 119.58812,
-        "name": "Qinhuangdao"
+        "name": "Qinhuangdao",
+        "key_destination": false
       },
       {
         "id": "n5",
         "lat": 39.629444,
         "lon": 118.173889,
-        "name": "Tangshan"
+        "name": "Tangshan",
+        "key_destination": false
       },
       {
         "id": "n6",
         "lat": 39.2686,
-        "lon": 118.6738
+        "lon": 118.6738,
+        "key_destination": false
       },
       {
         "id": "n7",
         "lat": 39.146667,
         "lon": 117.205556,
-        "name": "Tianjin"
+        "name": "Tianjin",
+        "key_destination": false
       },
       {
         "id": "n8",
         "lat": 39.12346,
         "lon": 116.38596,
-        "name": "Bazhou"
+        "name": "Bazhou",
+        "key_destination": false
       },
       {
         "id": "n9",
         "lat": 38.9894,
-        "lon": 114.2775
+        "lon": 114.2775,
+        "key_destination": false
       },
       {
         "id": "n10",
         "lat": 38.86712,
         "lon": 115.48452,
-        "name": "Baoding"
+        "name": "Baoding",
+        "key_destination": false
       },
       {
         "id": "n11",
         "lat": 38.37099,
         "lon": 117.3329,
-        "name": "Huanghua"
+        "name": "Huanghua",
+        "key_destination": false
       },
       {
         "id": "n12",
         "lat": 38.30369,
         "lon": 116.84519,
-        "name": "Cangzhou"
+        "name": "Cangzhou",
+        "key_destination": false
       },
       {
         "id": "n13",
         "lat": 38.5117,
-        "lon": 115.9499
+        "lon": 115.9499,
+        "key_destination": false
       },
       {
         "id": "n14",
         "lat": 37.73484,
         "lon": 115.68599,
-        "name": "Hengshui"
+        "name": "Hengshui",
+        "key_destination": false
       },
       {
         "id": "n15",
         "lat": 38.0425,
         "lon": 114.51,
-        "name": "Shijiazhuang"
+        "name": "Shijiazhuang",
+        "key_destination": false
       },
       {
         "id": "n16",
         "lat": 38.3377,
-        "lon": 113.971
+        "lon": 113.971,
+        "key_destination": false
       },
       {
         "id": "n17",
         "lat": 37.2698,
-        "lon": 113.8927
+        "lon": 113.8927,
+        "key_destination": false
       },
       {
         "id": "n18",
         "lat": 37.06594,
         "lon": 114.47531,
-        "name": "Xingtai"
+        "name": "Xingtai",
+        "key_destination": false
       },
       {
         "id": "n19",
         "lat": 37.1885,
-        "lon": 115.3169
+        "lon": 115.3169,
+        "key_destination": false
       },
       {
         "id": "n20",
         "lat": 36.73,
-        "lon": 113.7039
+        "lon": 113.7039,
+        "key_destination": false
       },
       {
         "id": "n21",
         "lat": 36.483,
-        "lon": 115.0031
+        "lon": 115.0031,
+        "key_destination": false
       },
       {
         "id": "n22",
         "lat": 36.61161,
         "lon": 114.48937,
-        "name": "Handan"
+        "name": "Handan",
+        "key_destination": true
       }
     ],
     "Edge": [
@@ -153,7 +176,8 @@
         "target": "n2",
         "directed": true,
         "length_km": 257.0915,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e02",
@@ -161,7 +185,8 @@
         "target": "n3",
         "directed": true,
         "length_km": 175.5002,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e03",
@@ -169,7 +194,8 @@
         "target": "n4",
         "directed": true,
         "length_km": 181.2412,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e04",
@@ -177,7 +203,8 @@
         "target": "n5",
         "directed": true,
         "length_km": 150.8935,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e05",
@@ -185,7 +212,8 @@
         "target": "n3",
         "directed": true,
         "length_km": 163.9874,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e06",
@@ -193,7 +221,8 @@
         "target": "n9",
         "directed": true,
         "length_km": 208.9702,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e07",
@@ -201,7 +230,8 @@
         "target": "n7",
         "directed": true,
         "length_km": 108.5212,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e08",
@@ -209,7 +239,8 @@
         "target": "n8",
         "directed": true,
         "length_km": 86.8151,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e09",
@@ -217,7 +248,8 @@
         "target": "n10",
         "directed": true,
         "length_km": 139.9491,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e10",
@@ -225,7 +257,8 @@
         "target": "n6",
         "directed": true,
         "length_km": 108.1919,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e11",
@@ -233,7 +266,8 @@
         "target": "n6",
         "directed": true,
         "length_km": 58.7571,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e12",
@@ -241,7 +275,8 @@
         "target": "n11",
         "directed": true,
         "length_km": 153.1533,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e13",
@@ -249,7 +284,8 @@
         "target": "n8",
         "directed": true,
         "length_km": 70.7366,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e14",
@@ -257,7 +293,8 @@
         "target": "n12",
         "directed": true,
         "length_km": 98.8101,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e15",
@@ -265,7 +302,8 @@
         "target": "n13",
         "directed": true,
         "length_km": 77.811,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e16",
@@ -273,7 +311,8 @@
         "target": "n10",
         "directed": true,
         "length_km": 105.2907,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e17",
@@ -281,7 +320,8 @@
         "target": "n16",
         "directed": true,
         "length_km": 77.1974,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e18",
@@ -289,7 +329,8 @@
         "target": "n13",
         "directed": true,
         "length_km": 56.5099,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e19",
@@ -297,7 +338,8 @@
         "target": "n15",
         "directed": true,
         "length_km": 124.9326,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e20",
@@ -305,7 +347,8 @@
         "target": "n12",
         "directed": true,
         "length_km": 43.1904,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e21",
@@ -313,7 +356,8 @@
         "target": "n14",
         "directed": true,
         "length_km": 119.6333,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e22",
@@ -321,7 +365,8 @@
         "target": "n14",
         "directed": true,
         "length_km": 89.4143,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e23",
@@ -329,7 +374,8 @@
         "target": "n15",
         "directed": true,
         "length_km": 108.7213,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e24",
@@ -337,7 +383,8 @@
         "target": "n19",
         "directed": true,
         "length_km": 68.9334,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e25",
@@ -345,7 +392,8 @@
         "target": "n18",
         "directed": true,
         "length_km": 108.6316,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e26",
@@ -353,7 +401,8 @@
         "target": "n17",
         "directed": true,
         "length_km": 101.6624,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e27",
@@ -361,7 +410,8 @@
         "target": "n17",
         "directed": true,
         "length_km": 118.9441,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e28",
@@ -369,7 +419,8 @@
         "target": "n20",
         "directed": true,
         "length_km": 62.3207,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e29",
@@ -377,7 +428,8 @@
         "target": "n22",
         "directed": true,
         "length_km": 90.3785,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e30",
@@ -385,7 +437,8 @@
         "target": "n22",
         "directed": true,
         "length_km": 50.5347,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e31",
@@ -393,7 +446,8 @@
         "target": "n21",
         "directed": true,
         "length_km": 83.2705,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e32",
@@ -401,7 +455,8 @@
         "target": "n22",
         "directed": true,
         "length_km": 71.2798,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       },
       {
         "id": "e33",
@@ -409,7 +464,8 @@
         "target": "n22",
         "directed": true,
         "length_km": 48.0681,
-        "capacity": 2
+        "capacity": 2,
+        "avg_speed_kph": 60
       }
     ],
     "Bridge": [
@@ -643,22 +699,6 @@
         "lon": 114.746235,
         "edge": "e33",
         "hazus_class": "HWB11"
-      }
-    ],
-    "SystemEvent": [
-      {
-        "id": "n1>n22:time",
-        "analysis": "shortest-path",
-        "origin": "n1",
-        "destination": "n22",
-        "travel_time_tolerance": 0.5
-      },
-      {
-        "id": "n1>n22:flow",
-        "analysis": "max-flow",
-        "origin": "n1",
-        "destination": "n22",
-        "min_flow": 1
       }
     ]
   }

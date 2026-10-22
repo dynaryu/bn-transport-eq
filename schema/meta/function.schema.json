@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "function.schema.json",
   "title": "Function",
-  "description": "One conditional distribution or simulator as a typed signature: outputs = f(inputs; attributes, parameters). Inputs are BN parents, attributes are fixed row data, parameters are the numbers shared by every row bound to one parameter set. The function is replicated over the rows of its `per` plate.",
+  "description": "One conditional distribution or simulator as a typed signature: outputs = f(inputs; attributes, parameters). Inputs are BN parents, attributes are fixed row data, parameters are the numbers shared by every row bound to one parameter set (an instance), whose shape is `instance_schema`. The function is replicated over the rows of its `per` plate.",
   "type": "object",
   "required": [
     "id",
@@ -40,7 +40,7 @@
         "hazard",
         "fragility",
         "functionality",
-        "link",
+        "edge",
         "system"
       ]
     },
@@ -79,8 +79,8 @@
         "pattern": "^[A-Z][A-Za-z]*$"
       }
     },
-    "parameters": {
-      "description": "JSON Schema every parameter set for this function must satisfy. Omit for a function with no parameters.",
+    "instance_schema": {
+      "description": "JSON Schema every instance of this function must satisfy: each parameter set's `values` under instances/<role>/, and the inline `parameters` of an assembly binding. Omit for a function with no parameters.",
       "type": "object"
     },
     "implementation": {

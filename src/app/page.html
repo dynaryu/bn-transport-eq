@@ -12,7 +12,7 @@
   --bad: #b91c1c; --bad-soft: #fee2e2;
   --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.05);
   --r-scenario: #7c5cd6; --r-hazard: #e8752a; --r-fragility: #d9463b; --r-functionality: #c69214;
-  --r-link: #129a8b; --r-system: #2f6fdb;
+  --r-edge: #129a8b; --r-system: #2f6fdb;
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
@@ -186,7 +186,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
 <script>
 let DATA = window.BN_DATA || null;
 const STATIC = !!window.BN_DATA;           // a snapshot from python -m src export: no server behind it
-const ROLES = ["scenario", "hazard", "fragility", "functionality", "link", "system"];
+const ROLES = ["scenario", "hazard", "fragility", "functionality", "edge", "system"];
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const store = {
@@ -218,7 +218,7 @@ function functionCard(c) {
   const n = c.nodes != null ? `<span class="chip">×${c.rows}</span>` : "";
   const sets = c.parameter_sets || [];
   let h = `<div class="card${state.ran.includes(c.function) ? " ran" : ""}" data-key="${esc(c.key)}"><div class="head"><span class="dot" style="background:${roleColor(c.role)}"></span>` +
-    `<span class="fid" title="${esc(c.label)}">${esc(c.function)}</span></div><div class="sub">` +
+    `<span class="fid" title="${esc(c.label)}">${esc(c.function)}</span></div><div class="sub" data-port="per">` +
     `<span class="chip plate">per ${esc(c.per)}</span>${n}<span class="chip">${c.deterministic ? "deterministic" : "stochastic"}</span>` +
     `<span class="chip">${esc(c.drawKind)}</span>${c.where ? `<span class="chip warn">where</span>` : ""}</div>`;
   if (c.inputs.length) {
@@ -237,8 +237,13 @@ function functionCard(c) {
       .map(([k, val]) => row("dimrow", null, "θ", k, JSON.stringify(val))).join("");
   } else if (c.has_parameters) {
     h += `<div class="sec" data-port="theta">parameters · ${plural(sets.length, "set")}${c.parameter_template ? " · " + esc(c.parameter_template) : ""}${c.parameter_by_location ? " · by location" : ""}</div>`;
-    h += sets.slice(0, 3).map(s => row("dimrow", null, "θ", s.id, s.count != null ? `×${s.count}` : "", s.label)).join("");
-    if (sets.length > 3) h += `<div class="row more"><span class="ico"></span><span class="nm">+ ${sets.length - 3} more</span></div>`;
+    // The schema shows no rows: there, a count and where the sets are (the Details panel lists them).
+    // In a BN, the sets bound to its rows are part of the model, with how many rows each describes.
+    if (c.nodes == null && sets.length) h += row("dimrow", null, "θ", `instances/${c.role}/`, "", "select the card to list them");
+    else {
+      h += sets.slice(0, 3).map(s => row("dimrow", null, "θ", s.id, s.count != null ? `×${s.count}` : "", s.label)).join("");
+      if (sets.length > 3) h += `<div class="row more"><span class="ico"></span><span class="nm">+ ${sets.length - 3} more</span></div>`;
+    }
     if (!sets.length) h += `<div class="row more"><span class="ico"></span><span class="nm">inline, in each assembly that binds it</span></div>`;
   }
   return h + `<div class="foot"></div></div>`;
@@ -402,11 +407,13 @@ function rvWires(v) {
 const entity = id => DATA.entities.find(e => e.id === id);
 const portOf = (id, attr) => (entity(id)?.attributes[attr]?.ref ? "fk:" : "at:") + attr;
 
-// What each function reads from the tables: attributes, whole tables, the keys that route
-// its parents, and in a BN the attribute that picks each row's parameter set.
+// What each function reads from the tables: the plate it is replicated over, attributes, whole
+// tables, the keys that route its parents, and in a BN the attribute that picks each row's parameter set.
 function dataWires(v) {
   const out = [];
   for (const c of v.cards) {
+    out.push({ style: "data", from: c.per, fromPort: "pk:id", to: c.key, toPort: "per",
+      tip: `<b>${esc(c.per)}</b> → <b>${esc(c.function)}</b><br>its plate: one copy of the function, and one node per output, for each ${esc(c.per)} row` });
     for (const a of c.attributes) out.push({ style: "data", from: c.per, fromPort: portOf(c.per, a), to: c.key, toPort: `rd:${a}`,
       tip: `<b>${esc(c.per)}.${esc(a)}</b> → <b>${esc(c.function)}</b><br>fixed data, read from each ${esc(c.per)} row the function is replicated over` });
     for (const tb of c.tables) out.push({ style: "data", from: tb, fromPort: "pk:id", to: c.key, toPort: `tb:${tb}`,

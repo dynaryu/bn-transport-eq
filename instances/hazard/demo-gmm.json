@@ -1,0 +1,62 @@
+{
+  "$schema": "../../schema/meta/parameter-sets.schema.json",
+  "function": "hazard.gmm",
+  "source": {
+    "purpose": "DEMO ONLY, for communicating the workflow on toy-ca. Not a ground-motion model for California.",
+    "basis": "The Campbell (2003) eastern North America numbers from campbell-2003.json, reused unchanged."
+  },
+  "sets": [
+    {
+      "id": "demo.campbell-2003-in-california",
+      "label": "DEMO ONLY: Campbell (2003) ENA coefficients applied in central California",
+      "values": {
+        "form": "campbell-2003",
+        "imt": "SA(1.0)",
+        "coefficients": {
+          "c1": -0.6104,
+          "c2": 0.451,
+          "c3": -0.209,
+          "c4": -1.158,
+          "c5": -0.00255,
+          "c6": 0.000141,
+          "c7": 0.299,
+          "c8": 0.503
+        },
+        "sigma": {
+          "a": 1.11,
+          "b": -0.0793,
+          "m_break": 7.16,
+          "sigma_above": 0.543
+        },
+        "sigma_epistemic": 0.3,
+        "distance_metric": "hypocentral",
+        "magnitude_range": [
+          4.0,
+          9.5
+        ]
+      },
+      "region": {
+        "name": "Central California (demo)",
+        "polygon": [
+          [
+            -122.5,
+            35.5
+          ],
+          [
+            -119.5,
+            35.5
+          ],
+          [
+            -119.5,
+            37.5
+          ],
+          [
+            -122.5,
+            37.5
+          ]
+        ],
+        "basis": "A box around the toy-ca network, drawn only so the demo can choose this set by location."
+      }
+    }
+  ]
+}

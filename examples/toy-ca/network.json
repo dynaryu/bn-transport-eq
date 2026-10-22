@@ -1,0 +1,247 @@
+{
+  "$schema": "../../schema/meta/network.schema.json",
+  "network": "toy-ca",
+  "title": "Toy California network",
+  "description": "Eight nodes and ten connections for a small worked example.",
+  "source": {
+    "coordinates": "User-provided KML Point coordinates for N1 through N8, retained at supplied precision.",
+    "connectivity": "Ten node pairs supplied by the user."
+  },
+  "assumptions": {
+    "direction": "All connections are treated as undirected.",
+    "length_km": "Great-circle distance between endpoint coordinates using a spherical Earth radius of 6371.0088 km; not road distance.",
+    "capacity": "Each edge has placeholder capacity 1 in arbitrary units; no measured capacities were supplied.",
+    "bridge_representation": "One bridge per edge; these are synthetic bridges for the toy example.",
+    "bridge_location": "Each bridge is placed at the arithmetic mean of its edge endpoints latitude and longitude; not a surveyed location.",
+    "bridge_class": "Seven bridges HWB11 (seismically designed continuous concrete); b2, b4 and b6, the three nearest the San Andreas trace, HWB5 (older, non-seismic) for the demo. Toy assumptions, not an inventory classification.",
+    "avg_speed_kph": "60 km/h on every edge, assumed (the value the rsr and ndtools demos use); no measured speeds are in the dataset.",
+    "key_destination": "Key destinations n1 and n2, as set by the user.",
+    "event": "Hypothetical M7.8 as a point source on the San Andreas trace at 36.50 N, 121.04 W, 10 km deep, for the demo only. This is the creeping section, not the 1857 rupture; a point source understates shaking along a ~300 km rupture."
+  },
+  "tables": {
+    "Node": [
+      {
+        "id": "n1",
+        "lat": 36.2754377087278,
+        "lon": -120.2697236285474,
+        "key_destination": true
+      },
+      {
+        "id": "n2",
+        "lat": 37.04506407340175,
+        "lon": -120.9711829700426,
+        "key_destination": true
+      },
+      {
+        "id": "n3",
+        "lat": 36.83099716309577,
+        "lon": -121.3875291153705,
+        "key_destination": false
+      },
+      {
+        "id": "n4",
+        "lat": 36.50390064627767,
+        "lon": -121.1278788769556,
+        "key_destination": false
+      },
+      {
+        "id": "n5",
+        "lat": 36.17742103427384,
+        "lon": -120.827670470779,
+        "key_destination": false
+      },
+      {
+        "id": "n6",
+        "lat": 36.11216661361079,
+        "lon": -121.0225573012664,
+        "key_destination": false
+      },
+      {
+        "id": "n7",
+        "lat": 36.40997125618332,
+        "lon": -121.3284746027899,
+        "key_destination": false
+      },
+      {
+        "id": "n8",
+        "lat": 36.66619851776886,
+        "lon": -121.6458130936544,
+        "key_destination": false
+      }
+    ],
+    "Edge": [
+      {
+        "id": "e1",
+        "source": "n1",
+        "target": "n2",
+        "directed": false,
+        "length_km": 106.011906,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e2",
+        "source": "n1",
+        "target": "n5",
+        "directed": false,
+        "length_km": 51.220587,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e3",
+        "source": "n2",
+        "target": "n3",
+        "directed": false,
+        "length_km": 43.998194,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e4",
+        "source": "n3",
+        "target": "n4",
+        "directed": false,
+        "length_km": 43.118452,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e5",
+        "source": "n3",
+        "target": "n8",
+        "directed": false,
+        "length_km": 29.417095,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e6",
+        "source": "n4",
+        "target": "n5",
+        "directed": false,
+        "length_km": 45.176621,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e7",
+        "source": "n4",
+        "target": "n7",
+        "directed": false,
+        "length_km": 20.759042,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e8",
+        "source": "n5",
+        "target": "n6",
+        "directed": false,
+        "length_km": 18.944186,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e9",
+        "source": "n6",
+        "target": "n7",
+        "directed": false,
+        "length_km": 42.998648,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      },
+      {
+        "id": "e10",
+        "source": "n7",
+        "target": "n8",
+        "directed": false,
+        "length_km": 40.193808,
+        "capacity": 1,
+        "avg_speed_kph": 60
+      }
+    ],
+    "Bridge": [
+      {
+        "id": "b1",
+        "lat": 36.66025089106477,
+        "lon": -120.62045329929501,
+        "edge": "e1",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "b2",
+        "lat": 36.22642937150082,
+        "lon": -120.5486970496632,
+        "edge": "e2",
+        "hazus_class": "HWB5"
+      },
+      {
+        "id": "b3",
+        "lat": 36.93803061824876,
+        "lon": -121.17935604270656,
+        "edge": "e3",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "b4",
+        "lat": 36.66744890468672,
+        "lon": -121.25770399616306,
+        "edge": "e4",
+        "hazus_class": "HWB5"
+      },
+      {
+        "id": "b5",
+        "lat": 36.74859784043232,
+        "lon": -121.51667110451245,
+        "edge": "e5",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "b6",
+        "lat": 36.34066084027575,
+        "lon": -120.9777746738673,
+        "edge": "e6",
+        "hazus_class": "HWB5"
+      },
+      {
+        "id": "b7",
+        "lat": 36.4569359512305,
+        "lon": -121.22817673987275,
+        "edge": "e7",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "b8",
+        "lat": 36.144793823942315,
+        "lon": -120.9251138860227,
+        "edge": "e8",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "b9",
+        "lat": 36.261068934897054,
+        "lon": -121.17551595202815,
+        "edge": "e9",
+        "hazus_class": "HWB11"
+      },
+      {
+        "id": "b10",
+        "lat": 36.538084886976094,
+        "lon": -121.48714384822215,
+        "edge": "e10",
+        "hazus_class": "HWB11"
+      }
+    ],
+    "Event": [
+      {
+        "id": "demo-san-andreas",
+        "mw": 7.8,
+        "lat": 36.5,
+        "lon": -121.04,
+        "depth_km": 10.0,
+        "description": "Hypothetical M7.8 on the San Andreas trace, at the network's centre latitude"
+      }
+    ]
+  }
+}

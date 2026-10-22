@@ -24,7 +24,7 @@ from pathlib import Path
 from .load import SCHEMA, Library, load_library, port_choices, quantity_template, via_kind
 
 OUTPUT = SCHEMA / "diagram.md"
-ROLES = ["scenario", "hazard", "fragility", "functionality", "link", "system"]
+ROLES = ["scenario", "hazard", "fragility", "functionality", "edge", "system"]
 
 # Crow's-foot ends, producer on the left, consumer on the right, by how the consumer reaches it.
 _ENDS = {"self": "||--||", "fk": "||--o{", "reverse": "}o--||", "all": "}o--o{"}
@@ -38,9 +38,9 @@ def _name(text: str) -> str:
 
 
 def _quantity(port: dict) -> str:
-    """The row's type column: the quantity, or IM_by_imt for a port whose IM its parameters name."""
+    """The row's type column: the quantity, or by_imt for a port whose quantity its parameters name."""
     param = quantity_template(port["quantity"])
-    return _name(port["quantity"]) if param is None else f"IM_by_{param}"
+    return _name(port["quantity"]) if param is None else f"by_{param}"
 
 
 def _comment(text: str) -> str:
@@ -71,8 +71,8 @@ def _functions(lib: Library) -> list[str]:
             lines.append(f"        fixed {attr} " + _comment(f"{fn['per']}.{attr}"))
         for table in fn.get("tables", []):
             lines.append(f"        table {table} " + _comment("whole table, fixed"))
-        if "parameters" in fn:
-            where = (f"{sets[fn['id']]} set(s) in instances/parameters" if sets[fn["id"]]
+        if "instance_schema" in fn:
+            where = (f"{sets[fn['id']]} set(s) in instances/{fn['role']}" if sets[fn["id"]]
                      else "inline, in each assembly that binds it")
             lines.append("        theta parameters " + _comment(where))
         lines.append(f"        {fn['role']} role " + _comment(

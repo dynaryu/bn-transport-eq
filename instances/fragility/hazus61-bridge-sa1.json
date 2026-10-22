@@ -1,0 +1,523 @@
+{
+  "$schema": "../../schema/meta/parameter-sets.schema.json",
+  "function": "fragility.bridge",
+  "source": {
+    "document": "Hazus Earthquake Model Technical Manual",
+    "version": "6.1",
+    "date": "July 2024",
+    "section": "7.1",
+    "url": "https://www.fema.gov/sites/default/files/documents/fema_hazus-earthquake-model-technical-manual-6-1.pdf",
+    "transcription": "instances/fragility/hazus61-source.md",
+    "transcription_sha256": "80148b6c42917e286e49d75834c1360d37347b86226c4891d6b8ce209d101bf7",
+    "verification": "Reproduced from user-supplied specification; full FEMA PDF retrieval returned HTTP 403",
+    "application": "base: Table 7-6 medians without skew, span-count or shape modifiers",
+    "table": "7-6",
+    "history": "Generated from assets/fragility/hazus-bridge/*.asset.json at commit 784e6cc, which scripts/import_hazus61_spec.py had extracted from the transcription above. Both were removed when the repository narrowed to the registry; this file is now the source."
+  },
+  "sets": [
+    {
+      "id": "hazus61.HWB1",
+      "label": "Hazus 6.1 HWB1, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.4,
+            "moderate": 0.5,
+            "extensive": 0.7,
+            "complete": 0.9
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB2",
+      "label": "Hazus 6.1 HWB2, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.6,
+            "moderate": 0.9,
+            "extensive": 1.1,
+            "complete": 1.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB3",
+      "label": "Hazus 6.1 HWB3, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.8,
+            "moderate": 1.0,
+            "extensive": 1.2,
+            "complete": 1.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB4",
+      "label": "Hazus 6.1 HWB4, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.8,
+            "moderate": 1.0,
+            "extensive": 1.2,
+            "complete": 1.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB5",
+      "label": "Hazus 6.1 HWB5, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.25,
+            "moderate": 0.35,
+            "extensive": 0.45,
+            "complete": 0.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB6",
+      "label": "Hazus 6.1 HWB6, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.3,
+            "moderate": 0.5,
+            "extensive": 0.6,
+            "complete": 0.9
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB7",
+      "label": "Hazus 6.1 HWB7, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.5,
+            "moderate": 0.8,
+            "extensive": 1.1,
+            "complete": 1.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB8",
+      "label": "Hazus 6.1 HWB8, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.35,
+            "moderate": 0.45,
+            "extensive": 0.55,
+            "complete": 0.8
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB9",
+      "label": "Hazus 6.1 HWB9, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.6,
+            "moderate": 0.9,
+            "extensive": 1.3,
+            "complete": 1.6
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB10",
+      "label": "Hazus 6.1 HWB10, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.6,
+            "moderate": 0.9,
+            "extensive": 1.1,
+            "complete": 1.5
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB11",
+      "label": "Hazus 6.1 HWB11, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.9,
+            "moderate": 0.9,
+            "extensive": 1.1,
+            "complete": 1.5
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB12",
+      "label": "Hazus 6.1 HWB12, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.25,
+            "moderate": 0.35,
+            "extensive": 0.45,
+            "complete": 0.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB13",
+      "label": "Hazus 6.1 HWB13, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.3,
+            "moderate": 0.5,
+            "extensive": 0.6,
+            "complete": 0.9
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB14",
+      "label": "Hazus 6.1 HWB14, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.5,
+            "moderate": 0.8,
+            "extensive": 1.1,
+            "complete": 1.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB15",
+      "label": "Hazus 6.1 HWB15, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.75,
+            "moderate": 0.75,
+            "extensive": 0.75,
+            "complete": 1.1
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB16",
+      "label": "Hazus 6.1 HWB16, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.9,
+            "moderate": 0.9,
+            "extensive": 1.1,
+            "complete": 1.5
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB17",
+      "label": "Hazus 6.1 HWB17, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.25,
+            "moderate": 0.35,
+            "extensive": 0.45,
+            "complete": 0.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB18",
+      "label": "Hazus 6.1 HWB18, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.3,
+            "moderate": 0.5,
+            "extensive": 0.6,
+            "complete": 0.9
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB19",
+      "label": "Hazus 6.1 HWB19, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.5,
+            "moderate": 0.8,
+            "extensive": 1.1,
+            "complete": 1.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB20",
+      "label": "Hazus 6.1 HWB20, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.35,
+            "moderate": 0.45,
+            "extensive": 0.55,
+            "complete": 0.8
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB21",
+      "label": "Hazus 6.1 HWB21, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.6,
+            "moderate": 0.9,
+            "extensive": 1.3,
+            "complete": 1.6
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB22",
+      "label": "Hazus 6.1 HWB22, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.6,
+            "moderate": 0.9,
+            "extensive": 1.1,
+            "complete": 1.5
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB23",
+      "label": "Hazus 6.1 HWB23, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.9,
+            "moderate": 0.9,
+            "extensive": 1.1,
+            "complete": 1.5
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB24",
+      "label": "Hazus 6.1 HWB24, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.25,
+            "moderate": 0.35,
+            "extensive": 0.45,
+            "complete": 0.7
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB25",
+      "label": "Hazus 6.1 HWB25, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.3,
+            "moderate": 0.5,
+            "extensive": 0.6,
+            "complete": 0.9
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB26",
+      "label": "Hazus 6.1 HWB26, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.75,
+            "moderate": 0.75,
+            "extensive": 0.75,
+            "complete": 1.1
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB27",
+      "label": "Hazus 6.1 HWB27, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.75,
+            "moderate": 0.75,
+            "extensive": 0.75,
+            "complete": 1.1
+          },
+          "beta": 0.6
+        }
+      }
+    },
+    {
+      "id": "hazus61.HWB28",
+      "label": "Hazus 6.1 HWB28, base SA(1.0 s) curves",
+      "values": {
+        "form": "lognormal",
+        "imt": "SA(1.0)",
+        "damage_scale": "DamageState.HazusBridge",
+        "parameters": {
+          "medians": {
+            "slight": 0.8,
+            "moderate": 1.0,
+            "extensive": 1.2,
+            "complete": 1.7
+          },
+          "beta": 0.6
+        }
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@
     serve     the page: the BN, the query form and the chat                   (6)
     export    the page's drawings as one file that opens without the server   (6)
     diagram   rewrite schema/diagram.md and .html, the schema drawn            (1)
+    vs30      fill missing bridge Vs30 from the USGS map                      (2)
 """
 
 from __future__ import annotations
@@ -151,6 +152,24 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_vs30(args: argparse.Namespace) -> int:
+    from src.builder import vs30
+
+    if args.check:
+        data = json.loads((vs30.NETWORKS / args.network / "network.json").read_text(encoding="utf-8"))
+        missing = [b["id"] for b in data["tables"].get("Bridge", []) if b.get("vs30") is None]
+        print(f"{len(missing)} bridge(s) without vs30" + (f": {', '.join(missing[:8])}" if missing else ""))
+        return 0
+    try:
+        done = vs30.fill(args.network)
+    except vs30.Vs30Error as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    print(f"{done['file']}: filled {done['filled']} from the USGS mosaic ({done['near_water']} from a nearby "
+          f"land cell), kept {done['kept']} given")
+    return 0
+
+
 def cmd_diagram(args: argparse.Namespace) -> int:
     import webbrowser
 
@@ -187,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("query", help="answer a probabilistic query")
     p.add_argument("assembly", nargs="?", help="e.g. ema-highway/gmm (or give --json)")
     p.add_argument("--target", action="append", help="node id or pattern, e.g. 'TravelTime::*>n22:time'")
-    p.add_argument("--event", action="append", help="e.g. 'SystemState::*>n22:*==0' or 'LinkOpen::*==0'")
+    p.add_argument("--event", action="append", help="e.g. 'SystemState::*>n22:*==0' or 'EdgeOpen::*==0'")
     p.add_argument("--set", action="append", help="row.attr=value or function.param=value, e.g. ema-reference.mw=7")
     p.add_argument("--use", action="append", help="function=parameter-set, swapping a parameter set")
     p.add_argument("--json", help="a whole query, as a file or inline JSON (overrides the options above)")
@@ -214,6 +233,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-o", "--output", default=".cache/schema.html", help="default .cache/schema.html (gitignored)")
     p.add_argument("--open", action="store_true", help="open it in the browser")
     p.set_defaults(run=cmd_export)
+
+    p = sub.add_parser("vs30", help="fill missing Bridge.vs30 from the USGS Global Vs30 Mosaic")
+    p.add_argument("network", help="e.g. toy-ca")
+    p.add_argument("--check", action="store_true", help="only report which bridges lack vs30")
+    p.set_defaults(run=cmd_vs30)
 
     p = sub.add_parser("diagram", help="rewrite schema/diagram.md and schema/diagram.html from the schema")
     p.add_argument("--check", action="store_true", help="fail if either is stale instead of rewriting them")

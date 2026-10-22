@@ -114,36 +114,25 @@
       "description": "0 closed, 1 open."
     },
     {
-      "id": "LinkOpen",
-      "label": "Network link open to traffic",
+      "id": "EdgeOpen",
+      "label": "Edge open to traffic",
       "kind": "discrete",
       "states": [
         0,
         1
       ],
-      "description": "0 closed, 1 open. The one link-level state both system functions read."
+      "description": "0 closed, 1 open. The edge state the system functions read."
     },
     {
       "id": "TravelTime",
-      "label": "Shortest travel time, origin to destination",
+      "label": "Travel time to the nearest key destination",
       "kind": "continuous",
-      "unit": "min",
+      "unit": "h",
       "range": [
         0,
         null
       ],
-      "description": "+inf when no open route exists, so P(connected) = P(TravelTime < inf)."
-    },
-    {
-      "id": "MaxFlow",
-      "label": "Maximum flow, origin to destination",
-      "kind": "continuous",
-      "unit": "Edge.capacity units",
-      "range": [
-        0,
-        null
-      ],
-      "description": "In whatever unit the network's Edge.capacity is stated in; the network's assumptions name it."
+      "description": "From one origin node, over the open edges. +inf when no key destination is reachable."
     },
     {
       "id": "SystemState",

@@ -1,0 +1,171 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "fragility.bridge",
+  "label": "Bridge fragility",
+  "version": "0.3.0",
+  "role": "fragility",
+  "per": "Bridge",
+  "inputs": [
+    {
+      "name": "im",
+      "quantity": "{imt}",
+      "over": "Bridge",
+      "via": "self",
+      "description": "The IM the curve is defined on, at this bridge."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "damage",
+      "quantity": "{damage_scale}",
+      "description": "On the damage scale the curve is defined on."
+    }
+  ],
+  "instance_schema": {
+    "description": "One fragility curve per set: what kind of curve it is (its functional form, the IM it is defined on, the damage scale it predicts), which decides how it is wired, and the form's own parameters under `parameters`. A form is a kernel in src/builder/kernels/fragility.py (FRAGILITY_FORMS); a curve of an existing form on an existing scale needs no schema change.",
+    "type": "object",
+    "required": [
+      "form",
+      "imt",
+      "damage_scale",
+      "parameters"
+    ],
+    "properties": {
+      "form": {
+        "description": "The functional form these values belong to.",
+        "enum": [
+          "lognormal"
+        ]
+      },
+      "imt": {
+        "description": "The intensity measure the curve is defined on.",
+        "enum": [
+          "PGA",
+          "PGV",
+          "SA(0.3)",
+          "SA(1.0)",
+          "SA(3.0)"
+        ]
+      },
+      "damage_scale": {
+        "description": "The damage-state quantity the curve predicts; its states after the first are the limit states.",
+        "enum": [
+          "DamageState.HazusBridge"
+        ]
+      },
+      "parameters": {
+        "description": "The form's parameters, e.g. a lognormal's medians and beta.",
+        "type": "object"
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "form": {
+              "const": "lognormal"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "parameters": {
+              "description": "P(DS >= k | im) = Phi(ln(im / median_k) / beta_k): median_k of the IM, in its own unit, and beta_k the standard deviation of ln IM. Medians must not decrease with the state. Either one shared beta (the curves cannot cross) or one beta per limit state; where those cross, P(DS >= k) is capped at P(DS >= k-1) and the result says how often.",
+              "required": [
+                "medians"
+              ],
+              "oneOf": [
+                {
+                  "required": [
+                    "beta"
+                  ]
+                },
+                {
+                  "required": [
+                    "betas"
+                  ]
+                }
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "medians": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "beta": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "betas": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "damage_scale": {
+              "const": "DamageState.HazusBridge"
+            }
+          }
+        },
+        "then": {
+          "description": "Values per limit state are keyed by this scale's states after the first.",
+          "properties": {
+            "parameters": {
+              "properties": {
+                "medians": {
+                  "$ref": "#/$defs/hazus_limit_states"
+                },
+                "betas": {
+                  "$ref": "#/$defs/hazus_limit_states"
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "$defs": {
+      "hazus_limit_states": {
+        "type": "object",
+        "required": [
+          "slight",
+          "moderate",
+          "extensive",
+          "complete"
+        ],
+        "propertyNames": {
+          "enum": [
+            "slight",
+            "moderate",
+            "extensive",
+            "complete"
+          ]
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "implementation": "src.builder.kernels.fragility:Fragility",
+  "deterministic": false,
+  "drawKind": "Marginal",
+  "capabilities": [
+    "SampleForward",
+    "EvaluateDensity"
+  ],
+  "source": {
+    "note": "Each parameter set cites its own curve. The kernel holds the functional forms."
+  },
+  "description": "Whichever curve the parameter set is, on whichever IM and damage scale it names: a curve on PGA wires only to a hazard that produces PGA, and one on a damage scale wires only to a functionality mapping on that scale. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`."
+}

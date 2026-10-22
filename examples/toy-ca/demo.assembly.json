@@ -1,0 +1,38 @@
+{
+  "$schema": "../../schema/meta/assembly.schema.json",
+  "id": "toy-ca/demo",
+  "label": "Toy California network: an approximate M6.4 scenario, for communication",
+  "network": "toy-ca",
+  "description": "A small, approximate chain from scenario to travel time, to show the workflow. The ground-motion model is a demo-only stand-in.",
+  "bindings": [
+    {
+      "function": "hazard.scenario-fixed"
+    },
+    {
+      "function": "hazard.gmm",
+      "parameter_set_by_location": [
+        "demo.campbell-2003-in-california"
+      ]
+    },
+    {
+      "function": "fragility.bridge",
+      "parameter_set": "hazus61.{hazus_class}"
+    },
+    {
+      "function": "functionality.usable-from-damage",
+      "parameter_set": "policy.closed-at-extensive"
+    },
+    {
+      "function": "edge.open"
+    },
+    {
+      "function": "system.travel-time-to-nearest",
+      "where": {
+        "key_destination": false
+      },
+      "parameters": {
+        "target_max": 0.5
+      }
+    }
+  ]
+}

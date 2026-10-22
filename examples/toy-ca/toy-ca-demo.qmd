@@ -1,0 +1,146 @@
+---
+title: "Toy network demo"
+format: html
+jupyter: quakenet
+---
+
+This is an illustration using the toy network `toy-ca`.
+
+```{python}
+#| label: setup
+import json, os, sys
+from pathlib import Path
+
+ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").is_file())
+os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
+```
+
+## 1. The network dataset
+
+The network is one file, `examples/toy-ca/network.json`, with one table per entity type.
+
+```{python}
+data = json.loads(Path("examples/toy-ca/network.json").read_text(encoding="utf-8"))
+{table: len(rows) for table, rows in data["tables"].items()}
+```
+
+One row of each table:
+
+```{python}
+for table in ("Node", "Edge", "Bridge", "Event"):
+    print(f"{table:7}", json.dumps(data["tables"][table][0]))
+```
+
+The tables:
+
+```{python}
+import pandas as pd
+
+nodes = pd.DataFrame(data["tables"]["Node"]).set_index("id")
+edges = pd.DataFrame(data["tables"]["Edge"]).set_index("id")
+bridges = pd.DataFrame(data["tables"]["Bridge"]).set_index("id")
+nodes
+```
+
+```{python}
+edges
+```
+
+```{python}
+bridges
+```
+
+The schemas the file is checked against: its shape, from its `$schema`, and each table's columns, from `schema/entities.json`.
+
+```{python}
+from jsonschema import Draft202012Validator
+
+shape = json.loads(Path("schema/meta/network.schema.json").read_text(encoding="utf-8"))
+print("$schema:", data["$schema"])
+print("shape errors:", list(Draft202012Validator(shape).iter_errors(data)))
+```
+
+```{python}
+entities = {e["id"]: e for e in json.loads(Path("schema/entities.json").read_text(encoding="utf-8"))["entities"]}
+
+columns = []
+for table, records in data["tables"].items():
+    attrs = entities[table]["attributes"]
+    in_file = set().union(*(r.keys() for r in records)) - {"id"}
+    for name, spec in attrs.items():
+        columns.append({"table": table, "column": name,
+                        "schema type": f"-> {spec['ref']}" if "ref" in spec else spec["type"],
+                        "required": spec.get("required", True), "in file": name in in_file})
+    for name in sorted(in_file - attrs.keys()):
+        columns.append({"table": table, "column": name, "schema type": "NOT IN SCHEMA", "required": None, "in file": True})
+columns = pd.DataFrame(columns)
+columns
+```
+
+They match: every required column is in the file, and the file has no column the schema lacks.
+
+```{python}
+missing = columns[columns.required.eq(True) & ~columns["in file"]]
+extra = columns[columns["schema type"] == "NOT IN SCHEMA"]
+print("required but missing:", missing[["table", "column"]].values.tolist())
+print("in file, not in schema:", extra[["table", "column"]].values.tolist())
+```
+
+Every assumed value is named in the file:
+
+```{python}
+for key, text in data["assumptions"].items():
+    print(f"- {key}: {text}")
+```
+
+The map:
+
+![](network_screenshot.png){width=60%}
+
+```{python}
+#| label: fig-network
+#| fig-cap: "Nodes, edges, bridges by class, key destinations and the demo scenario."
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(6, 5))
+for _, e in edges.iterrows():
+    a, b = nodes.loc[e.source], nodes.loc[e.target]
+    ax.plot([a.lon, b.lon], [a.lat, b.lat], color="0.7", zorder=1)
+ax.scatter(nodes.lon, nodes.lat, s=40, color="k", zorder=2, label="node")
+for cls, group in bridges.groupby("hazus_class"):
+    ax.scatter(group.lon, group.lat, s=35, marker="s", zorder=3, label=f"bridge {cls}")
+key = nodes[nodes.key_destination]
+ax.scatter(key.lon, key.lat, s=160, facecolors="none", edgecolors="tab:green", linewidths=2, zorder=4,
+           label="key destination")
+event = data["tables"]["Event"][0]
+ax.scatter(event["lon"], event["lat"], marker="*", s=300, color="orange", zorder=5, label=f"scenario M{event['mw']}")
+for nid, n in nodes.iterrows():
+    ax.annotate(nid, (n.lon, n.lat), xytext=(4, 4), textcoords="offset points")
+ax.set_aspect(1 / np.cos(np.radians(nodes.lat.mean())))
+ax.set_xlabel("longitude")
+ax.set_ylabel("latitude")
+ax.legend(loc="lower left", fontsize=8)
+plt.show()
+```
+
+Loading the network checks every row against `schema/entities.json`:
+
+```{python}
+from src.builder.load import check_tables, load_library, load_network
+
+lib = load_library()                      # schema/ and instances/
+net = load_network("toy-ca", lib)
+{entity: len(rows) for entity, rows in net.tables.items()}
+```
+
+A broken row is refused, with the reason:
+
+```{python}
+broken = json.loads(json.dumps(net.tables))
+broken["Bridge"][0]["edge"] = "e99"
+broken["Edge"][0].pop("avg_speed_kph")
+_, problems = check_tables(broken, lib, "toy-ca (edited)")
+problems
+```

@@ -24,7 +24,7 @@
     "lat",
     "lon"
   ],
-  "parameters": {
+  "instance_schema": {
     "type": "object",
     "required": [
       "event_id",

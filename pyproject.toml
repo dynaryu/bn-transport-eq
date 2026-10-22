@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "jsonschema>=4.0",
+    "ndtools-duco>=0.1.10",
+    "networkx>=3.4",
     "numpy>=2.4.6",
     "pip>=26.2.1",
     "pytest>=9.1.1",

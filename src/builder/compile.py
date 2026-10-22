@@ -211,13 +211,13 @@ def compile_assembly(assembly: dict[str, Any], lib: Library, network: Network) -
 
         sets: list[str | None] = [None] * len(rows)
         values: list[dict[str, Any] | None] = [None] * len(rows)
-        if "parameters" not in fn:
+        if "instance_schema" not in fn:
             if any(k in spec for k in ("parameter_set", "parameters", "parameter_set_by_location")):
                 problems.append(f"{where_label}: {fn['id']} takes no parameters")
         elif "parameter_set_by_location" in spec:
             sets, values = _by_location(spec["parameter_set_by_location"], fn, rows, lib, where_label, problems)
         elif "parameters" in spec:
-            errors = list(Draft202012Validator(fn["parameters"]).iter_errors(spec["parameters"]))
+            errors = list(Draft202012Validator(fn["instance_schema"]).iter_errors(spec["parameters"]))
             for error in errors:
                 at = "/".join(str(p) for p in error.absolute_path) or "(parameters)"
                 problems.append(f"{where_label}: {at}: {error.message}")

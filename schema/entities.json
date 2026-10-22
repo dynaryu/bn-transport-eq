@@ -53,12 +53,16 @@
         "name": {
           "type": "string",
           "required": false
+        },
+        "key_destination": {
+          "type": "boolean",
+          "description": "A key destination (e.g. an airport or hospital). System functions use these as destinations, and the other nodes as origins."
         }
       }
     },
     {
       "id": "Edge",
-      "label": "Network link",
+      "label": "Network edge",
       "attributes": {
         "source": {
           "ref": "Node"
@@ -76,6 +80,11 @@
         "capacity": {
           "type": "integer",
           "unit": "see the network's assumptions"
+        },
+        "avg_speed_kph": {
+          "type": "number",
+          "unit": "km/h",
+          "description": "Average travel speed on this edge; travel time is length_km / avg_speed_kph."
         }
       }
     },
@@ -93,47 +102,25 @@
         },
         "edge": {
           "ref": "Edge",
-          "description": "The link this bridge carries. An edge with several bridges is open only if all are."
+          "description": "The edge this bridge carries. An edge with several bridges is open only if all are usable."
         },
         "hazus_class": {
           "type": "string",
           "description": "HWB1 ... HWB28; selects the fragility parameter set."
+        },
+        "vs30": {
+          "type": "number",
+          "unit": "m/s",
+          "required": false,
+          "description": "Time-averaged shear-wave velocity of the top 30 m at the bridge. Give it where known; python -m src vs30 fills the rest from the USGS Global Vs30 Mosaic."
+        },
+        "vs30_source": {
+          "type": "string",
+          "required": false,
+          "description": "Where vs30 came from: absent or 'user' for a supplied value, usgs-global-vs30-mosaic for the proxy."
         }
       },
       "description": "A bridge, where it is and what kind it is. Its location is what every hazard function reads, so ground motion is one node per bridge."
-    },
-    {
-      "id": "SystemEvent",
-      "label": "System event",
-      "attributes": {
-        "analysis": {
-          "type": "string",
-          "description": "Which system function defines the event: shortest-path or max-flow. Assemblies bind each function to its events with where."
-        },
-        "origin": {
-          "ref": "Node"
-        },
-        "destination": {
-          "ref": "Node"
-        },
-        "travel_time_tolerance": {
-          "type": "number",
-          "unit": "fraction",
-          "required": false,
-          "description": "shortest-path: survives if travel time <= (1 + this) x the intact network's. 0.5 allows a journey 50% longer."
-        },
-        "min_flow": {
-          "type": "number",
-          "unit": "Edge.capacity units",
-          "required": false,
-          "description": "max-flow: survives if the max flow is at least this."
-        },
-        "description": {
-          "type": "string",
-          "required": false
-        }
-      },
-      "description": "One origin-destination performance requirement, defined in the network: which analysis, between which nodes, and what counts as surviving. Each becomes a SystemState node, alongside the travel time or flow it is judged on."
     }
   ]
 }

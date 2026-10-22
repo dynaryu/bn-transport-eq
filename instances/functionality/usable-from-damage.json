@@ -10,6 +10,7 @@
       "id": "policy.closed-at-extensive",
       "label": "Closed at Extensive or Complete",
       "values": {
+        "damage_scale": "DamageState.HazusBridge",
         "usable_states": [
           "none",
           "slight",
@@ -21,6 +22,7 @@
       "id": "policy.closed-at-moderate",
       "label": "Closed at Moderate or worse (conservative)",
       "values": {
+        "damage_scale": "DamageState.HazusBridge",
         "usable_states": [
           "none",
           "slight"

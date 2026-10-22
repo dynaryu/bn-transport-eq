@@ -355,8 +355,8 @@ def _examples(menu: Mapping[str, Any]) -> list[str]:
     if "SystemState" in by_id:
         out.append('{"events": [{"node": "SystemState::*", "op": "==", "value": 0}]}  '
                    '= P(each system event fails, by its own definition)')
-    if "LinkOpen" in by_id:
-        out.append('{"events": [{"node": "LinkOpen::*", "op": "==", "value": 0}]}  = P(each link closed)')
+    if "EdgeOpen" in by_id:
+        out.append('{"events": [{"node": "EdgeOpen::*", "op": "==", "value": 0}]}  = P(each edge closed)')
     return out
 
 

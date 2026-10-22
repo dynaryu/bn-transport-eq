@@ -31,7 +31,7 @@ def test_event_probability_matches_the_closed_form():
     s = gmm["sigma"]
     sigma = sqrt((s["a"] + s["b"] * event["mw"] if event["mw"] < s["m_break"] else s["sigma_above"]) ** 2
                  + gmm["sigma_epistemic"] ** 2)
-    curve = library().parameter_sets[f"hazus61.{bridge['hazus_class']}"]["values"]
+    curve = library().parameter_sets[f"hazus61.{bridge['hazus_class']}"]["values"]["parameters"]
     p = float(ndtr((ln_median - log(curve["medians"]["extensive"])) / sqrt(sigma ** 2 + curve["beta"] ** 2)))
 
     result = answer({"assembly": EMA, "rows": rows, "samples": 20000, "seed": 1,
@@ -42,13 +42,13 @@ def test_event_probability_matches_the_closed_form():
 
 
 def test_only_the_bindings_a_target_needs_are_run():
-    r = answer({"assembly": EMA, "targets": ["LinkOpen::e0001"], "samples": 100})
-    assert r["computed"] == ["hazard.scenario-fixed", "hazard.gmm", "fragility.lognormal",
-                             "functionality.usable-from-damage", "link.series"]
+    r = answer({"assembly": EMA, "targets": ["EdgeOpen::e0001"], "samples": 100})
+    assert r["computed"] == ["hazard.scenario-fixed", "hazard.gmm", "fragility.bridge",
+                             "functionality.usable-from-damage", "edge.open"]
 
 
 def test_patterns_expand_and_discrete_summaries_sum_to_one():
-    r = answer({"assembly": EMA, "targets": ["LinkOpen::*"], "samples": 200})
+    r = answer({"assembly": EMA, "targets": ["EdgeOpen::*"], "samples": 200})
     assert len(r["targets"]) == 129
     assert all(abs(sum(t["summary"]["P"].values()) - 1) < 1e-9 for t in r["targets"])
 
@@ -67,15 +67,6 @@ def test_interventions_change_the_answer_in_the_right_direction():
     assert p_closed(rows={"bridge-e0001": {"hazus_class": "HWB5"}}) > base   # Extensive at 0.45 g, not 1.1 g
 
 
-def test_a_lower_magnitude_lowers_the_chance_of_losing_a_route():
-    def p(mw):
-        r = answer({"assembly": EMA, "rows": {"ema-reference": {"mw": mw}}, "samples": 1500, "seed": 3,
-                    "events": [{"node": "SystemState::n1>n66:time", "op": "==", "value": 0}]})
-        return r["events"][0]["p"]
-
-    assert p(6.0) <= p(8.0)
-
-
 def test_statement_reads_back_the_query():
     s = statement({"assembly": SHAKEMAP, "events": [{"node": "TravelTime::n1>n22:time", "op": "<=", "value": 600}],
                    "parameters": {"hazard.shakemap": {"event_id": "us7000abcd"}}})
@@ -83,17 +74,17 @@ def test_statement_reads_back_the_query():
 
 
 @pytest.mark.parametrize("query, message", [
-    ({"assembly": EMA, "targets": ["SA(1.0)::*"], "evidence": {"LinkOpen::e0001": 0}}, "forward inference only"),
+    ({"assembly": EMA, "targets": ["SA(1.0)::*"], "evidence": {"EdgeOpen::e0001": 0}}, "forward inference only"),
     ({"assembly": EMA, "targets": ["Nope::*"]}, "no node matches 'Nope::\\*'"),
     ({"assembly": EMA}, "query"),
     ({"assembly": "nowhere/x", "targets": ["SA(1.0)::*"]}, "no assembly 'nowhere/x'"),
     ({"assembly": EMA, "targets": ["SA(1.0)::*"], "rows": {"bridge-e0001": {"height": 3}}}, "no settable attribute 'height'"),
     ({"assembly": EMA, "targets": ["SA(1.0)::*"], "rows": {"bridge-e0001": {"hazus_class": "HWB99"}}}, "HWB99"),
-    ({"assembly": EMA, "targets": ["SA(1.0)::*"], "parameters": {"fragility.lognormal": {"beta": 1}}},
+    ({"assembly": EMA, "targets": ["SA(1.0)::*"], "parameters": {"fragility.bridge": {"beta": 1}}},
      "parameter set"),
     ({"assembly": SHAKEMAP, "targets": ["SA(1.0)::*"], "parameters": {"hazard.shakemap": {"event_id": ""}}},
      "event_id"),
-    ({"assembly": EMA, "events": [{"node": "LinkOpen::e0001", "op": "==", "value": "ajar"}]}, "not a state"),
+    ({"assembly": EMA, "events": [{"node": "EdgeOpen::e0001", "op": "==", "value": "ajar"}]}, "not a state"),
     ({"assembly": EMA, "targets": ["SA(1.0)::*"], "samples": 5}, "minimum"),
 ])
 def test_bad_queries_are_refused_with_a_reason(query, message):
@@ -103,7 +94,7 @@ def test_bad_queries_are_refused_with_a_reason(query, message):
 
 def test_describe_lists_what_can_be_asked_and_set():
     menu = describe(EMA)
-    assert {q["id"] for q in menu["quantities"]} >= {"SA(1.0)", "TravelTime", "MaxFlow"}
+    assert {q["id"] for q in menu["quantities"]} >= {"SA(1.0)", "EdgeOpen"}
     assert {(r["row"], r["attribute"]) for r in menu["settable"]["rows"]} >= {("ema-reference", "mw")}
     choices = {c["function"]: c for c in menu["settable"]["parameter_sets"]}
     assert len(choices["functionality.usable-from-damage"]["choices"]) == 2

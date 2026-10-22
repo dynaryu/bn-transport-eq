@@ -48,7 +48,7 @@ def _card(fn: dict[str, Any], key: str) -> dict[str, Any]:
         "outputs": _ports(fn, fn["outputs"]),
         "attributes": fn.get("attributes", []),
         "tables": fn.get("tables", []),
-        "has_parameters": "parameters" in fn,
+        "has_parameters": "instance_schema" in fn,
         "implementation": fn["implementation"],
         "deterministic": fn["deterministic"],
         "drawKind": fn["drawKind"],

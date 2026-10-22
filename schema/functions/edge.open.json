@@ -1,0 +1,30 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "edge.open",
+  "label": "Edge open unless a bridge on it is unusable",
+  "version": "0.1.0",
+  "role": "edge",
+  "per": "Edge",
+  "inputs": [
+    {
+      "name": "usable",
+      "quantity": "Usable",
+      "over": "Bridge",
+      "via": "Bridge.edge",
+      "description": "Every bridge whose `edge` is this edge: zero, one or several parents."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "open",
+      "quantity": "EdgeOpen"
+    }
+  ],
+  "implementation": "src.builder.kernels.edge:EdgeOpen",
+  "deterministic": true,
+  "drawKind": "Marginal",
+  "capabilities": [
+    "SampleForward"
+  ],
+  "description": "Each bridge sits on one edge (Bridge.edge); the edge closes if any of its bridges is unusable. An edge with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here."
+}

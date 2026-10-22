@@ -11,7 +11,7 @@ from src.inference import engine
 from src.llm import chat
 
 EMA = "ema-highway/gmm"
-QUERY = {"events": [{"node": "LinkOpen::e0001", "op": "==", "value": "0"}], "samples": "500"}
+QUERY = {"events": [{"node": "EdgeOpen::e0001", "op": "==", "value": "0"}], "samples": "500"}
 
 
 @pytest.fixture(autouse=True)
@@ -41,11 +41,11 @@ def final(text):
 def test_the_query_is_stated_before_it_is_computed_and_the_answer_comes_last():
     post, sent = ollama_script(tool_call(QUERY), final("About a quarter."))
     events = []
-    reply = chat.ask(EMA, "How likely is link e01 to close?", client=post, model="m", on_event=events.append)
+    reply = chat.ask(EMA, "How likely is edge e01 to close?", client=post, model="m", on_event=events.append)
     assert [e["type"] for e in events] == ["query", "computed"]
-    assert events[0]["statement"].startswith("P(LinkOpen[e0001] = 0)")
+    assert events[0]["statement"].startswith("P(EdgeOpen[e0001] = 0)")
     assert reply["answer"] == "About a quarter."
-    assert reply["result"]["events"][0]["node"] == "LinkOpen::e0001"
+    assert reply["result"]["events"][0]["node"] == "EdgeOpen::e0001"
     tool_message = sent[1]["messages"][-1]
     computed = reply["result"]["events"][0]["p"]
     assert tool_message["role"] == "tool"
@@ -69,7 +69,7 @@ def test_page_settings_apply_unless_the_model_sets_its_own():
 
 
 def test_evidence_is_refused_by_the_engine_and_the_refusal_reaches_the_model():
-    post, sent = ollama_script(tool_call({"targets": ["Usable::*"], "evidence": {"LinkOpen::e0001": 0}}),
+    post, sent = ollama_script(tool_call({"targets": ["Usable::*"], "evidence": {"EdgeOpen::e0001": 0}}),
                                final("That needs backward inference, which is not available."))
     events = []
     reply = chat.ask(EMA, "Which bridge failed, given e0001 is closed?", client=post, model="m", on_event=events.append)
@@ -92,7 +92,7 @@ def test_a_model_that_never_stops_calling_tools_is_cut_off(monkeypatch):
 
 def test_the_prompt_describes_the_actual_bn():
     prompt = chat.system_prompt(engine.describe("ema-highway/gmm"))
-    assert prompt.count("SystemState on SystemEvent (144 nodes") == 2       # one line per analysis
+    assert "EdgeOpen on Edge (129 nodes" in prompt
     assert '"ema-reference": {"mw"' in prompt
     assert "forward-only" in prompt and "Never estimate" in prompt
 

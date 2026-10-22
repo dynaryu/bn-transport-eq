@@ -1,14 +1,28 @@
-name: dra
+name: quakenet
 channels: [conda-forge]
 dependencies:
   - python=3.12
-  - numpy
-  - scipy
-  - pytest
   - pip
   - pip:
+      - numpy
+      - scipy
+      - networkx
+      - pytest
       # Validates every file under schema/ and instances/ against schema/meta/.
       - jsonschema>=4.0
+      # The system functions: network evaluation (ndtools.fun_binary_graph).
+      - ndtools-duco>=0.1.10
+      # Rule extraction for the system functions (import name rsr).
+      - rsr-duco>=0.2.0
+      - torch
+      # The Bayesian-network engine.
+      - tbnpy>=0.2.0
+      # Runs the Quarto walkthroughs' Python code, and what they show it with.
+      - ipykernel
+      - nbformat
+      - nbclient
+      - pandas
+      - matplotlib
       # Optional: only the Anthropic backend of the language layer needs this.
       # Without it (or without a credential) everything else runs unchanged.
       - anthropic>=1.0

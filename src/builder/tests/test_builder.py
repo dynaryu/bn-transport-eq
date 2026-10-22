@@ -13,12 +13,11 @@ from scipy.special import ndtr
 
 from src.builder.compile import compile_assembly, compile_path
 from src.builder.kernels import Call
-from src.builder.kernels.fragility import LognormalFragility
+from src.builder.kernels.fragility import Fragility
 from src.builder.kernels.hazard import (ShakeMap, SpatialCorrelationField, campbell_2003_ln_median,
                                         great_circle_km, jayaram_baker_2009_range_km)
-from src.builder.kernels.link import Series
-from src.builder.kernels.system import MaxFlow, ShortestPath
-from src.builder.load import (NETWORKS, PARAMETERS, SCHEMA, RegistryError, assembly_path, assembly_paths,
+from src.builder.kernels.edge import EdgeOpen
+from src.builder.load import (INSTANCES, NETWORKS, SCHEMA, RegistryError, assembly_path, assembly_paths,
                               load_assembly, load_library, load_network)
 from src.inference.sample import forward_sample
 
@@ -66,17 +65,9 @@ def test_the_hazus_transcription_is_the_one_the_curves_cite(lib):
 
 def test_few_parameter_sets_describe_every_bridge(lib):
     c = _compile(lib, "ema-highway/gmm")
-    fragility = next(b for b in c.summary() if b["function"] == "fragility.lognormal")
+    fragility = next(b for b in c.summary() if b["function"] == "fragility.bridge")
     assert fragility["rows"] == 129
     assert fragility["parameter_sets"] == {"hazus61.HWB11": 90, "hazus61.HWB4": 28, "hazus61.HWB2": 11}
-
-
-def test_system_nodes_share_link_parents(lib):
-    c = _compile(lib, "ema-highway/gmm")
-    nodes = {n["id"]: n for n in c.nodes()}
-    tt, mf = nodes["TravelTime::n1>n22:time"], nodes["MaxFlow::n1>n22:flow"]
-    assert tt["parents"] == mf["parents"]
-    assert len(tt["parents"]) == 129 and tt["parents"][0].startswith("LinkOpen::")
 
 
 # ---- consistency errors --------------------------------------------------------
@@ -130,13 +121,13 @@ def test_network_rows_are_checked(lib, tmp_path):
 
 def test_schema_checks_ports_against_plates(tmp_path):
     shutil.copytree(SCHEMA, tmp_path / "schema")
-    path = tmp_path / "schema" / "functions" / "fragility.lognormal.json"
+    path = tmp_path / "schema" / "functions" / "fragility.bridge.json"
     fn = json.loads(path.read_text(encoding="utf-8"))
     fn["inputs"][0]["via"] = "edge"               # Bridge.edge points at Edge, not at a Bridge
     fn["capabilities"].append("Gradient")         # not implemented
     path.write_text(json.dumps(fn), encoding="utf-8")
     with pytest.raises(RegistryError) as exc:
-        load_library(tmp_path / "schema", PARAMETERS)
+        load_library(tmp_path / "schema", INSTANCES)
     text = str(exc.value)
     assert "via 'edge' needs Bridge.edge to be a foreign key to Bridge" in text
     assert "OVERCLAIM Gradient" in text
@@ -146,12 +137,12 @@ def test_schema_checks_ports_against_plates(tmp_path):
 
 
 def _with_gmm_sets(tmp_path, *sets):
-    """The library with extra hazard.gmm parameter sets, written to a scratch copy of instances/parameters."""
-    shutil.copytree(PARAMETERS, tmp_path / "parameters")
-    campbell = json.loads((PARAMETERS / "campbell-2003.json").read_text(encoding="utf-8"))
+    """The library with extra hazard.gmm parameter sets, written to a scratch copy of instances/."""
+    shutil.copytree(INSTANCES, tmp_path / "instances")
+    campbell = json.loads((INSTANCES / "hazard" / "campbell-2003.json").read_text(encoding="utf-8"))
     campbell["sets"] = list(sets)
-    (tmp_path / "parameters" / "test-gmm.json").write_text(json.dumps(campbell), encoding="utf-8")
-    return load_library(SCHEMA, tmp_path / "parameters")
+    (tmp_path / "instances" / "hazard" / "test-gmm.json").write_text(json.dumps(campbell), encoding="utf-8")
+    return load_library(SCHEMA, tmp_path / "instances")
 
 
 def _campbell_like(lib, set_id, **change):
@@ -175,7 +166,7 @@ def _move_first_bridge_to_beijing(network):
 def test_every_gmm_form_named_in_the_schema_has_a_kernel(lib):
     from src.builder.kernels.hazard import GMM_FORMS
 
-    assert set(lib.functions["hazard.gmm"]["parameters"]["properties"]["form"]["enum"]) == set(GMM_FORMS)
+    assert set(lib.functions["hazard.gmm"]["instance_schema"]["properties"]["form"]["enum"]) == set(GMM_FORMS)
 
 
 def test_each_bridge_gets_the_gmm_whose_region_contains_it(lib, tmp_path):
@@ -207,10 +198,10 @@ def test_a_templated_port_needs_a_required_enum_of_quantities(tmp_path):
     shutil.copytree(SCHEMA, tmp_path / "schema")
     path = tmp_path / "schema" / "functions" / "hazard.gmm.json"
     fn = json.loads(path.read_text(encoding="utf-8"))
-    fn["parameters"]["properties"]["imt"]["enum"].append("SA(9.9)")       # not a quantity
+    fn["instance_schema"]["properties"]["imt"]["enum"].append("SA(9.9)")       # not a quantity
     path.write_text(json.dumps(fn), encoding="utf-8")
     with pytest.raises(RegistryError, match="parameter 'imt' must be an enum of quantity ids"):
-        load_library(tmp_path / "schema", PARAMETERS)
+        load_library(tmp_path / "schema", INSTANCES)
 
 
 # ---- kernels compute what they claim -----------------------------------------------
@@ -242,7 +233,7 @@ def test_fragility_density_and_sampling(lib):
     im = np.array([[0.0, 0.5, 1.1, 3.0]])
     call = _call(lib, {"im": im}, [{"id": str(i)} for i in range(4)], params,
                  ports={"im": "SA(1.0)", "damage": "DamageState.HazusBridge"})
-    p = LognormalFragility().evaluate_density(call)["damage"][0]
+    p = Fragility().evaluate_density(call)["damage"][0]
     assert np.allclose(p.sum(-1), 1) and np.all(p >= 0)
     assert p[0, 0] == 1.0                                         # no shaking, no damage
     extensive_or_worse = p[:, 3:].sum(-1)
@@ -250,8 +241,63 @@ def test_fragility_density_and_sampling(lib):
 
     big = _call(lib, {"im": np.full((20000, 1), 1.1)}, [{"id": "b"}], params,
                 ports={"im": "SA(1.0)", "damage": "DamageState.HazusBridge"})
-    ds = LognormalFragility().sample_forward(big)["damage"][:, 0]
+    ds = Fragility().sample_forward(big)["damage"][:, 0]
     assert np.mean(ds >= 3) == pytest.approx(0.5, abs=0.02)      # the median of Extensive
+
+
+# ---- fragility: one schema, curves as instances ---------------------------------------
+
+
+def test_every_fragility_form_named_in_the_schema_has_a_kernel(lib):
+    from src.builder.kernels.fragility import FRAGILITY_FORMS
+
+    assert set(lib.functions["fragility.bridge"]["instance_schema"]["properties"]["form"]["enum"]) == set(FRAGILITY_FORMS)
+
+
+def test_per_state_betas_and_crossing_curves_are_capped_with_a_note(lib):
+    hazus = lib.parameter_sets["hazus61.HWB11"]["values"]
+    params = {**hazus, "parameters": {"medians": hazus["parameters"]["medians"],
+                                      "betas": {"slight": 0.3, "moderate": 0.4, "extensive": 0.9, "complete": 0.9}}}
+    im = np.array([[0.05, 1.1, 5.0]])
+    call = _call(lib, {"im": im}, [{"id": str(i)} for i in range(3)], params,
+                 ports={"im": "SA(1.0)", "damage": "DamageState.HazusBridge"})
+    p = Fragility().evaluate_density(call)["damage"][0]
+    assert np.allclose(p.sum(-1), 1) and np.all(p >= 0)
+    assert p[1, 3:].sum() == pytest.approx(ndtr(0.0))           # Extensive's own beta, at its median
+    # Moderate (beta 0.4) and Extensive (beta 0.9) cross at low im: P(DS >= extensive) is capped there.
+    assert any("cross" in w for w in call.warnings)
+
+
+def _library_with(tmp_path, folder, name, data):
+    shutil.copytree(INSTANCES, tmp_path / "instances")
+    (tmp_path / "instances" / folder).mkdir(exist_ok=True)
+    (tmp_path / "instances" / folder / name).write_text(json.dumps(data), encoding="utf-8")
+    return load_library(SCHEMA, tmp_path / "instances")
+
+
+def _curve(set_id, **values):
+    base = {"form": "lognormal", "imt": "PGA", "damage_scale": "DamageState.HazusBridge",
+            "parameters": {"medians": {"slight": 0.1, "moderate": 0.2, "extensive": 0.3, "complete": 0.4}, "beta": 0.5}}
+    return {"function": "fragility.bridge", "source": {"note": "TEST ONLY"},
+            "sets": [{"id": set_id, "label": "TEST ONLY", "values": {**base, **values}}]}
+
+
+def test_a_new_curve_is_an_instance_file_with_no_schema_change(lib, tmp_path):
+    lib2 = _library_with(tmp_path, "fragility", "test-curves.json", _curve("test.pga-curve"))
+    assert lib2.parameter_sets["test.pga-curve"]["function"] == "fragility.bridge"
+
+
+def test_a_curve_that_does_not_fit_its_damage_scale_is_refused(tmp_path):
+    bad = _curve("test.bad", parameters={"medians": {"minor": 0.1, "collapse": 0.4}, "beta": 0.5})
+    with pytest.raises(RegistryError) as exc:
+        _library_with(tmp_path, "fragility", "test-curves.json", bad)
+    text = str(exc.value)
+    assert "test.bad" in text and "'slight' is a required property" in text
+
+
+def test_a_set_filed_under_another_role_is_refused(tmp_path):
+    with pytest.raises(RegistryError, match="role 'fragility', so its sets belong in"):
+        _library_with(tmp_path, "hazard", "test-curves.json", _curve("test.misfiled"))
 
 
 def test_the_gmm_gives_each_bridge_its_own_median_and_sigma(lib):
@@ -271,47 +317,62 @@ def test_the_gmm_gives_each_bridge_its_own_median_and_sigma(lib):
         assert x.std() == pytest.approx(sigma, rel=0.03)
 
 
-def test_series_link_with_no_bridges_is_open(lib):
+def test_an_edge_closes_with_any_bridge_and_is_open_without_one(lib):
     usable = [np.array([[1, 1], [1, 0]]), np.empty((2, 0), dtype=int)]
-    out = Series().sample_forward(_call(lib, {"usable": usable}, [{"id": "a"}, {"id": "b"}], n=2))["open"]
+    out = EdgeOpen().sample_forward(_call(lib, {"usable": usable}, [{"id": "a"}, {"id": "b"}], n=2))["open"]
     assert out.tolist() == [[1, 1], [0, 1]]
 
 
-def _diamond(lib, open_states):
-    nodes = [{"id": x} for x in "sabt"]
-    edges = [
-        {"id": "sa", "source": "s", "target": "a", "directed": False, "length_km": 40.0, "capacity": 2},
-        {"id": "at", "source": "a", "target": "t", "directed": False, "length_km": 40.0, "capacity": 1},
-        {"id": "sb", "source": "s", "target": "b", "directed": False, "length_km": 80.0, "capacity": 3},
-        {"id": "bt", "source": "b", "target": "t", "directed": False, "length_km": 80.0, "capacity": 3},
-        {"id": "bt2", "source": "b", "target": "t", "directed": False, "length_km": 160.0, "capacity": 1},
-    ]
+def _diamond(lib, open_states, target_max=0.5, directed=False):
+    """s-a-t is 1 h and s-b-t 2 h at 80 km/h; t is the key destination, s, a and b the origins."""
+    nodes = [{"id": x, "key_destination": x == "t"} for x in "sabt"]
+    edges = [{"id": eid, "source": u, "target": v, "directed": directed, "length_km": km, "avg_speed_kph": 80.0}
+             for eid, u, v, km in (("sa", "s", "a", 40.0), ("at", "a", "t", 40.0), ("sb", "s", "b", 80.0),
+                                   ("bt", "b", "t", 80.0))]
     ids = [e["id"] for e in edges]
-    rows = [{"id": "s>t", "origin": "s", "destination": "t", "travel_time_tolerance": 1.0, "min_flow": 2},
-            {"id": "t>s", "origin": "t", "destination": "s", "travel_time_tolerance": 1.0, "min_flow": 2}]
+    rows = [{"id": x} for x in "sab"]
     opened = np.asarray(open_states)
-    return _call(lib, {"open": [opened, opened]}, rows, {"speed_kph": 80.0},
-                 parents={"open": [ids, ids]}, tables={"Node": nodes, "Edge": edges})
+    return _call(lib, {"open": [opened] * len(rows)}, rows, {"target_max": target_max},
+                 parents={"open": [ids] * len(rows)}, tables={"Node": nodes, "Edge": edges})
 
 
-def test_shortest_path_and_max_flow_on_a_diamond(lib):
-    call = _diamond(lib, [[1, 1, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 0, 1], [0, 1, 0, 1, 1]])
-    path = ShortestPath().sample_forward(call)
-    assert path["travel_time"][:, 0].tolist() == [60.0, 120.0, 180.0, np.inf]
-    assert np.array_equal(path["travel_time"][:, 0], path["travel_time"][:, 1])   # undirected: both ways alike
-    assert path["state"][:, 0].tolist() == [1, 1, 0, 0]          # within 2 x the intact 60 min; no route fails
-    flow = MaxFlow().sample_forward(call)
-    assert flow["max_flow"][:, 0].tolist() == [4.0, 3.0, 1.0, 0.0]   # parallel b-t links add up
-    assert flow["state"][:, 0].tolist() == [1, 1, 0, 0]          # min_flow 2
+def test_travel_time_to_nearest_judges_each_origin_against_its_intact_time(lib):
+    from src.builder.kernels.system import TravelTimeToNearest
+
+    #                 sa at sb bt
+    call = _diamond(lib, [[1, 1, 1, 1],      # intact: s 1.0 h (via a)
+                          [0, 1, 1, 1],      # sa closed: s goes via b, 2.0 h, 1.0 h late
+                          [0, 1, 0, 1]])     # s cut off
+    out = TravelTimeToNearest().sample_forward(call)
+    assert out["travel_time"][:, 0].tolist() == [1.0, 2.0, np.inf]
+    assert out["state"][:, 0].tolist() == [1, 0, 0]                 # 1.0 h late > target_max 0.5 h
+    assert out["travel_time"][:, 1].tolist() == [0.5, 0.5, 0.5]      # a reaches t directly throughout
     assert not call.warnings
 
+    lenient = TravelTimeToNearest().sample_forward(_diamond(lib, [[0, 1, 1, 1]], target_max=1.0))
+    assert lenient["state"][0, 0] == 1                               # 1.0 h late is within 1.0 h
 
-def test_an_event_that_fails_even_intact_says_so(lib):
-    call = _diamond(lib, [[1, 1, 1, 1, 1]])
-    for row in call.rows:
-        row["min_flow"] = 10                                      # the intact network carries 4
-    assert MaxFlow().sample_forward(call)["state"].tolist() == [[0, 0]]
-    assert "cannot reach min_flow even with every link open" in call.warnings[0]
+
+def test_an_origin_with_no_route_even_intact_is_reported(lib):
+    from src.builder.kernels.system import TravelTimeToNearest
+
+    call = _diamond(lib, [[1, 1, 1, 1]], directed=True)               # every edge points away from s, so t->s is impossible
+    call.rows.append({"id": "t"})
+    call.parents["open"].append(call.parents["open"][0])
+    call.inputs["open"].append(call.inputs["open"][0])
+    for node in call.tables["Node"]:
+        node["key_destination"] = node["id"] == "s"
+    out = TravelTimeToNearest().sample_forward(call)
+    assert out["state"][0].tolist() == [1, 0, 0, 0]                 # only s itself reaches s
+    assert "fail even with every edge open" in call.warnings[0]
+
+
+def test_every_travel_time_node_reads_every_link(lib):
+    c = _compile(lib, "ema-highway/gmm")
+    nodes = {n["id"]: n for n in c.nodes()}
+    origins = [r["id"] for r in c.network.rows("Node") if not r["key_destination"]]
+    assert len(origins) == 72 and "TravelTime::n22" not in nodes              # key destinations are not origins
+    assert len(nodes[f"SystemState::{origins[0]}"]["parents"]) == 129
 
 
 def test_shakemap_kernel_samples_and_refuses_outside(lib, monkeypatch):

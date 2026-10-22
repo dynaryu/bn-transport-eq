@@ -5,10 +5,11 @@
       quantities.json           types that flow between functions
       entities.json             plates: tables of rows, with foreign keys
       functions/<id>.json       typed signatures, one file each
-    instances/                  what does exist
-      parameters/*.json         parameter sets: fragility curves, GMM coefficients, policies
-      networks/<n>/network.json one network's rows
-      networks/<n>/*.assembly.json  which function and parameters describe which rows
+    instances/                  what does exist, filed by the role of the function it fills
+      <role>/*.json             parameter sets: GMMs under hazard/, curves under fragility/, ...
+    examples/                   networks the tools are shown and tested on
+      <n>/network.json          one network's rows
+      <n>/*.assembly.json       which function and parameters describe which rows
 
 Schema validation catches a malformed file. The cross-reference checks here
 catch what a schema cannot: a port naming a quantity nobody defined, a `via`
@@ -35,8 +36,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "schema"
 META = SCHEMA / "meta"
 INSTANCES = ROOT / "instances"
-PARAMETERS = INSTANCES / "parameters"
-NETWORKS = INSTANCES / "networks"
+NETWORKS = ROOT / "examples"
 
 # The method a kernel must have for each capability its function declares.
 CAPABILITY_METHOD = {
@@ -116,7 +116,7 @@ def quantity_template(quantity: str) -> str | None:
 def port_choices(fn: dict[str, Any], port: dict[str, Any]) -> list[str]:
     """The quantities a port can carry: its own, or every value its template's parameter may take."""
     param = quantity_template(port["quantity"])
-    return [port["quantity"]] if param is None else list(fn["parameters"]["properties"][param]["enum"])
+    return [port["quantity"]] if param is None else list(fn["instance_schema"]["properties"][param]["enum"])
 
 
 def resolve_quantities(fn: dict[str, Any], values: dict[str, Any] | None) -> dict[str, str]:
@@ -156,7 +156,7 @@ def _check_function(fn: dict[str, Any], lib: Library, where: str, problems: list
             return
         # A templated port is only as safe as its parameter: required, and an enum of real quantities,
         # so that every parameter set that validates resolves to a type the wiring can check.
-        params = fn.get("parameters", {})
+        params = fn.get("instance_schema", {})
         prop = params.get("properties", {}).get(param)
         if prop is None or param not in params.get("required", []):
             problems.append(f"{label}: quantity {{{param}}} needs a required parameter {param!r}")
@@ -192,11 +192,11 @@ def _check_function(fn: dict[str, Any], lib: Library, where: str, problems: list
         if table not in lib.entities:
             problems.append(f"{where}: reads table {table!r}, which is not an entity type")
 
-    if "parameters" in fn:
+    if "instance_schema" in fn:
         try:
-            Draft202012Validator.check_schema(fn["parameters"])
+            Draft202012Validator.check_schema(fn["instance_schema"])
         except SchemaError as exc:
-            problems.append(f"{where}: parameters is not a valid JSON Schema: {exc.message}")
+            problems.append(f"{where}: instance_schema is not a valid JSON Schema: {exc.message}")
 
     try:
         kernel = _resolve(fn["implementation"])
@@ -210,7 +210,7 @@ def _check_function(fn: dict[str, Any], lib: Library, where: str, problems: list
     lib.implementations[fn["id"]] = kernel
 
 
-def load_library(schema: Path = SCHEMA, parameters: Path = PARAMETERS) -> Library:
+def load_library(schema: Path = SCHEMA, instances: Path = INSTANCES) -> Library:
     problems: list[str] = []
     lib = Library({}, {}, {}, {})
 
@@ -239,7 +239,7 @@ def load_library(schema: Path = SCHEMA, parameters: Path = PARAMETERS) -> Librar
     for fn in lib.functions.values():
         _check_function(fn, lib, f"functions/{fn['id']}.json", problems)
 
-    for path in sorted(parameters.glob("*.json")):
+    for path in sorted(instances.glob("*/*.json")):
         data = read_json(path, "parameter-sets.schema.json", problems)
         if data is None:
             continue
@@ -247,10 +247,13 @@ def load_library(schema: Path = SCHEMA, parameters: Path = PARAMETERS) -> Librar
         if fn is None:
             problems.append(f"{rel(path)}: function {data['function']!r} is not in the schema")
             continue
-        if "parameters" not in fn:
+        if "instance_schema" not in fn:
             problems.append(f"{rel(path)}: {fn['id']} takes no parameters")
             continue
-        validator = Draft202012Validator(fn["parameters"])
+        if path.parent.name != fn["role"]:
+            problems.append(f"{rel(path)}: {fn['id']} has role {fn['role']!r}, so its sets belong in "
+                            f"{rel(instances / fn['role'])}/")
+        validator = Draft202012Validator(fn["instance_schema"])
         for item in data["sets"]:
             if item["id"] in lib.parameter_sets:
                 problems.append(f"{rel(path)}: duplicate parameter-set id {item['id']!r}")
@@ -355,7 +358,7 @@ def assembly_paths(root: Path = NETWORKS) -> list[Path]:
 
 
 def assembly_path(assembly_id: str, root: Path = NETWORKS) -> Path:
-    """``ema-highway/gmm`` -> instances/networks/ema-highway/gmm.assembly.json"""
+    """``ema-highway/gmm`` -> examples/ema-highway/gmm.assembly.json"""
     network, _, name = assembly_id.partition("/")
     path = root / network / f"{name}.assembly.json"
     if not name or not path.is_file():

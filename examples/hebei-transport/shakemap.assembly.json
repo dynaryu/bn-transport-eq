@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schema/meta/assembly.schema.json",
+  "$schema": "../../schema/meta/assembly.schema.json",
   "id": "hebei-transport/shakemap",
   "label": "Hebei transport: the 1966 Xingtai earthquake (M6.8) from USGS ShakeMap",
   "network": "hebei-transport",
@@ -20,7 +20,7 @@
       }
     },
     {
-      "function": "fragility.lognormal",
+      "function": "fragility.bridge",
       "parameter_set": "hazus61.{hazus_class}"
     },
     {
@@ -28,20 +28,17 @@
       "parameter_set": "policy.closed-at-extensive"
     },
     {
-      "function": "link.series"
+      "function": "edge.open"
     },
     {
-      "function": "system.shortest-path",
-      "parameter_set": "speed.uniform-80kph",
+      "function": "system.travel-time-to-nearest",
       "where": {
-        "analysis": "shortest-path"
-      }
-    },
-    {
-      "function": "system.max-flow",
-      "where": {
-        "analysis": "max-flow"
-      }
+        "key_destination": false
+      },
+      "parameters": {
+        "target_max": 0.5
+      },
+      "note": "One travel-time node per non-key node, to its nearest key destination; survives within 0.5 h of the intact time."
     }
   ]
 }

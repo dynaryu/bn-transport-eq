@@ -12,7 +12,7 @@
   --bad: #b91c1c; --bad-soft: #fee2e2;
   --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.05);
   --r-scenario: #7c5cd6; --r-hazard: #e8752a; --r-fragility: #d9463b; --r-functionality: #c69214;
-  --r-link: #129a8b; --r-system: #2f6fdb;
+  --r-edge: #129a8b; --r-system: #2f6fdb;
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
@@ -306,40 +306,28 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
    "description": "0 closed, 1 open.",
    "type": "{0,1}"
   },
-  "LinkOpen": {
-   "id": "LinkOpen",
-   "label": "Network link open to traffic",
+  "EdgeOpen": {
+   "id": "EdgeOpen",
+   "label": "Edge open to traffic",
    "kind": "discrete",
    "states": [
     0,
     1
    ],
-   "description": "0 closed, 1 open. The one link-level state both system functions read.",
+   "description": "0 closed, 1 open. The edge state the system functions read.",
    "type": "{0,1}"
   },
   "TravelTime": {
    "id": "TravelTime",
-   "label": "Shortest travel time, origin to destination",
+   "label": "Travel time to the nearest key destination",
    "kind": "continuous",
-   "unit": "min",
+   "unit": "h",
    "range": [
     0,
     null
    ],
-   "description": "+inf when no open route exists, so P(connected) = P(TravelTime < inf).",
-   "type": "min"
-  },
-  "MaxFlow": {
-   "id": "MaxFlow",
-   "label": "Maximum flow, origin to destination",
-   "kind": "continuous",
-   "unit": "Edge.capacity units",
-   "range": [
-    0,
-    null
-   ],
-   "description": "In whatever unit the network's Edge.capacity is stated in; the network's assumptions name it.",
-   "type": "Edge.capacity units"
+   "description": "From one origin node, over the open edges. +inf when no key destination is reachable.",
+   "type": "h"
   },
   "SystemState": {
    "id": "SystemState",
@@ -406,12 +394,16 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     "name": {
      "type": "string",
      "required": false
+    },
+    "key_destination": {
+     "type": "boolean",
+     "description": "A key destination (e.g. an airport or hospital). System functions use these as destinations, and the other nodes as origins."
     }
    }
   },
   {
    "id": "Edge",
-   "label": "Network link",
+   "label": "Network edge",
    "attributes": {
     "source": {
      "ref": "Node"
@@ -429,6 +421,11 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     "capacity": {
      "type": "integer",
      "unit": "see the network's assumptions"
+    },
+    "avg_speed_kph": {
+     "type": "number",
+     "unit": "km/h",
+     "description": "Average travel speed on this edge; travel time is length_km / avg_speed_kph."
     }
    }
   },
@@ -446,47 +443,25 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     },
     "edge": {
      "ref": "Edge",
-     "description": "The link this bridge carries. An edge with several bridges is open only if all are."
+     "description": "The edge this bridge carries. An edge with several bridges is open only if all are usable."
     },
     "hazus_class": {
      "type": "string",
      "description": "HWB1 ... HWB28; selects the fragility parameter set."
+    },
+    "vs30": {
+     "type": "number",
+     "unit": "m/s",
+     "required": false,
+     "description": "Time-averaged shear-wave velocity of the top 30 m at the bridge. Give it where known; python -m src vs30 fills the rest from the USGS Global Vs30 Mosaic."
+    },
+    "vs30_source": {
+     "type": "string",
+     "required": false,
+     "description": "Where vs30 came from: absent or 'user' for a supplied value, usgs-global-vs30-mosaic for the proxy."
     }
    },
    "description": "A bridge, where it is and what kind it is. Its location is what every hazard function reads, so ground motion is one node per bridge."
-  },
-  {
-   "id": "SystemEvent",
-   "label": "System event",
-   "attributes": {
-    "analysis": {
-     "type": "string",
-     "description": "Which system function defines the event: shortest-path or max-flow. Assemblies bind each function to its events with where."
-    },
-    "origin": {
-     "ref": "Node"
-    },
-    "destination": {
-     "ref": "Node"
-    },
-    "travel_time_tolerance": {
-     "type": "number",
-     "unit": "fraction",
-     "required": false,
-     "description": "shortest-path: survives if travel time <= (1 + this) x the intact network's. 0.5 allows a journey 50% longer."
-    },
-    "min_flow": {
-     "type": "number",
-     "unit": "Edge.capacity units",
-     "required": false,
-     "description": "max-flow: survives if the max flow is at least this."
-    },
-    "description": {
-     "type": "string",
-     "required": false
-    }
-   },
-   "description": "One origin-destination performance requirement, defined in the network: which analysis, between which nodes, and what counts as surviving. Each becomes a SystemState node, alongside the travel time or flow it is judged on."
   }
  ],
  "views": [
@@ -496,9 +471,52 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
    "network": null,
    "cards": [
     {
-     "key": "fragility.lognormal",
-     "function": "fragility.lognormal",
-     "label": "Lognormal bridge fragility",
+     "key": "edge.open",
+     "function": "edge.open",
+     "label": "Edge open unless a bridge on it is unusable",
+     "role": "edge",
+     "per": "Edge",
+     "inputs": [
+      {
+       "name": "usable",
+       "quantity": "Usable",
+       "over": "Bridge",
+       "via": "Bridge.edge",
+       "description": "Every bridge whose `edge` is this edge: zero, one or several parents.",
+       "choices": [
+        "Usable"
+       ],
+       "template": null,
+       "kind": "reverse"
+      }
+     ],
+     "outputs": [
+      {
+       "name": "open",
+       "quantity": "EdgeOpen",
+       "choices": [
+        "EdgeOpen"
+       ],
+       "template": null
+      }
+     ],
+     "attributes": [],
+     "tables": [],
+     "has_parameters": false,
+     "implementation": "src.builder.kernels.edge:EdgeOpen",
+     "deterministic": true,
+     "drawKind": "Marginal",
+     "capabilities": [
+      "SampleForward"
+     ],
+     "description": "Each bridge sits on one edge (Bridge.edge); the edge closes if any of its bridges is unusable. An edge with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here.",
+     "parameter_sets": [],
+     "n_parameter_sets": 0
+    },
+    {
+     "key": "fragility.bridge",
+     "function": "fragility.bridge",
+     "label": "Bridge fragility",
      "role": "fragility",
      "per": "Bridge",
      "inputs": [
@@ -507,7 +525,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
        "quantity": "{imt}",
        "over": "Bridge",
        "via": "self",
-       "description": "The IM these curves are defined on, at this bridge.",
+       "description": "The IM the curve is defined on, at this bridge.",
        "choices": [
         "PGA",
         "PGV",
@@ -522,24 +540,25 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "outputs": [
       {
        "name": "damage",
-       "quantity": "DamageState.HazusBridge",
+       "quantity": "{damage_scale}",
+       "description": "On the damage scale the curve is defined on.",
        "choices": [
         "DamageState.HazusBridge"
        ],
-       "template": null
+       "template": "damage_scale"
       }
      ],
      "attributes": [],
      "tables": [],
      "has_parameters": true,
-     "implementation": "src.builder.kernels.fragility:LognormalFragility",
+     "implementation": "src.builder.kernels.fragility:Fragility",
      "deterministic": false,
      "drawKind": "Marginal",
      "capabilities": [
       "SampleForward",
       "EvaluateDensity"
      ],
-     "description": "Base (unmodified) curves on whichever IM the parameter set names: a set on PGA wires only to a hazard that produces PGA, and the check says so if none does. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`.",
+     "description": "Whichever curve the parameter set is, on whichever IM and damage scale it names: a curve on PGA wires only to a hazard that produces PGA, and one on a damage scale wires only to a functionality mapping on that scale. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`.",
      "parameter_sets": [
       {
        "id": "hazus61.HWB1",
@@ -693,13 +712,14 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "inputs": [
       {
        "name": "damage",
-       "quantity": "DamageState.HazusBridge",
+       "quantity": "{damage_scale}",
        "over": "Bridge",
        "via": "self",
+       "description": "On the damage scale this policy is written for.",
        "choices": [
         "DamageState.HazusBridge"
        ],
-       "template": null,
+       "template": "damage_scale",
        "kind": "self"
       }
      ],
@@ -789,9 +809,14 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
        "id": "campbell-2003.ema-script-sa1",
        "label": "Campbell (2003) SA(1.0 s), as implemented by the EMA dataset script",
        "count": null
+      },
+      {
+       "id": "demo.campbell-2003-in-california",
+       "label": "DEMO ONLY: Campbell (2003) ENA coefficients applied in central California",
+       "count": null
       }
      ],
-     "n_parameter_sets": 1
+     "n_parameter_sets": 2
     },
     {
      "key": "hazard.scenario-fixed",
@@ -938,120 +963,20 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "n_parameter_sets": 5
     },
     {
-     "key": "link.series",
-     "function": "link.series",
-     "label": "Link open only if every bridge on it is usable",
-     "role": "link",
-     "per": "Edge",
-     "inputs": [
-      {
-       "name": "usable",
-       "quantity": "Usable",
-       "over": "Bridge",
-       "via": "Bridge.edge",
-       "description": "Every bridge whose `edge` is this link: zero, one or several parents.",
-       "choices": [
-        "Usable"
-       ],
-       "template": null,
-       "kind": "reverse"
-      }
-     ],
-     "outputs": [
-      {
-       "name": "open",
-       "quantity": "LinkOpen",
-       "choices": [
-        "LinkOpen"
-       ],
-       "template": null
-      }
-     ],
-     "attributes": [],
-     "tables": [],
-     "has_parameters": false,
-     "implementation": "src.builder.kernels.link:Series",
-     "deterministic": true,
-     "drawKind": "Marginal",
-     "capabilities": [
-      "SampleForward"
-     ],
-     "description": "A link with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here.",
-     "parameter_sets": [],
-     "n_parameter_sets": 0
-    },
-    {
-     "key": "system.max-flow",
-     "function": "system.max-flow",
-     "label": "Maximum flow over open links, and whether it meets its threshold",
+     "key": "system.travel-time-to-nearest",
+     "function": "system.travel-time-to-nearest",
+     "label": "Travel time to the nearest key destination",
      "role": "system",
-     "per": "SystemEvent",
+     "per": "Node",
      "inputs": [
       {
        "name": "open",
-       "quantity": "LinkOpen",
+       "quantity": "EdgeOpen",
        "over": "Edge",
        "via": "*",
+       "description": "Every edge's state: the comps_state ndtools reads.",
        "choices": [
-        "LinkOpen"
-       ],
-       "template": null,
-       "kind": "all"
-      }
-     ],
-     "outputs": [
-      {
-       "name": "max_flow",
-       "quantity": "MaxFlow",
-       "choices": [
-        "MaxFlow"
-       ],
-       "template": null
-      },
-      {
-       "name": "state",
-       "quantity": "SystemState",
-       "description": "1 if max flow >= min_flow, else 0.",
-       "choices": [
-        "SystemState"
-       ],
-       "template": null
-      }
-     ],
-     "attributes": [
-      "origin",
-      "destination",
-      "min_flow"
-     ],
-     "tables": [
-      "Node",
-      "Edge"
-     ],
-     "has_parameters": false,
-     "implementation": "src.builder.kernels.system:MaxFlow",
-     "deterministic": true,
-     "drawKind": "Joint",
-     "capabilities": [
-      "SampleForward"
-     ],
-     "description": "Origin-to-destination max flow, with Edge.capacity on each open link and 0 on a closed one; the event survives if it reaches min_flow. Parallel links add their capacities; an undirected link carries its capacity in each direction.",
-     "parameter_sets": [],
-     "n_parameter_sets": 0
-    },
-    {
-     "key": "system.shortest-path",
-     "function": "system.shortest-path",
-     "label": "Shortest travel time over open links, and whether it stays within tolerance",
-     "role": "system",
-     "per": "SystemEvent",
-     "inputs": [
-      {
-       "name": "open",
-       "quantity": "LinkOpen",
-       "over": "Edge",
-       "via": "*",
-       "choices": [
-        "LinkOpen"
+        "EdgeOpen"
        ],
        "template": null,
        "kind": "all"
@@ -1069,45 +994,45 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
       {
        "name": "state",
        "quantity": "SystemState",
-       "description": "1 if travel time <= (1 + travel_time_tolerance) x the intact network's, else 0.",
+       "description": "1 if the travel time is within target_max hours of the intact network's, else 0 (ndtools' system state).",
        "choices": [
         "SystemState"
        ],
        "template": null
       }
      ],
-     "attributes": [
-      "origin",
-      "destination",
-      "travel_time_tolerance"
-     ],
+     "attributes": [],
      "tables": [
       "Node",
       "Edge"
      ],
      "has_parameters": true,
-     "implementation": "src.builder.kernels.system:ShortestPath",
+     "implementation": "src.builder.kernels.system:TravelTimeToNearest",
      "deterministic": true,
      "drawKind": "Joint",
      "capabilities": [
       "SampleForward"
      ],
-     "description": "Dijkstra on Edge.length_km / speed over the open links. The event survives if its travel time is within its tolerance of the intact network's (every link open); no route means failure. Joint across the SystemEvent plate: every event reads the same link states in the same sample.",
-     "parameter_sets": [
-      {
-       "id": "speed.uniform-80kph",
-       "label": "80 km/h on every open link",
-       "count": null
-      }
-     ],
-     "n_parameter_sets": 1
+     "description": "For each origin node (bind it to the non-key nodes), the travel time to the nearest node marked key_destination, over the open edges, by ndtools. Each edge's weight is length_km / avg_speed_kph, in hours. Joint across the Node plate: every origin reads the same link states in the same sample.",
+     "parameter_sets": [],
+     "n_parameter_sets": 0
     }
    ],
    "links": [
     {
+     "from": "functionality.usable-from-damage",
+     "out": "usable",
+     "to": "edge.open",
+     "in": "usable",
+     "quantity": "Usable",
+     "via": "Bridge.edge",
+     "kind": "reverse",
+     "parents": null
+    },
+    {
      "from": "hazard.gmm",
      "out": "im",
-     "to": "fragility.lognormal",
+     "to": "fragility.bridge",
      "in": "im",
      "quantity": "{imt}",
      "via": "self",
@@ -1117,7 +1042,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     {
      "from": "hazard.shakemap",
      "out": "im",
-     "to": "fragility.lognormal",
+     "to": "fragility.bridge",
      "in": "im",
      "quantity": "{imt}",
      "via": "self",
@@ -1125,11 +1050,11 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "parents": null
     },
     {
-     "from": "fragility.lognormal",
+     "from": "fragility.bridge",
      "out": "damage",
      "to": "functionality.usable-from-damage",
      "in": "damage",
-     "quantity": "DamageState.HazusBridge",
+     "quantity": "{damage_scale}",
      "via": "self",
      "kind": "self",
      "parents": null
@@ -1155,31 +1080,11 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "parents": null
     },
     {
-     "from": "functionality.usable-from-damage",
-     "out": "usable",
-     "to": "link.series",
-     "in": "usable",
-     "quantity": "Usable",
-     "via": "Bridge.edge",
-     "kind": "reverse",
-     "parents": null
-    },
-    {
-     "from": "link.series",
+     "from": "edge.open",
      "out": "open",
-     "to": "system.max-flow",
+     "to": "system.travel-time-to-nearest",
      "in": "open",
-     "quantity": "LinkOpen",
-     "via": "*",
-     "kind": "all",
-     "parents": null
-    },
-    {
-     "from": "link.series",
-     "out": "open",
-     "to": "system.shortest-path",
-     "in": "open",
-     "quantity": "LinkOpen",
+     "quantity": "EdgeOpen",
      "via": "*",
      "kind": "all",
      "parents": null
@@ -1195,7 +1100,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
 <script>
 let DATA = window.BN_DATA || null;
 const STATIC = !!window.BN_DATA;           // a snapshot from python -m src export: no server behind it
-const ROLES = ["scenario", "hazard", "fragility", "functionality", "link", "system"];
+const ROLES = ["scenario", "hazard", "fragility", "functionality", "edge", "system"];
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const store = {
@@ -1227,7 +1132,7 @@ function functionCard(c) {
   const n = c.nodes != null ? `<span class="chip">×${c.rows}</span>` : "";
   const sets = c.parameter_sets || [];
   let h = `<div class="card${state.ran.includes(c.function) ? " ran" : ""}" data-key="${esc(c.key)}"><div class="head"><span class="dot" style="background:${roleColor(c.role)}"></span>` +
-    `<span class="fid" title="${esc(c.label)}">${esc(c.function)}</span></div><div class="sub">` +
+    `<span class="fid" title="${esc(c.label)}">${esc(c.function)}</span></div><div class="sub" data-port="per">` +
     `<span class="chip plate">per ${esc(c.per)}</span>${n}<span class="chip">${c.deterministic ? "deterministic" : "stochastic"}</span>` +
     `<span class="chip">${esc(c.drawKind)}</span>${c.where ? `<span class="chip warn">where</span>` : ""}</div>`;
   if (c.inputs.length) {
@@ -1246,8 +1151,13 @@ function functionCard(c) {
       .map(([k, val]) => row("dimrow", null, "θ", k, JSON.stringify(val))).join("");
   } else if (c.has_parameters) {
     h += `<div class="sec" data-port="theta">parameters · ${plural(sets.length, "set")}${c.parameter_template ? " · " + esc(c.parameter_template) : ""}${c.parameter_by_location ? " · by location" : ""}</div>`;
-    h += sets.slice(0, 3).map(s => row("dimrow", null, "θ", s.id, s.count != null ? `×${s.count}` : "", s.label)).join("");
-    if (sets.length > 3) h += `<div class="row more"><span class="ico"></span><span class="nm">+ ${sets.length - 3} more</span></div>`;
+    // The schema shows no rows: there, a count and where the sets are (the Details panel lists them).
+    // In a BN, the sets bound to its rows are part of the model, with how many rows each describes.
+    if (c.nodes == null && sets.length) h += row("dimrow", null, "θ", `instances/${c.role}/`, "", "select the card to list them");
+    else {
+      h += sets.slice(0, 3).map(s => row("dimrow", null, "θ", s.id, s.count != null ? `×${s.count}` : "", s.label)).join("");
+      if (sets.length > 3) h += `<div class="row more"><span class="ico"></span><span class="nm">+ ${sets.length - 3} more</span></div>`;
+    }
     if (!sets.length) h += `<div class="row more"><span class="ico"></span><span class="nm">inline, in each assembly that binds it</span></div>`;
   }
   return h + `<div class="foot"></div></div>`;
@@ -1411,11 +1321,13 @@ function rvWires(v) {
 const entity = id => DATA.entities.find(e => e.id === id);
 const portOf = (id, attr) => (entity(id)?.attributes[attr]?.ref ? "fk:" : "at:") + attr;
 
-// What each function reads from the tables: attributes, whole tables, the keys that route
-// its parents, and in a BN the attribute that picks each row's parameter set.
+// What each function reads from the tables: the plate it is replicated over, attributes, whole
+// tables, the keys that route its parents, and in a BN the attribute that picks each row's parameter set.
 function dataWires(v) {
   const out = [];
   for (const c of v.cards) {
+    out.push({ style: "data", from: c.per, fromPort: "pk:id", to: c.key, toPort: "per",
+      tip: `<b>${esc(c.per)}</b> → <b>${esc(c.function)}</b><br>its plate: one copy of the function, and one node per output, for each ${esc(c.per)} row` });
     for (const a of c.attributes) out.push({ style: "data", from: c.per, fromPort: portOf(c.per, a), to: c.key, toPort: `rd:${a}`,
       tip: `<b>${esc(c.per)}.${esc(a)}</b> → <b>${esc(c.function)}</b><br>fixed data, read from each ${esc(c.per)} row the function is replicated over` });
     for (const tb of c.tables) out.push({ style: "data", from: tb, fromPort: "pk:id", to: c.key, toPort: `tb:${tb}`,

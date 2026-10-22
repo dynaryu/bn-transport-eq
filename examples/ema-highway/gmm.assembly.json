@@ -1,9 +1,9 @@
 {
-  "$schema": "../../../schema/meta/assembly.schema.json",
+  "$schema": "../../schema/meta/assembly.schema.json",
   "id": "ema-highway/gmm",
   "label": "EMA highways: scenario earthquake through a ground-motion model",
   "network": "ema-highway",
-  "description": "The forward pilot's reference scenario, with both system functions reading the same link states.",
+  "description": "The forward pilot's reference scenario, with both system functions reading the same edge states.",
   "bindings": [
     {
       "function": "hazard.scenario-fixed"
@@ -16,7 +16,7 @@
       "note": "Each bridge gets the first listed GMM whose region contains it. List others, in order of preference, as their coefficients are added."
     },
     {
-      "function": "fragility.lognormal",
+      "function": "fragility.bridge",
       "parameter_set": "hazus61.{hazus_class}",
       "note": "Three parameter sets (HWB2, HWB4, HWB11) describe all 129 bridges."
     },
@@ -25,20 +25,17 @@
       "parameter_set": "policy.closed-at-extensive"
     },
     {
-      "function": "link.series"
+      "function": "edge.open"
     },
     {
-      "function": "system.shortest-path",
-      "parameter_set": "speed.uniform-80kph",
+      "function": "system.travel-time-to-nearest",
       "where": {
-        "analysis": "shortest-path"
-      }
-    },
-    {
-      "function": "system.max-flow",
-      "where": {
-        "analysis": "max-flow"
-      }
+        "key_destination": false
+      },
+      "parameters": {
+        "target_max": 0.5
+      },
+      "note": "One travel-time node per non-key node, to its nearest key destination; survives within 0.5 h of the intact time."
     }
   ]
 }

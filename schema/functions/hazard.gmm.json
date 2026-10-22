@@ -24,7 +24,7 @@
     "lat",
     "lon"
   ],
-  "parameters": {
+  "instance_schema": {
     "description": "One GMM per parameter set: its functional form, the IM it predicts, and that form's coefficients. A form is a kernel in src/builder/kernels/hazard.py (GMM_FORMS); a set of numbers for an existing form needs no code.",
     "type": "object",
     "required": [

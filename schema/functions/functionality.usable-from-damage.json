@@ -2,15 +2,16 @@
   "$schema": "../meta/function.schema.json",
   "id": "functionality.usable-from-damage",
   "label": "Bridge usable unless damage reaches a closing state",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "role": "functionality",
   "per": "Bridge",
   "inputs": [
     {
       "name": "damage",
-      "quantity": "DamageState.HazusBridge",
+      "quantity": "{damage_scale}",
       "over": "Bridge",
-      "via": "self"
+      "via": "self",
+      "description": "On the damage scale this policy is written for."
     }
   ],
   "outputs": [
@@ -19,28 +20,55 @@
       "quantity": "Usable"
     }
   ],
-  "parameters": {
+  "instance_schema": {
     "type": "object",
     "required": [
+      "damage_scale",
       "usable_states"
     ],
     "additionalProperties": false,
     "properties": {
+      "damage_scale": {
+        "description": "The damage-state quantity the policy reads.",
+        "enum": [
+          "DamageState.HazusBridge"
+        ]
+      },
       "usable_states": {
         "type": "array",
         "minItems": 1,
         "uniqueItems": true,
         "items": {
-          "enum": [
-            "none",
-            "slight",
-            "moderate",
-            "extensive",
-            "complete"
-          ]
+          "type": "string"
         }
       }
-    }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "damage_scale": {
+              "const": "DamageState.HazusBridge"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "usable_states": {
+              "items": {
+                "enum": [
+                  "none",
+                  "slight",
+                  "moderate",
+                  "extensive",
+                  "complete"
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]
   },
   "implementation": "src.builder.kernels.functionality:UsableFromDamage",
   "deterministic": true,

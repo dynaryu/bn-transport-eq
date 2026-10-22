@@ -1,7 +1,7 @@
 # Transport networks under seismic risk, as Bayesian networks on demand
 
 Hazard functions (a ground-motion model or a USGS ShakeMap), bridge fragility
-curves and network simulators (shortest path, maximum flow) are stored as **typed
+curves and network system functions are stored as **typed
 functions**: each says what it consumes and produces, and on which table of rows
 it is replicated. A few parameter sets describe every bridge, and compiling an
 assembly of functions over a network's rows gives the Bayesian network. A query
@@ -12,17 +12,21 @@ assembly of functions over a network's rows gives the Bayesian network. A query
 | # | Part | Where | What it holds |
 |---|---|---|---|
 | 1 | **Schema**: what can exist | [`schema/`](schema/README.md) | quantities (the types), entity types (the plates), functions (typed signatures), and in `meta/` the JSON Schema every file obeys. [`diagram.md`](schema/diagram.md) draws it |
-| 2 | **Instances**: what does exist | [`instances/`](instances/README.md) | parameter sets (28 Hazus bridge curves, GMM coefficients, closure policies), networks (rows), assemblies (which function and parameters describe which rows) |
+| 2 | **Instances**: what does exist | [`instances/`](instances/README.md) | parameter sets, filed by role: GMMs and correlation models under `hazard/`, the 28 Hazus bridge curves under `fragility/`, closure policies under `functionality/` |
 | 3 | **BN builder** | `src/builder/` | validate 1 and 2, then compile an assembly into BN nodes and parents; the kernels behind each function; the ShakeMap reader |
 | 4 | **Inference engine** | `src/inference/` | a probabilistic query ([`query.schema.json`](src/inference/query.schema.json)) in, an answer out, by forward Monte Carlo |
 | 5 | **Language** | `src/llm/` | a question in words becomes a query, the engine's numbers become an answer |
 | 6 | **App** | `src/app/` | one local page: the BN drawn like Supabase's schema visualiser, a query form and a chat panel |
 
+The networks the tools run on are in [`examples/`](examples/README.md): each one's rows, and its
+assemblies (which function and parameters describe which rows). A report concerns one network,
+so they are examples of the input rather than a library to choose from.
+
 ```
 schema/  ─┐                                         question ─► src/llm ─┐
           ├─► src/builder ─► BN nodes ─► src/inference ◄── query ────────┤
-instances/┘    (check, compile)           (answer)  ──► numbers ──► answer
-                     └──────────────── src/app: draws the BN, runs both ─┘
+instances/┤    (check, compile)           (answer)  ──► numbers ──► answer
+examples/ ┘         └──────────────── src/app: draws the BN, runs both ─┘
 ```
 
 ## Run it
@@ -32,13 +36,13 @@ Set up once, with either conda or uv:
 | | conda | uv |
 |---|---|---|
 | Set up | `conda env create -f environment.yml` | `uv sync` (add `--extra anthropic` for Claude) |
-| Each session | `conda activate dra` | prefix commands with `uv run` |
+| Each session | `conda activate quakenet` | prefix commands with `uv run` |
 | Update after a `git pull` | `conda env update -f environment.yml --prune` | `uv sync` |
 
 ```bash
 python -m src check                          # 1-3: validate everything, compile every assembly
 python -m src compile ema-highway/gmm        # 3: what one assembly expands to, binding by binding
-python -m src query ema-highway/gmm --event "SystemState::*>n66:time==0" --set ema-reference.mw=7
+python -m src query ema-highway/gmm --event "EdgeOpen::*==0" --set ema-reference.mw=7
 python -m src ask ema-highway/gmm "Would n1 still reach n66 after an M7?"             # 5: needs a model
 python -m src serve --open                   # 6: the page, at http://127.0.0.1:8765
 python -m src export --open                  # 6: its drawings as one file, no server (.cache/schema.html)
@@ -58,10 +62,12 @@ python -m pytest -q                          # the tests
   produce an IM on `Bridge`, from each bridge's own lat/lon, so swapping one for the other is one line.
   Which GMM is chosen by where the network is, and the IM itself is left open:
   `PGA`, `SA(0.3)`, `SA(1.0)`... wire only to curves on the same IM.
-- **A system event is defined in the network**: each `SystemEvent` row names its
-  analysis (shortest path or max flow), its origin and destination, and what counts
-  as surviving (a travel time within `travel_time_tolerance` of the intact network's,
-  or a max flow of at least `min_flow`). Each becomes a binary `SystemState` node.
+- **System functions run on [ndtools](https://pypi.org/project/ndtools-duco/).**
+  `system.travel-time-to-nearest` gives each non-key node a `TravelTime` (hours) to its
+  nearest `key_destination` and a `SystemState`: 1 if within `target_max` hours of the
+  intact network's time. The network supplies each edge's `length_km` and
+  `avg_speed_kph`; the assembly sets `target_max`. Next: rules extracted once by
+  [rsr](https://jieunbyun.github.io/rsr/) and stored, so ndtools runs only where no rule applies.
 - **A query is a probability statement**: targets and threshold events, under
   `do()`-style settings of rows and parameters. Evidence is refused: the engine is
   forward-only.
@@ -75,18 +81,17 @@ The schema's design and how to add to it: [`schema/README.md`](schema/README.md)
 ```json
 {
   "assembly": "ema-highway/gmm",
-  "events": [{"node": "SystemState::*>n66:time", "op": "==", "value": 0}],
+  "events": [{"node": "EdgeOpen::*", "op": "==", "value": 0}],
   "rows": {"ema-reference": {"mw": 7.0}},
   "parameter_sets": {"functionality.usable-from-damage": "policy.closed-at-moderate"},
   "samples": 2000
 }
 ```
 
-reads back as `P(SystemState[*>n66:time] = 0) | do(ema-reference.mw = 7.0,
+reads back as `P(EdgeOpen[*] = 0) | do(ema-reference.mw = 7.0,
 functionality.usable-from-damage with policy.closed-at-moderate)`: the chance that each
-journey to n66 fails its event, i.e. takes more than 1.5 × its intact time or finds no
-route. The answer gives one probability per matching event, with a 95% interval, and
-runs only the bindings those nodes depend on (max flow is skipped here).
+edge is closed. The answer gives one probability per matching node, with a 95%
+interval, and runs only the bindings those nodes depend on.
 
 ## Language models
 
@@ -142,7 +147,7 @@ has them, else from the USGS catalogue, cached in `.cache/shakemaps/`
 - Nothing checks that a residual field's period matches the IM it multiplies; the
   parameter-set labels say which is which.
 - Kernels implement `SampleForward`; only the fragility also has `EvaluateDensity`.
-- EMA's scenario epicentre and both networks' link speeds and capacities are
+- EMA's scenario epicentre and both networks' edge speeds and capacities are
   assumptions, each named in its `network.json` or parameter-set file.
 
 ## History

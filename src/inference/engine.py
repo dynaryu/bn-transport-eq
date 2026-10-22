@@ -254,7 +254,7 @@ def describe(assembly_id: str) -> dict[str, Any]:
                     rows.append({"row": row["id"], "entity": fn["per"], "attribute": attr,
                                  "value": row.get(attr), "unit": spec.get("unit"), "type": spec.get("type")})
         if "parameters" in b.spec:
-            props = fn["parameters"].get("properties", {})
+            props = fn["instance_schema"].get("properties", {})
             for name, value in b.spec["parameters"].items():
                 parameters.append({"function": fn["id"], "name": name, "value": value, "schema": props.get(name, {})})
         elif "parameter_set" in b.spec and "{" not in b.spec["parameter_set"]:
