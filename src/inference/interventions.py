@@ -3,6 +3,10 @@ from src.builder.kernels import Probability
 
 
 class Constant(Probability):
+    def form(self):
+        values = ", ".join(f"{v.name} = {c:g}" for v, c in zip(self.childs, self.spec["constant"]))
+        return f"do({values})"
+
     def evaluate(self, pars):
         return self.tensor(self.spec["constant"])[None, :].expand(len(pars), -1)
 

@@ -18,6 +18,13 @@ class UsableFromDamage(Probability):
         self.policy = self.tensor([[float(s in p["usable_states"]) for s in states]
                                    for p in self.spec["parameters"]])          # (rows, K)
 
+    def form(self) -> str:
+        usable = [p["usable_states"] for p in self.spec["parameters"]]
+        if any(u != usable[0] for u in usable):
+            return f"1 if the damage state is one its policy lists as usable, else 0{self.parameter_sets()}"
+        damage = self.parents[0].name if len(self.parents) == 1 else "the damage state"
+        return f"1 if {damage} is {', '.join(usable[0])}, else 0{self.parameter_sets()}"
+
     def evaluate(self, pars: torch.Tensor) -> torch.Tensor:
         damage = self.input(pars, "damage")
         if ((damage != damage.floor()) | (damage < 0) | (damage >= self.policy.shape[1])).any():

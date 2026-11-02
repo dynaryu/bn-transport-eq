@@ -11,6 +11,11 @@ The methods are the capabilities its function declares, named by
 SampleForward, returning (childs, log probability), and ``log_prob(Cs)`` for
 EvaluateLikelihood, with ``Cs`` the childs' columns then the parents'. A discrete
 variable holds the index into its quantity's states. Everything is PyTorch.
+
+Every class inherits ``tbnpy.Probability``, so an object prints as the
+distribution it defines, ``Fragility(P(DamageState.HazusBridge::b1 |
+SA(1.0)::b1): lognormal ...)``, and ``print`` adds each variable's domain and
+the kernel's notes. ``form()`` says what the distribution is.
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from tbnpy.probability import Probability as TbnpyProbability
 
 
 class Notes(list):
@@ -33,7 +39,7 @@ class Notes(list):
             self.append(text)
 
 
-class Probability:
+class Probability(TbnpyProbability):
     """Shared plumbing. A deterministic subclass defines ``evaluate(pars)`` only."""
 
     def __init__(self, childs: list, parents: list, spec: dict[str, Any], device: str = "cpu",
@@ -44,6 +50,20 @@ class Probability:
         self.device = torch.device(device)
         self.directory = Path(directory) if directory else None
         self.notes = Notes()
+
+    def form(self) -> str:
+        """The function and its parameter sets; a kernel says more by overriding this."""
+        return self.spec["function"] + self.parameter_sets()
+
+    def form_details(self) -> list[str]:
+        return [f"note: {note}" for note in self.notes]
+
+    def parameter_sets(self) -> str:
+        """`` [set]`` naming the rows' parameter sets, for the end of a form; empty with none."""
+        sets = sorted({s for s in self.spec.get("parameter_sets", []) if s})
+        if not sets:
+            return ""
+        return f" [{', '.join(sets)}]" if len(sets) <= 2 else f" [{len(sets)} parameter sets]"
 
     def tensor(self, values: Any) -> torch.Tensor:
         return torch.as_tensor(values, dtype=torch.float64, device=self.device)

@@ -20,6 +20,10 @@ def _t(x: Any) -> torch.Tensor:
     return torch.as_tensor(x, dtype=torch.float64)
 
 
+def _sites(n: int) -> str:
+    return f"{n} site" if n == 1 else f"{n} sites"
+
+
 def great_circle_km(lat1: Any, lon1: Any, lat2: Any, lon2: Any) -> torch.Tensor:
     lat1, lon1, lat2, lon2 = (torch.deg2rad(_t(v)) for v in (lat1, lon1, lat2, lon2))
     a = torch.sin((lat2 - lat1) / 2) ** 2 + torch.cos(lat1) * torch.cos(lat2) * torch.sin((lon2 - lon1) / 2) ** 2
@@ -83,7 +87,8 @@ class Gmm(Probability):
             raise ValueError(f"one implemented GMM form per binding, got {sorted(forms)}")
         if any(p.get("distance_metric", "hypocentral") != "hypocentral" for p in params):
             raise ValueError("only the hypocentral distance metric is implemented")
-        event = fixed_event(self.spec["tables"]["Event"])
+        event = self.event = fixed_event(self.spec["tables"]["Event"])
+        self.gmm_form = next(iter(forms))
         mw = self.tensor(event["mw"])
         bounds = self.tensor([p["magnitude_range"] for p in params])
         if ((mw < bounds[:, 0]) | (mw > bounds[:, 1])).any():
@@ -95,6 +100,19 @@ class Gmm(Probability):
         self.scale = torch.sqrt(aleatory**2 + self.tensor([p["sigma_epistemic"] for p in params]) ** 2).to(self.device)
         self.notes.add("hazard.gmm draws each Bridge's residual independently: no spatial correlation, so joint "
                        "outcomes across the network are likely understated.")
+
+    def form(self) -> str:
+        scale = self.scale.flatten()
+        sigma = (f"{scale[0].item():.3g}" if torch.allclose(scale, scale[0]) else
+                 f"{scale.min().item():.3g} to {scale.max().item():.3g}")
+        return (f"lognormal at {_sites(len(self.childs))}, ln median by {self.gmm_form} "
+                f"(Mw {self.event['mw']:g}, hypocentral distance), sigma {sigma}, "
+                f"independent residuals{self.parameter_sets()}")
+
+    def form_details(self) -> list[str]:
+        e = self.event
+        return [f"event {e['id']}: Mw {e['mw']:g} at ({e['lat']:g}, {e['lon']:g}), "
+                f"depth {e['depth_km']:g} km"] + super().form_details()
 
     def distribution(self, n: int) -> torch.distributions.LogNormal:
         shape = (n, len(self.childs))
@@ -130,6 +148,7 @@ class ShakeMap(Probability):
             raise ValueError(f"{len(outside)} site(s) lie outside ShakeMap {grid.event_id} v{grid.version}, "
                              f"e.g. {outside[:3]}; outside the map means not estimated, not zero")
         self.ln_im, self.sigma = self.tensor(ln_im)[None, :], self.tensor(sigma)[None, :]
+        self.map = f"ShakeMap {grid.event_id} v{grid.version}, {p['imt']}"
         meta = grid.meta
         self.notes.add(f"Ground motion from USGS ShakeMap {grid.event_id} version {grid.version} "
                        f"({meta.get('originator')}, {meta.get('map_status')}, via {meta.get('source')}).")
@@ -138,6 +157,10 @@ class ShakeMap(Probability):
                            "estimate (constrained by felt reports at most) with the larger uncertainty that implies.")
         for w in grid.warnings:
             self.notes.add(w)
+
+    def form(self) -> str:
+        return (f"ln IM = ln median + sigma * epsilon at {_sites(len(self.childs))}, "
+                f"median and sigma from {self.map}")
 
     def evaluate(self, pars: torch.Tensor) -> torch.Tensor:
         return torch.exp(self.ln_im + self.sigma * self.input(pars, "epsilon"))
@@ -186,6 +209,16 @@ class SpatialCorrelationField(Probability):
         t = self.params["truncation_level"]
         normal = torch.distributions.Normal(self.tensor(0.0), self.tensor(1.0))
         self.bounds = None if t is None else (normal.cdf(self.tensor(-t)), normal.cdf(self.tensor(t)))
+
+    def form(self) -> str:
+        p, n = self.params, _sites(len(self.childs))
+        t = p["truncation_level"]
+        truncated = "" if t is None else f", truncated at +/-{t:g}"
+        if p["model"] == "independent":
+            return f"independent standard normals at {n}{truncated}{self.parameter_sets()}"
+        b = jayaram_baker_2009_range_km(p["period_s"], p["vs30_clustered"])
+        return (f"standard normals at {n}, correlated by {p['model']}: "
+                f"rho(h) = exp(-3h / {b:.3g} km){truncated}{self.parameter_sets()}")
 
     def _z(self, n: int) -> torch.Tensor:
         shape = (n, len(self.childs))

@@ -38,14 +38,26 @@ class Fragility(Probability):
         forms = {p["form"] for p in self.spec["parameters"]}
         if len(forms) != 1 or not forms <= FRAGILITY_FORMS.keys():
             raise ValueError(f"one implemented fragility form per binding, got {sorted(forms)}")
-        self.form = FRAGILITY_FORMS[forms.pop()]
+        self.curve_form = forms.pop()
+        self.curve = FRAGILITY_FORMS[self.curve_form]
+
+    def form(self) -> str:
+        params = [p["parameters"] for p in self.spec["parameters"]]
+        im = self.parents[0].name if len(self.parents) == 1 else self.spec["parameters"][0]["imt"]
+        head = f"{self.curve_form}, P(DS >= k) = Phi(ln({im} / median_k) / beta_k)"
+        if any(p != params[0] for p in params):
+            return f"{head} over {len(params)} rows{self.parameter_sets()}"
+        medians = ", ".join(f"{s} {m:g}" for s, m in params[0]["medians"].items())
+        betas = params[0].get("betas")
+        beta = (", ".join(f"{s} {b:g}" for s, b in betas.items()) if betas else f"{params[0]['beta']:g}")
+        return f"{head}: medians {medians}; beta {beta}{self.parameter_sets()}"
 
     def distribution(self, pars: torch.Tensor) -> torch.Tensor:
         """P(DS = k | im) as (n, rows, K)."""
         im = self.input(pars, "im")
         if (im < 0).any() or not torch.isfinite(im).all():
             raise ValueError(f"{self.spec['parameters'][0]['imt']} must be finite and nonnegative")
-        q = self.form(im, self.spec["states"]["damage"][1:], [p["parameters"] for p in self.spec["parameters"]])
+        q = self.curve(im, self.spec["states"]["damage"][1:], [p["parameters"] for p in self.spec["parameters"]])
         # Curves with different betas cross somewhere; a worse state is never more likely than a milder one.
         capped = torch.cummin(q, dim=-1).values
         crossed = (capped < q).any(-1)

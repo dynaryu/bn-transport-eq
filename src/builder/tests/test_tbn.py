@@ -44,6 +44,20 @@ def test_generated_snapshot_matches_sources_and_owns_joint_hazard(model):
     assert set(inference.get_ancestor_order(probs, list(probs))) == set(probs)
 
 
+def test_every_object_is_a_tbnpy_probability_that_reads_as_its_distribution(model):
+    import tbnpy
+
+    _, _, probs = model
+    assert all(isinstance(p, tbnpy.Probability) for p in probs.values())
+    assert repr(probs["DamageState.HazusBridge::b4"]).startswith(
+        "Fragility(P(DamageState.HazusBridge::b4 | SA(1.0)::b4): lognormal, P(DS >= k)")
+    assert repr(probs["EdgeOpen::e4"]) == "EdgeOpen(P(EdgeOpen::e4 | Usable::b4): 1 if Usable::b4 is 1, else 0)"
+    assert "object at 0x" not in repr(probs)
+    assert "rules for n4:" in str(probs["SystemState::n4"])
+    assert "note: hazard.gmm draws each Bridge's residual independently" in str(probs["hazard.gmm"])
+    assert tbnpy.check_model(probs, n_sample=64).ok
+
+
 def test_samples_and_log_probabilities_agree(model):
     _, _, probs = model
     torch.manual_seed(19)

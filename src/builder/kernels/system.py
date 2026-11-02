@@ -76,6 +76,20 @@ class TravelTimeToNearest(Probability):
             self.notes.add(f"{len(never)} origin(s) fail even with every edge open (no route to a key "
                            f"destination): {', '.join(never[:5])}")
 
+    def form(self) -> str:
+        origins = [row["id"] for row in self.spec["rows"]]
+        who = origins[0] if len(origins) == 1 else f"each of {len(origins)} origins"
+        return (f"1 if {who} reaches its nearest key destination within {self.target_add_h:g} h "
+                f"of the intact network's time, else 0 (ndtools, after the stored rules)")
+
+    def form_details(self) -> list[str]:
+        lines = [f"key destinations: {', '.join(self.destinations)}"]
+        for row, refs in zip(self.spec["rows"], self.refs):
+            rules = ("none, so ndtools evaluates every sample" if refs is None else
+                     f"{len(refs[0])} survival and {len(refs[1])} failure reference sets")
+            lines.append(f"rules for {row['id']}: {rules}")
+        return lines + super().form_details()
+
     def edges(self, j: int) -> list[str]:
         return self.spec["parent_rows"]["open"][j]
 
