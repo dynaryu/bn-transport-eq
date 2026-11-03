@@ -19,8 +19,8 @@ def readback(task):
     if kind == "compare":
         return "I’ll compare the baseline with each named variant and report baseline minus variant in percentage points."
     if kind == "importance":
-        return ("I’ll compare system failure with each selected bridge forced unusable versus usable. " +
-                ("All other bridges will be forced usable." if task.get("topology_only") else
+        return ("I’ll compare system failure with each selected bridge’s edge forced closed versus open. " +
+                ("All other bridged edges will be forced open." if task.get("topology_only") else
                  "Other bridges retain their scenario-driven uncertainty."))
     if kind == "paths":
         return (f"I’ll evaluate up to {task.get('limit', 10)} shortest-time paths from {task['origin']} to "
@@ -81,13 +81,18 @@ def execute(task, run=None):
                          "reduction_pp": 100 * (p0 - p)})
     else:
         compiled = engine.compile_query(base)
-        bridges = {r["id"] for r in compiled.network.rows("Bridge")}
-        if not set(task["bridges"]) <= bridges:
+        edge_of = {r["id"]: r["edge"] for r in compiled.network.rows("Bridge")}
+        if not set(task["bridges"]) <= set(edge_of):
             raise engine.QueryError("Importance names an unknown bridge")
+        # A bridge is forced closed or open through its edge, which is exact when the edge carries
+        # only that bridge: forcing a shared edge open would force its other bridges open too.
+        shared = [b for b in task["bridges"] if list(edge_of.values()).count(edge_of[b]) > 1]
+        if shared:
+            raise engine.QueryError(f"Bridge importance needs one bridge per edge; {', '.join(shared)} share theirs")
         for bridge in task["bridges"]:
-            forced = {f"Usable::{b}": 1 for b in bridges} if task.get("topology_only") else {}
-            closed = run(merge(base, {"do": {**forced, f"Usable::{bridge}": 0}}))
-            opened = run(merge(base, {"do": {**forced, f"Usable::{bridge}": 1}}))
+            forced = {f"EdgeOpen::{e}": 1 for e in set(edge_of.values())} if task.get("topology_only") else {}
+            closed = run(merge(base, {"do": {**forced, f"EdgeOpen::{edge_of[bridge]}": 0}}))
+            opened = run(merge(base, {"do": {**forced, f"EdgeOpen::{edge_of[bridge]}": 1}}))
             pc, po = closed["events"][0]["p"], opened["events"][0]["p"]
             rows.append({"bridge": bridge, "forced_closed_p": pc, "forced_open_p": po,
                          "importance": pc - po})

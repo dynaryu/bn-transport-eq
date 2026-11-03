@@ -1,26 +1,28 @@
 """Implementations named by the functions' `implementation` field: tbnpy probability objects.
 
-Each is a class built as ``cls(childs, parents, spec, device=..., directory=...)``
-for one binding: its ``childs`` are every output variable of the binding's rows,
-its ``parents`` every input variable they read. ``spec`` is that binding resolved
-by ``bn_builder``: the rows, each row's parameter values, which parent columns
-each row's input ports read, the states of discrete ports, and whole tables.
+Each kernel is a class written like tbnpy's own examples: its constructor takes
+``childs``, ``parents`` and the distribution's parameters by name, and its
+``sample`` and ``log_prob`` follow tbnpy's protocol:
 
-The methods are the capabilities its function declares, named by
-``load.CAPABILITY_METHOD``: ``sample(Cs_pars=None, n_sample=None)`` for
-SampleForward, returning (childs, log probability), and ``log_prob(Cs)`` for
-EvaluateLikelihood, with ``Cs`` the childs' columns then the parents'. A discrete
-variable holds the index into its quantity's states. Everything is PyTorch.
+    sample(Cs_pars)  Cs_pars (N, n_parents)  ->  Cs (N, n_childs), logp (N,)
+    log_prob(Cs)     Cs (N, n_childs + n_parents), childs first  ->  logp (N,)
 
-Every class inherits ``tbnpy.Probability``, so an object prints as the
-distribution it defines, ``Fragility(P(DamageState.HazusBridge::b1 |
-SA(1.0)::b1): lognormal ...)``, and ``print`` adds each variable's domain and
-the kernel's notes. ``form()`` says what the distribution is.
+A root (no parents) is sampled with ``sample(n_sample=N)`` instead. A discrete
+variable holds the index into its ``Variable.values``. Everything is PyTorch.
+
+The generated model.json is a tbnpy spec: each probability object is a
+``custom`` node naming its class here, its childs and parents, and its
+constructor's arguments (``kwargs``), all plain JSON. ``tbnpy.compile`` builds
+the objects from it, so a kernel's constructor is the whole interface: what the
+spec records is exactly what the constructor takes. The node's ``metadata``
+(function, role, parameter sets) reaches the object as ``spec_metadata``.
+
+Every kernel inherits ``tbnpy.Probability``, so it prints as the distribution it
+defines, and ``print`` adds each variable's domain and the kernel's notes.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import torch
@@ -40,54 +42,56 @@ class Notes(list):
 
 
 class Probability(TbnpyProbability):
-    """Shared plumbing. A deterministic subclass defines ``evaluate(pars)`` only."""
+    """What every kernel shares.
 
-    def __init__(self, childs: list, parents: list, spec: dict[str, Any], device: str = "cpu",
-                 directory: Path | str | None = None) -> None:
-        self.childs = childs
-        self.parents = parents
-        self.spec = spec
+    A deterministic kernel defines ``evaluate(Cs_pars)`` only, returning the childs
+    (N, n_childs) as a function of the parents. ``sample`` then returns it with log
+    probability 0, and ``log_prob`` is 0 where the childs equal it and -inf elsewhere.
+    A stochastic kernel defines its own ``sample`` and ``log_prob``.
+    """
+
+    def __init__(self, childs: list, parents: list = (), device: str = "cpu") -> None:
+        self.childs = list(childs)
+        self.parents = list(parents)
         self.device = torch.device(device)
-        self.directory = Path(directory) if directory else None
+        self.spec_metadata: dict[str, Any] = {}      # tbnpy.compile sets it from the node's metadata
         self.notes = Notes()
 
+    def tensor(self, values: Any) -> torch.Tensor:
+        return torch.as_tensor(values, dtype=torch.float64, device=self.device)
+
+    # ------------------------------------------------------------------
+    # Readings (repr and print come from tbnpy.Probability)
     def form(self) -> str:
-        """The function and its parameter sets; a kernel says more by overriding this."""
-        return self.spec["function"] + self.parameter_sets()
+        return self.spec_metadata.get("function", "")
 
     def form_details(self) -> list[str]:
         return [f"note: {note}" for note in self.notes]
 
     def parameter_sets(self) -> str:
-        """`` [set]`` naming the rows' parameter sets, for the end of a form; empty with none."""
-        sets = sorted({s for s in self.spec.get("parameter_sets", []) if s})
-        if not sets:
-            return ""
-        return f" [{', '.join(sets)}]" if len(sets) <= 2 else f" [{len(sets)} parameter sets]"
+        """`` [set]`` naming the parameter set the object was built from, for the end of a form; else empty."""
+        name = self.spec_metadata.get("parameter_set")
+        return f" [{name}]" if name else ""
 
-    def tensor(self, values: Any) -> torch.Tensor:
-        return torch.as_tensor(values, dtype=torch.float64, device=self.device)
+    # ------------------------------------------------------------------
+    # Deterministic kernels
+    def evaluate(self, Cs_pars: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError(f"{type(self).__name__} defines sample and log_prob itself")
 
-    def column(self, attr: str) -> torch.Tensor:
-        """One attribute across the rows, shaped (1, rows) to broadcast over samples."""
-        return self.tensor([row[attr] for row in self.spec["rows"]])[None, :]
-
-    def input(self, pars: torch.Tensor, port: str) -> torch.Tensor:
-        """(n, rows) for a port with exactly one parent per row (via self or a foreign key)."""
-        return torch.stack([pars[:, r[port][0]] for r in self.spec["input_columns"]], dim=1)
-
-    def _pars(self, Cs_pars: torch.Tensor | None, n_sample: int | None) -> torch.Tensor:
+    def _parent_columns(self, Cs_pars: torch.Tensor | None, n_sample: int | None) -> torch.Tensor:
+        """The parent columns as float64 on this device; (n_sample, 0) for a root."""
         if Cs_pars is None:
             return torch.empty((n_sample, 0), dtype=torch.float64, device=self.device)
         return Cs_pars.to(device=self.device, dtype=torch.float64)
 
     def sample(self, Cs_pars: torch.Tensor | None = None, n_sample: int | None = None):
-        pars = self._pars(Cs_pars, n_sample)
-        return self.evaluate(pars), torch.zeros(len(pars), dtype=torch.float64, device=self.device)
+        Cs_pars = self._parent_columns(Cs_pars, n_sample)
+        Cs = self.evaluate(Cs_pars)
+        return Cs, torch.zeros(len(Cs_pars), dtype=torch.float64, device=self.device)
 
     def log_prob(self, Cs: torch.Tensor) -> torch.Tensor:
         Cs = Cs.to(device=self.device, dtype=torch.float64)
-        n_child = len(self.childs)
-        expected = self.evaluate(Cs[:, n_child:])
-        valid = torch.isclose(Cs[:, :n_child], expected, rtol=1e-9, atol=0.0, equal_nan=True).all(dim=1)
+        n_childs = len(self.childs)
+        expected = self.evaluate(Cs[:, n_childs:])
+        valid = torch.isclose(Cs[:, :n_childs], expected, rtol=1e-9, atol=0.0, equal_nan=True).all(dim=1)
         return torch.where(valid, 0.0, -torch.inf).to(torch.float64)

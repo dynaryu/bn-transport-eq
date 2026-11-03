@@ -10,7 +10,7 @@ from src.inference import engine
 def spec():
     return {"kind": "parameter_set", "title": "Test closure policy", "reason": "Exercise reviewed addition",
             "source": {"basis": "user-defined test assumption"}, "payload": {
-                "function": "functionality.usable-from-damage", "source": {"basis": "test policy"},
+                "function": "edge.open", "source": {"basis": "test policy"},
                 "sets": [{"id": "test.closed-at-slight", "label": "Test closure", "values": {
                     "damage_scale": "DamageState.HazusBridge", "usable_states": ["none"]}}]}}
 

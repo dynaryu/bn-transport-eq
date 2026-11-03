@@ -21,6 +21,7 @@ import json
 import subprocess
 import sys
 import threading
+import traceback
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -87,19 +88,19 @@ def example(assembly_id: str) -> dict[str, Any]:
     compiled = compile_path(path, engine.library())
     network = compiled.network
     data = tbn_data(compiled)
-    systems = [s for s in data["probabilities"].values() if s["role"] == "system"]
+    systems = [n for n in data["nodes"] if n["metadata"]["role"] == "system"]
     stored = attach_rules(data, model_dir(path))
     return {
         "assembly": compiled.assembly, "menu": engine.describe(assembly_id),
         "network": {"id": network.id, "title": network.title, "assumptions": network.assumptions,
                     "source": network.source, "tables": network.tables},
         "functions": [compiled.bindings[i].function["id"] for i in compiled.order],
-        "objects": len(data["probabilities"]), "variables": len(data["variables"]),
+        "objects": len(data["nodes"]), "variables": len(data["variables"]),
         # Every BN node and its parents, for the layered drawing; one joint object per stochastic Joint binding.
         "nodes": [{k: n[k] for k in ("id", "quantity", "entity", "row", "function", "parameter_set", "parents")}
                   for n in compiled.nodes()],
-        "joint": sorted({s["function"] for s in data["probabilities"].values() if len(s["childs"]) > 1}),
-        "rules": {"stored": stored, "origins": sum(len(s["rows"]) for s in systems)},
+        "joint": sorted({n["metadata"]["function"] for n in data["nodes"] if len(n["childs"]) > 1}),
+        "rules": {"stored": stored, "origins": len(systems)},
     }
 
 
@@ -162,6 +163,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._page(PAGE)
         if url.path == "/ask.js":
             return self._page(PAGE.with_name("ask.js"), "text/javascript; charset=utf-8")
+        if url.path == "/diagram-navigation.js":
+            return self._page(PAGE.with_name("diagram-navigation.js"), "text/javascript; charset=utf-8")
         if url.path == "/bn":
             return self._page(BN_PAGE)
         if url.path == "/api/examples":
@@ -219,6 +222,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(result)
             except (engine.QueryError, json.JSONDecodeError) as exc:
                 return self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            except ImportError as exc:
+                traceback.print_exc()
+                module = f" ({exc.name})" if exc.name else ""
+                return self._json({"error": (
+                    f"The server's Python environment cannot load a required inference dependency{module}. "
+                    "Restart the app with: conda run -n quakenet python -m src serve. "
+                    "See the server log for the full error.")}, HTTPStatus.SERVICE_UNAVAILABLE)
+            except Exception as exc:
+                traceback.print_exc()
+                return self._json({"error": (
+                    f"The query could not be computed ({type(exc).__name__}). "
+                    "See the server log for the full error.")}, HTTPStatus.INTERNAL_SERVER_ERROR)
         if path == "/api/ask":
             return self._ask()
         self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)

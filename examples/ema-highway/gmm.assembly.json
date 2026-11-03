@@ -18,11 +18,8 @@
       "note": "Three parameter sets (HWB2, HWB4, HWB11) describe all 129 bridges."
     },
     {
-      "function": "functionality.usable-from-damage",
+      "function": "edge.open",
       "parameter_set": "policy.closed-at-extensive"
-    },
-    {
-      "function": "edge.open"
     },
     {
       "function": "system.travel-time-to-nearest",

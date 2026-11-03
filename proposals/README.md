@@ -16,8 +16,8 @@ Example dialogues:
 - “Evaluate a 1,000-year hazard.” → Ask for the hazard study or ground-motion
   product; never infer a magnitude from return period alone. Draft after its
   inputs, units and applicability have been supplied.
-- “Save a policy that closes moderate damage too.” → Propose a functionality
-  instance, with the explicit usable states and the user's stated policy as source.
+- “Save a policy that closes moderate damage too.” → Propose an `edge.open`
+  closure-policy instance, with the explicit usable states and the user's stated policy as source.
 - “Save access to N1 only, allowing 30 extra minutes.” → Ask for the origin;
   propose a scenario with destination flags and the time allowance. Validate
   against the existing singleton SystemEvent; do not append a second row.

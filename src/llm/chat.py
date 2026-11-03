@@ -390,8 +390,9 @@ def system_prompt(menu: Mapping[str, Any], defaults: Mapping[str, Any] | None = 
         "a probability difference (percentage points), not an event probability. VOI is a valid "
         "expected loss reduction; do not replace it with a bridge-failure probability.",
         "- 'Most important bridge' is ambiguous. Call clarification with 2–4 choices explaining "
-        "the mathematical meanings: forced-outage system failure P(F|do(B_i=0),H), a comparison of "
-        "forced-outage/forced-usable probabilities, or diagnostic P(B_i=0|F,H). Ask which meaning "
+        "the mathematical meanings: forced-outage system failure P(F|do(E_i=0),H) with E_i the edge "
+        "the bridge carries, a comparison of forced-closed/forced-open probabilities, or diagnostic "
+        "P(E_i=0|F,H). A bridge's state is its edge's EdgeOpen (one bridge per edge). Ask which meaning "
         "the user wants and wait. Do not choose a definition or compute in that turn. On the user's "
         "reply, use the conversation history to read back and calculate the selected quantity. "
         "An explicitly requested closed-minus-open difference is a valid sensitivity comparison.",

@@ -24,11 +24,8 @@
       "parameter_set": "hazus61.{hazus_class}"
     },
     {
-      "function": "functionality.usable-from-damage",
+      "function": "edge.open",
       "parameter_set": "policy.closed-at-extensive"
-    },
-    {
-      "function": "edge.open"
     },
     {
       "function": "system.travel-time-to-nearest",

@@ -13,7 +13,7 @@
     "bridge_class": "Use each edge's fragility_type; use HWB11 only if absent.",
     "coordinates": "x/y are schematic planar units that the reference scenario reads as kilometres; georeferencing shows one unit is about 1.81 real km. lat/lon are fitted to town centres (about +/-7 km) and are what a ShakeMap is read at, at arc midpoints.",
     "dependence": "Bridge states are sampled independently conditional on the hazard scenario.",
-    "functionality": "Moved out of the data: the usable-from-damage parameter set the assembly binds (policy.closed-at-extensive) states it.",
+    "functionality": "Moved out of the data: the closure policy the assembly binds to edge.open (policy.closed-at-extensive) states it.",
     "capacity": "1 per edge, assumed: the dataset gives no capacities, so max flow counts edge-disjoint routes.",
     "event": "Epicentre from the pilot's schematic (x=1.0, y=10.0) by an affine fit of node x/y to lat/lon; depth 10 km assumed. Distances are now real kilometres, so shaking is lower than the pilot's, which read schematic units as km.",
     "bridge_location": "Each bridge sits at the midpoint of its edge's end nodes; bridge locations are not surveyed.",

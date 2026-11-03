@@ -14,24 +14,24 @@ TOY = "toy-ca/demo"
 
 def test_forced_states_propagate_and_have_distinct_sample_banks():
     base = {"assembly": TOY, "samples": 200, "targets": ["EdgeOpen::e2"]}
-    a = engine.answer({**base, "do": {"Usable::b2": 0}}, record={"source": "test"})
-    b = engine.answer({**base, "do": {"Usable::b2": 1}}, record={"source": "test"})
+    a = engine.answer({**base, "do": {"EdgeOpen::e2": 0}}, record={"source": "test"})
+    b = engine.answer({**base, "do": {"EdgeOpen::e2": 1}}, record={"source": "test"})
     assert a["targets"][0]["summary"]["P"]["0"] == 1
     assert b["targets"][0]["summary"]["P"]["1"] == 1
     assert a["record"]["samples_file"]["bank"] != b["record"]["samples_file"]["bank"]
-    again = engine.answer({**base, "do": {"Usable::b2": 0}}, record={"source": "test"})
+    again = engine.answer({**base, "do": {"EdgeOpen::e2": 0}}, record={"source": "test"})
     assert again["record"]["samples_file"]["reused"]
 
 
 def test_joint_probability_uses_the_same_samples_and_evidence_denominator():
-    leaf = {"node": "Usable::b2", "op": "==", "value": 0}
+    leaf = {"node": "EdgeOpen::e2", "op": "==", "value": 0}
     r = engine.answer({"assembly": TOY, "samples": 1000, "events": [leaf], "joint_events": [
         {"name": "same twice", "expression": {"all": [leaf, leaf]}},
         {"name": "tautology", "expression": {"any": [leaf, {"not": leaf}]}}
     ]})
     assert r["events"][0]["p"] == r["events"][1]["p"]
     assert r["events"][2]["p"] == 1
-    observed = engine.answer({"assembly": TOY, "samples": 5000, "evidence": {"Usable::b2": 0}, "events": [leaf]})
+    observed = engine.answer({"assembly": TOY, "samples": 5000, "evidence": {"EdgeOpen::e2": 0}, "events": [leaf]})
     assert observed["events"][0]["p"] == 1
     assert 30 <= observed["inference"]["accepted"] < 5000
 
@@ -52,8 +52,10 @@ def test_observation_and_intervention_differ_with_a_common_cause(monkeypatch):
     class B(Probability):
         def evaluate(self, pars):
             return pars
-    probs = {n: cls([variables[n]], [] if i == 0 else [variables[names[0]]],
-                    {"role": "test", "function": n}) for i, (n, cls) in enumerate(zip(names, [Root, A, B]))}
+    probs = {}
+    for i, (n, cls) in enumerate(zip(names, [Root, A, B])):
+        probs[n] = cls([variables[n]], [] if i == 0 else [variables[names[0]]])
+        probs[n].spec_metadata = {"role": "test", "function": n}
     quantities = {n.split("::")[0]: {"id": n.split("::")[0], "kind": "discrete", "states": [0, 1]} for n in names}
     nodes = [{"id": n, "quantity": n.split("::")[0], "row": n.split("::")[1],
               "parents": [] if i == 0 else [names[0]]} for i, n in enumerate(names)]
@@ -72,12 +74,12 @@ def test_observation_and_intervention_differ_with_a_common_cause(monkeypatch):
 
 def test_impossible_evidence_is_not_reported_as_zero_probability():
     with pytest.raises(engine.QueryError, match="contradicts"):
-        engine.answer({"assembly": TOY, "samples": 100, "targets": ["Usable::b2"],
-                       "do": {"Usable::b2": 0}, "evidence": {"Usable::b2": 1}})
+        engine.answer({"assembly": TOY, "samples": 100, "targets": ["EdgeOpen::e2"],
+                       "do": {"EdgeOpen::e2": 0}, "evidence": {"EdgeOpen::e2": 1}})
     with pytest.raises(engine.QueryError, match="continuous observations"):
-        engine.answer({"assembly": TOY, "targets": ["Usable::b2"], "evidence": {"SA(1.0)::b2": .5}})
+        engine.answer({"assembly": TOY, "targets": ["EdgeOpen::e2"], "evidence": {"SA(1.0)::b2": .5}})
     with pytest.raises(engine.QueryError, match="not a state"):
-        engine.answer({"assembly": TOY, "targets": ["Usable::b2"], "do": {"Usable::b2": "unknown"}})
+        engine.answer({"assembly": TOY, "targets": ["EdgeOpen::e2"], "do": {"EdgeOpen::e2": "unknown"}})
 
 
 def test_forced_system_state_does_not_invoke_rule_reports():
@@ -87,9 +89,9 @@ def test_forced_system_state_does_not_invoke_rule_reports():
 
 
 def test_voi_optimises_after_each_observation_and_accounts_for_cost():
-    task = {"state_nodes": ["Usable::b2"], "loss_units": "test units", "actions": [
+    task = {"state_nodes": ["EdgeOpen::e2"], "loss_units": "test units", "actions": [
         {"name": "repair", "losses": {"0": 20, "1": 20}}, {"name": "defer", "losses": {"0": 100, "1": 0}}],
-        "inspections": [{"node": "Usable::b2", "cost": 2, "accuracy": [[1, 0], [0, 1]]}]}
+        "inspections": [{"node": "EdgeOpen::e2", "cost": 2, "accuracy": [[1, 0], [0, 1]]}]}
     result = from_distribution([(0,), (1,)], [.2, .8], task)
     assert result["current_expected_loss"] == 20
     assert result["rows"][0]["evsi"] == pytest.approx(16)

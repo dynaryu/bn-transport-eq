@@ -122,7 +122,7 @@ def assignments(query, compiled, key):
 
 def readback(query):
     """Derived from the query, rather than a second independent LLM interpretation."""
-    labels = {"SystemState": "meeting the system requirement", "Usable": "being usable", "EdgeOpen": "being open"}
+    labels = {"SystemState": "meeting the system requirement", "EdgeOpen": "being open"}
     def describe_node(name):
         qty, _, row = name.partition("::")
         return f"{row} {labels[qty]}" if qty in labels else node_label(name)
@@ -220,7 +220,7 @@ def sample_nodes(compiled: Compiled, n: int, seed: int | None = None, bindings: 
         apply(probs, do)
     keys = [k for k, p in probs.items() if nodes is None or any(v.name in nodes for v in p.childs)]
     if on_missing_rules is not None:
-        missing, threshold = missing_rules([probs[k] for k in keys if probs[k].spec["role"] == "system"])
+        missing, threshold = missing_rules([probs[k] for k in keys if probs[k].spec_metadata["role"] == "system"])
         if missing:
             on_missing_rules(threshold, missing)
     with _SAMPLING_LOCK, torch.random.fork_rng(devices=[]):
@@ -230,7 +230,7 @@ def sample_nodes(compiled: Compiled, n: int, seed: int | None = None, bindings: 
     if notes is not None:
         for prob in probs.values():
             notes.extend(w for w in prob.notes if w not in notes)
-    systems = [probs[k] for k in keys if probs[k].spec["role"] == "system"]
+    systems = [probs[k] for k in keys if probs[k].spec_metadata["role"] == "system"]
     if systems:
         report = rules_report(systems)
         if rules is not None:
@@ -294,23 +294,23 @@ def _needed(query: Mapping[str, Any], compiled: Compiled):
 
 def _computed(compiled: Compiled, bindings: set[int], needed: set[str]) -> int:
     """How many variables sampling a query's scope computes: its objects' every child (a joint field whole)."""
-    from src.builder.bn_builder import tbn_data
+    from src.builder.bn_builder import tbn_data, tbn_nodes
 
-    specs = tbn_data(compiled, bindings)["probabilities"]
+    specs = tbn_nodes(tbn_data(compiled, bindings))
     keys = [k for k, s in specs.items() if any(c in needed for c in s["childs"])]
     return sum(len(specs[k]["childs"]) for k in object_scope(specs, keys))
 
 
 def scope(query: Mapping[str, Any]) -> dict[str, Any]:
     """Which part of the BN a query depends on, and what sampling it computes, without sampling anything."""
-    from src.builder.bn_builder import tbn_data
+    from src.builder.bn_builder import tbn_data, tbn_nodes
 
     query = _validate(query)
     compiled = compile_query(query)
     nodes, _, _, needed = _needed(query, compiled)
     relevant = node_scope(compiled, needed)
     bindings = compiled.ancestors({compiled.producer[(nodes[i]["quantity"], nodes[i]["row"])] for i in needed})
-    specs = tbn_data(compiled, bindings)["probabilities"]
+    specs = tbn_nodes(tbn_data(compiled, bindings))
     keys = [k for k, s in specs.items() if any(c in needed for c in s["childs"])]
     objects = object_scope(specs, keys)
     sampled = [c for k in objects for c in specs[k]["childs"]]
@@ -325,22 +325,25 @@ def scope(query: Mapping[str, Any]) -> dict[str, Any]:
         "pruned": sorted(set(nodes) - relevant, key=list(nodes).index),
         "sampled": {"variables": len(sampled), "objects": len(objects), "by_quantity": by_quantity(sampled),
                     "beyond_relevant": sorted(set(sampled) - relevant, key=list(nodes).index)},
-        "joint": sorted({specs[k]["function"] for k in objects if len(specs[k]["childs"]) > 1}),
+        "joint": sorted({specs[k]["metadata"]["function"] for k in objects if len(specs[k]["childs"]) > 1}),
     }
 
 
 def missing_rules(systems: list[Any]) -> tuple[list[str], float | None]:
     """The origins without rules of their own at the threshold (known before any sampling), and the threshold."""
-    from src.builder.bn_builder import rules_source, rules_threshold
+    from src.builder.bn_builder import rules_source
 
     missing, threshold = [], None
-    for prob in systems:
-        threshold = rules_threshold(prob.spec)
-        references = prob.spec.get("references") or [None] * len(prob.spec["rows"])
-        for j, row in enumerate(prob.spec["rows"]):
-            if rules_source(references[j] if prob.refs[j] is not None else None, threshold) != "exact":
-                missing.append(row["id"])
+    for prob in systems:                          # one origin per system object
+        threshold = prob.target_add_h
+        if rules_source(_loaded_reference(prob), threshold) != "exact":
+            missing.append(prob.origin)
     return missing, threshold
+
+
+def _loaded_reference(prob: Any) -> dict[str, Any] | None:
+    """The stored rules' reference a system object loaded, or None when it holds no rules."""
+    return prob.rules_reference if prob.rules is not None else None
 
 
 def rules_report(systems: list[Any]) -> dict[str, Any]:
@@ -348,17 +351,14 @@ def rules_report(systems: list[Any]) -> dict[str, Any]:
     origins have no rules of their own at this threshold. A threshold is part of the system function, so
     each one gets its own rules: until they exist, rules that still hold from other thresholds classify
     what they can and ndtools decides the rest, so the answer is the same, only slower."""
-    from src.builder.bn_builder import rules_source, rules_threshold
+    from src.builder.bn_builder import rules_source
 
     origins, threshold = [], None
-    for prob in systems:
-        threshold = rules_threshold(prob.spec)
-        references = prob.spec.get("references") or [None] * len(prob.spec["rows"])
-        for j, row in enumerate(prob.spec["rows"]):
-            ref = references[j] if prob.refs[j] is not None else None
-            seen, left = prob.tally["seen"][j], prob.tally["unclassified"][j]
-            origins.append({"origin": row["id"], "rules": rules_source(ref, threshold),
-                            "unclassified": left / seen if seen else 0.0})
+    for prob in systems:                          # one origin per system object
+        threshold = prob.target_add_h
+        seen, left = prob.tally["seen"], prob.tally["unclassified"]
+        origins.append({"origin": prob.origin, "rules": rules_source(_loaded_reference(prob), threshold),
+                        "unclassified": left / seen if seen else 0.0})
     extract = [o["origin"] for o in origins if o["rules"] != "exact"]
     exact = sum(o["rules"] == "exact" for o in origins)
     borrowed = sum(o["rules"] not in ("exact", "no stored rules") for o in origins)
@@ -471,7 +471,7 @@ def answer(query: Mapping[str, Any],
             whole = tbn_data(compiled)
             if do:
                 whole = {**whole, "node_interventions": do}
-            kinds = {name: "discrete" if "states" in v else "continuous" for name, v in whole["variables"].items()}
+            kinds = {v["name"]: v["kind"] for v in whole["variables"]}
             bank["bytes"] = query["samples"] * sum(1 if k == "discrete" else 4 for k in kinds.values())
             path = records.bank_path(_tbn_fingerprint(whole), query["samples"], query["seed"])
             if policy == "bank" and path.is_file():

@@ -70,7 +70,7 @@ def test_page_settings_apply_unless_the_model_sets_its_own():
 
 
 def test_unsupported_continuous_evidence_refusal_reaches_the_model():
-    post, sent = ollama_script(tool_call({"targets": ["Usable::*"], "evidence": {"SA(1.0)::bridge-e0001": .5}}),
+    post, sent = ollama_script(tool_call({"targets": ["EdgeOpen::*"], "evidence": {"SA(1.0)::bridge-e0001": .5}}),
                                final("Continuous evidence needs an observation likelihood."))
     events = []
     reply = chat.ask(EMA, "Which bridge failed, given e0001 is closed?", client=post, model="m", on_event=events.append)

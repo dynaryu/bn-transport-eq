@@ -13,7 +13,7 @@
     "bridge_class": "Pilot assumption: each arc is one ordinary HWB11 bridge.",
     "coordinates": "x/y are unitless figure coordinates, so no spatial GMPE is applied. lat/lon are georeferenced from the figure: city coordinates for labelled nodes, fitted positions (about +/-22 km) for junctions. ShakeMap shaking is read at arc midpoints.",
     "dependence": "Bridge states are sampled independently conditional on the hazard scenario.",
-    "functionality": "Moved out of the data: the usable-from-damage parameter set the assembly binds (policy.closed-at-extensive) states it.",
+    "functionality": "Moved out of the data: the closure policy the assembly binds to edge.open (policy.closed-at-extensive) states it.",
     "length_km": "Great-circle distance between an edge's end nodes; the dataset gives no lengths.",
     "capacity": "The dataset's highest capacity state per arc (unitless capacity levels).",
     "bridge_location": "Each bridge sits at the midpoint of its edge's end nodes; bridge locations are not surveyed.",

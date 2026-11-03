@@ -43,8 +43,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { display: flex; flex-direction: column; overflow: hidden; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-header { flex: none; display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+header select { min-width: 0; max-width: 22vw; text-overflow: ellipsis; }
 header h1 { font-size: 18px; margin: 0; letter-spacing: 0.02em; }
 header .sub { color: var(--ink-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 select, input, button, textarea { font: inherit; color: inherit; }
@@ -52,22 +53,29 @@ select, input[type=number], textarea { background: var(--raised); border: 1px so
 button { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 button:disabled { opacity: 0.6; cursor: progress; }
-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr; }
-aside { border-right: 1px solid var(--border); background: var(--surface); padding: 12px 16px; overflow: auto; }
+main { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: clamp(240px, 22vw, 290px) minmax(0, 1fr); }
+body:not(.scenario-open) main { grid-template-columns: minmax(0, 1fr); }
+#scenario-panel { min-width: 0; min-height: 0; border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; }
+body:not(.scenario-open) #scenario-panel { display: none; }
+.scenario-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.scenario-heading h2 { margin: 0; }
+#controls { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 12px; }
+.scenario-actions { flex: none; max-height: 30%; overflow: auto; padding: 10px 12px; border-top: 1px solid var(--border); }
+#scenario-backdrop { display: none; }
 aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 18px 0 8px; }
 aside h2:first-child { margin-top: 4px; }
-.field { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 8px; margin: 6px 0; }
-.field label { color: var(--ink-2); }
-.field select { grid-column: 1 / -1; width: 100%; }
-.field input { width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
+.field { display: grid; grid-template-columns: minmax(0, 1fr) 96px; align-items: center; gap: 8px; margin: 6px 0; }
+.field label { color: var(--ink-2); overflow-wrap: anywhere; }
+.field select { grid-column: 1 / -1; width: 100%; min-width: 0; text-overflow: ellipsis; }
+.field input { width: 100%; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .fixed { color: var(--ink-2); font-size: 13px; margin: 4px 0; }
-.fixed code { font-size: 12px; }
-#run { width: 100%; margin-top: 14px; padding: 8px; }
+.fixed code { font-size: 12px; overflow-wrap: anywhere; }
+#run { width: 100%; padding: 8px; }
 #status { color: var(--ink-2); font-size: 13px; margin-top: 8px; min-height: 1.4em; }
 #status.err { color: var(--err); }
-.work { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-nav { display: flex; gap: 2px; padding: 8px 16px 0; border-bottom: 1px solid var(--border); }
-nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 6px 12px; color: var(--ink-2); }
+.work { container-type: inline-size; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+nav { flex: none; display: flex; gap: 2px; overflow-x: auto; padding: 6px 12px 0; border-bottom: 1px solid var(--border); }
+nav button { flex: none; white-space: nowrap; border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 6px 12px; color: var(--ink-2); }
 nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 .pane { flex: 1; min-height: 0; overflow: auto; display: none; }
 .pane.on { display: block; }
@@ -90,9 +98,20 @@ svg text { fill: var(--ink-2); font-size: 11px; }
 .tip b { font-weight: 600; }
 .tip .v { font-variant-numeric: tabular-nums; }
 #pane-schema.on, #pane-bn.on { display: flex; flex-direction: column; }
-#schema-info, #bn-info { padding: 8px 16px; color: var(--ink-2); font-size: 13px; border-bottom: 1px solid var(--border); }
-#schema-frame { flex: 1; width: 100%; border: 0; background: var(--surface); }
-#bn { flex: 1; min-height: 0; width: 100%; background: var(--surface); display: block; }
+#schema-info, #bn-info { flex: none; max-height: min(84px, 15dvh); overflow: auto; padding: 8px 12px; color: var(--ink-2); font-size: 13px; border-bottom: 1px solid var(--border); }
+#schema-frame { display: block; flex: 1; min-height: 0; width: 100%; border: 0; background: var(--surface); }
+#bn-viewport {
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  color-scheme: dark;
+  --surface: #1a1a19; --raised: #222220;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --border: rgba(255,255,255,0.10); --accent: #3987e5; --idle: #4a4a46;
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500;
+  --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9;
+  --link: rgba(195,194,183,0.30); --link-hot: #f0efec; --plane: rgba(255,255,255,0.04);
+  background: #000000; color: var(--ink);
+}
+#bn { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 0 0; display: block; }
 #bn .link { stroke: var(--link); fill: none; }
 #bn .link.hot { stroke: var(--link-hot); stroke-opacity: 1; stroke-width: 1.6; }
 #bn.focus .link:not(.hot) { stroke-opacity: 0.25; }
@@ -156,36 +175,45 @@ table.data { border-collapse: collapse; font-size: 12px; width: 100%; }
 table.data th, table.data td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
 table.data td.num, table.data th.num { text-align: right; }
 details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-top: 8px; }
-@media (max-width: 900px) {
-  body { height: auto; min-height: 100%; overflow: auto; }
-  main { flex: none; grid-template-columns: 1fr; height: auto; }
-  aside { border-right: none; border-bottom: 1px solid var(--border); }
-  #pane-map.on { grid-template-columns: 1fr; }
-  header { flex-wrap: wrap; gap: 8px; }
-  header .sub { flex-basis: 100%; }
-  nav { overflow-x: auto; padding-left: 8px; }
-  nav button { white-space: nowrap; }
-  #pane-map.on { grid-template-rows: auto; }
+@container (max-width: 900px) {
+  #pane-map.on { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
   #map-wrap { overflow: visible; }
-  #map { flex: none; height: 45vh; }
+  #map { flex: none; height: clamp(200px, 42dvh, 420px); }
   #chat-log { max-height: 65vh; }
-  #results { border-left: none; }
+  #results { border-left: none; border-top: 1px solid var(--border); overflow: visible; }
+}
+@media (max-width: 900px) {
+  main, body:not(.scenario-open) main { grid-template-columns: minmax(0, 1fr); }
+  #scenario-panel { position: absolute; inset: 0 auto 0 0; width: min(320px, calc(100% - 40px)); z-index: 7; box-shadow: 4px 0 20px #0003; }
+  body.scenario-open #scenario-backdrop { display: block; position: absolute; inset: 0; z-index: 6; border: 0; border-radius: 0; background: #0005; }
+  header .sub { display: none; }
+}
+@media (max-width: 640px) {
+  header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; padding: 6px 10px; }
+  header h1 { font-size: 16px; }
+  #scenario-toggle { justify-self: start; }
+  #example { grid-column: 1; grid-row: 2; }
+  #scenario-preset { grid-column: 2 / 4; grid-row: 2; }
+  header select, #scenario-preset { width: 100%; max-width: none; }
+  nav { padding-left: 6px; }
 }
 </style>
 </head>
 <body>
 <header>
   <h1>quakenet</h1>
+  <button id="scenario-toggle" aria-controls="scenario-panel" aria-expanded="false">Scenario</button>
   <select id="example" aria-label="Example network"></select>
   <select id="scenario-preset" aria-label="Saved scenario"><option value="">Current scenario</option></select>
   <span class="sub" id="subtitle"></span>
   <button id="theme" title="Toggle light and dark">Theme</button>
 </header>
 <main>
-  <aside>
+  <button id="scenario-backdrop" aria-label="Close scenario settings" tabindex="-1"></button>
+  <aside id="scenario-panel" aria-label="Scenario and sampling settings">
+    <div class="scenario-heading"><h2>Scenario settings</h2><button id="scenario-close" aria-label="Hide scenario settings">Hide</button></div>
     <div id="controls"></div>
-    <button class="primary" id="run">Run</button>
-    <div id="status"></div>
+    <div class="scenario-actions"><button class="primary" id="run">Run</button><div id="status"></div></div>
   </aside>
   <section class="work">
     <nav>
@@ -216,7 +244,9 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
     </div>
     <div class="pane" id="pane-bn">
       <div id="bn-info"></div>
-      <svg id="bn" role="img" aria-label="The Bayesian network, layer by layer"></svg>
+      <div id="bn-viewport" role="region" aria-label="Interactive Bayesian network diagram">
+        <svg id="bn" role="img" aria-label="The Bayesian network, layer by layer"></svg>
+      </div>
     </div>
     <div class="pane" id="pane-schema">
       <div id="schema-info"></div>
@@ -238,6 +268,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
 <div class="tip" id="tip"></div>
 
 <script src="/ask.js"></script>
+<script src="/diagram-navigation.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -249,8 +280,8 @@ const fmtP = p => p == null ? "–" : p < 0.001 && p > 0 ? p.toExponential(1) : 
 const FAMILIES = [
   { quantity: "SystemState", table: "Node", label: "origin fails", value: 0 },
   { quantity: "EdgeOpen", table: "Edge", label: "edge closed", value: 0 },
-  { quantity: "Usable", table: "Bridge", label: "bridge unusable", value: 0 },
 ];
+// A bridge has no state of its own: it closes the edge it carries, so it takes that edge's colour.
 
 const state = { examples: [], ex: null, result: null, chat: [], scenarios: [], preset: {}, basemap: store.get("basemap") !== "off" };
 
@@ -453,7 +484,7 @@ function renderMap() {
          `<line x1="${X(a.lon)}" y1="${Y(a.lat)}" x2="${X(b.lon)}" y2="${Y(b.lat)}" stroke="transparent" stroke-width="${18 * u}"/></g>`;
   }
   for (const b of bridges) {
-    const pb = probs[b.id], s = (big ? 14 : 8) * u;
+    const pb = probs[b.edge], s = (big ? 14 : 8) * u;
     h += `<g data-tip="bridge" data-id="${esc(b.id)}"><rect x="${X(b.lon) - s / 2}" y="${Y(b.lat) - s / 2}" width="${s}" height="${s}" rx="${2 * u}" ` +
          `fill="${colour(pb?.p, top)}" stroke="var(--surface)" stroke-width="${2 * u}"/>` +
          `<rect x="${X(b.lon) - s}" y="${Y(b.lat) - s}" width="${2 * s}" height="${2 * s}" fill="transparent"/></g>`;
@@ -508,7 +539,7 @@ function renderLegend(top, ran) {
     `<span class="key"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="var(--idle)" stroke="var(--ink)"/></svg>origin: fails to reach a key destination in time</span>` +
     `<span class="key"><svg width="14" height="14"><circle cx="7" cy="7" r="4" fill="var(--surface)" stroke="var(--ink)"/><circle cx="7" cy="7" r="6.5" fill="none" stroke="var(--ink)"/></svg>key destination</span>` +
     `<span class="key"><svg width="14" height="14"><line x1="1" y1="7" x2="13" y2="7" stroke="var(--idle)" stroke-width="4" stroke-linecap="round"/></svg>edge: closed</span>` +
-    `<span class="key"><svg width="14" height="14"><rect x="2" y="2" width="10" height="10" rx="2" fill="var(--idle)"/></svg>bridge: unusable</span>` +
+    `<span class="key"><svg width="14" height="14"><rect x="2" y="2" width="10" height="10" rx="2" fill="var(--idle)"/></svg>bridge: closes its edge</span>` +
     `<span class="key"><svg width="14" height="14"><polygon points="7,1 8.8,5.5 13,5.5 9.6,8.3 10.9,13 7,10.2 3.1,13 4.4,8.3 1,5.5 5.2,5.5" fill="var(--ink)"/></svg>epicentre</span>` +
     `<label><input type="checkbox" id="basemap"${state.basemap ? " checked" : ""}>Base map</label>` +
     (state.basemap ? `<span class="credit">Base map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</span>` : "");
@@ -517,7 +548,8 @@ function renderLegend(top, ran) {
 // ---- hover ------------------------------------------------------------------------------------
 
 function tipHTML(kind, id) {
-  const t = state.ex.network.tables, probs = probabilities(), pr = probs[id];
+  const t = state.ex.network.tables, probs = probabilities();
+  const pr = kind === "bridge" ? probs[(t.Bridge.find(x => x.id === id) || {}).edge] : probs[id];
   const pLine = pr ? `<div>P(${esc(pr.family.label)}) = <b class="v">${fmtP(pr.p)}</b> <span class="v">[${fmtP(pr.ci95[0])}, ${fmtP(pr.ci95[1])}]</span></div>` : "";
   if (kind === "node") {
     const n = t.Node.find(x => x.id === id);
@@ -614,7 +646,15 @@ function renderResults() {
 
 // ---- the BN: every variable, layer by layer, at its row's location ----------------------------------------
 
-const LAYER_NAMES = { hazard: "intensity", fragility: "damage", functionality: "usability", edge: "edge state", system: "system state" };
+const LAYER_NAMES = { hazard: "intensity", fragility: "damage", edge: "edge state", system: "system state" };
+let bnView = { k: 1, tx: 0, ty: 0 };
+const applyBNView = value => {
+  bnView = value;
+  $("#bn").style.transform = `translate(${value.tx}px,${value.ty}px) scale(${value.k})`;
+};
+const bnNavigation = diagramNavigation($("#bn-viewport"), {
+  get: () => bnView, set: applyBNView, fit: () => applyBNView({ k: 1, tx: 0, ty: 0 }),
+});
 
 function bnLayout() {
   // One plane per quantity, in sampling order; on it each node sits where its row is.
@@ -686,6 +726,7 @@ function renderBN() {
   const svg = $("#bn");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = h;
+  bnNavigation.fit();
   $("#bn-info").textContent = `${ex.nodes.length} nodes and ${links.toLocaleString()} parent links, one plane per variable, in sampling order. ` +
     `Each node sits at its row's location: bridges at their coordinates, edges at their midpoints, origins at their nodes. ` +
     `Hover a node to trace its parents and children. Drawn to show the whole structure, not to be read link by link.`;
@@ -744,7 +785,7 @@ const EXAMPLES = {
     "How likely is each origin to be cut off from n1 and n2?",
     "What would retrofitting b2 to HWB11 do to n4's chance of being cut off?",
     "How likely is edge e6 to close if the earthquake were M7?",
-    "Which bridges are most likely to be unusable?",
+    "Which edges are most likely to close?",
   ],
 };
 const GENERAL = ["Which edges are most likely to close?", "How likely is each origin to fail?"];
@@ -825,6 +866,27 @@ function applyScenarioControls() {
 // ---- wiring ---------------------------------------------------------------------------------------------
 
 const paneOn = name => $(`#pane-${name}`).classList.contains("on");
+const compactScenario = matchMedia("(max-width: 900px)");
+const scenarioVisibility = { wide: true, compact: false };
+function showScenario(open, focus = false) {
+  scenarioVisibility[compactScenario.matches ? "compact" : "wide"] = open;
+  document.body.classList.toggle("scenario-open", open);
+  $("#scenario-toggle").setAttribute("aria-expanded", String(open));
+  $("#scenario-panel").inert = !open;
+  $(".work").inert = compactScenario.matches && open;
+  if (focus) $(open ? "#scenario-close" : "#scenario-toggle").focus();
+}
+$("#scenario-toggle").onclick = () => showScenario(!document.body.classList.contains("scenario-open"), true);
+$("#scenario-close").onclick = $("#scenario-backdrop").onclick = () => showScenario(false, true);
+compactScenario.addEventListener("change", () => {
+  const focusWasInside = $("#scenario-panel").contains(document.activeElement);
+  showScenario(scenarioVisibility[compactScenario.matches ? "compact" : "wide"]);
+  if (focusWasInside && !document.body.classList.contains("scenario-open")) $("#scenario-toggle").focus();
+});
+addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.body.classList.contains("scenario-open")) showScenario(false, true);
+});
+showScenario(!compactScenario.matches);
 for (const b of document.querySelectorAll("nav button")) b.addEventListener("click", () => {
   for (const x of document.querySelectorAll("nav button")) x.classList.toggle("on", x === b);
   for (const p of document.querySelectorAll(".pane")) p.classList.toggle("on", p.id === `pane-${b.dataset.pane}`);
@@ -832,7 +894,10 @@ for (const b of document.querySelectorAll("nav button")) b.addEventListener("cli
   if (b.dataset.pane === "schema" && frame.dataset.src) { frame.src = frame.dataset.src; delete frame.dataset.src; }
 });
 $("#example").addEventListener("change", e => load(e.target.value));
-$("#run").addEventListener("click", run);
+$("#run").addEventListener("click", () => {
+  if (compactScenario.matches) showScenario(false, true);
+  run();
+});
 $("#theme").addEventListener("click", () => {
   const dark = document.documentElement.dataset.theme
     ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;

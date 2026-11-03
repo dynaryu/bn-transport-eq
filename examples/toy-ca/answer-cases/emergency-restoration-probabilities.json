@@ -16,7 +16,7 @@
       {
         "assembly": "toy-ca/demo",
         "evidence": {
-          "Usable::b4": 0
+          "EdgeOpen::e4": 0
         },
         "events": [
           {
@@ -29,7 +29,7 @@
       {
         "assembly": "toy-ca/demo",
         "evidence": {
-          "Usable::b4": 0
+          "EdgeOpen::e4": 0
         },
         "events": [
           {
@@ -39,7 +39,7 @@
           }
         ],
         "do": {
-          "Usable::b2": 1
+          "EdgeOpen::e2": 1
         }
       }
     ]

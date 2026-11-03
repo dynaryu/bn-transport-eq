@@ -15,7 +15,12 @@ async function main() {
   const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
   const app = path.resolve(__dirname, '..');
   const server = http.createServer((req, res) => {
-    const name = req.url.split('?')[0] === '/ask.js' ? 'ask.js' : 'quakenet.html';
+    const route = req.url.split('?')[0];
+    if (['/schema.html', '/bn'].includes(route)) {
+      res.setHeader('Content-Type', 'text/html');
+      return res.end(fs.readFileSync(path.resolve(app, '../../schema/diagram.html')));
+    }
+    const name = ['/ask.js', '/diagram-navigation.js'].includes(route) ? route.slice(1) : 'quakenet.html';
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : 'text/html');
     res.end(fs.readFileSync(path.join(app, name)));
   });
@@ -110,7 +115,7 @@ async function main() {
     };
     const last = selector => `document.querySelectorAll(${JSON.stringify(selector)}).item(document.querySelectorAll(${JSON.stringify(selector)}).length - 1)`;
 
-    const many = {...result, events: Array.from({length: 12}, (_, i) => ({node: `Usable::b${i + 1}`, op: '==', value: 0, p: .25, ci95: [.2, .3]}))};
+    const many = {...result, events: Array.from({length: 12}, (_, i) => ({node: `EdgeOpen::e${i + 1}`, op: '==', value: 0, p: .25, ci95: [.2, .3]}))};
     many.events[11].node = '<img src=x onerror="window.__xss=1">';
     await start('Show probabilities', [query, {type: 'computed', result: many}, answer]);
     assert.equal(await evaluate("document.querySelectorAll('#chat-log table').length"), 2);
@@ -189,8 +194,58 @@ async function main() {
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
     const mobile = await call('Page.captureScreenshot', {format: 'png', captureBeyondViewport: true});
     fs.writeFileSync('.cache/ask-gui-mobile.png', Buffer.from(mobile.data, 'base64'));
+    for (const [width, height] of [[390,844], [320,568], [844,390], [768,600]]) {
+      await call('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: true});
+      await until("!document.body.classList.contains('scenario-open')");
+      assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight'), true);
+      const controlsBefore = await evaluate("document.querySelector('#controls').innerHTML");
+      await evaluate("document.querySelector('#scenario-toggle').click()");
+      assert.equal(await evaluate("document.querySelector('#scenario-toggle').getAttribute('aria-expanded')"), 'true');
+      assert.equal(await evaluate("(() => {const r=document.querySelector('#run').getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight})()"), true);
+      assert.equal(await evaluate("document.querySelector('.work').inert"), true);
+      await call('Input.dispatchKeyEvent', {type:'keyDown', key:'Escape', code:'Escape'});
+      assert.equal(await evaluate("document.querySelector('.work').inert"), false);
+      assert.equal(await evaluate("document.querySelector('#controls').innerHTML"), controlsBefore);
+      for (const pane of ['map', 'bn', 'schema', 'assume', 'proposals']) {
+        await evaluate(`document.querySelector('nav [data-pane=${pane}]').click()`);
+        assert.equal(await evaluate("(() => {const r=document.querySelector('.pane.on').getBoundingClientRect();return r.height>100 && r.bottom<=innerHeight+1 && r.right<=innerWidth+1})()"), true, `${width}x${height} ${pane}`);
+      }
+    }
+    await call('Emulation.setDeviceMetricsOverride', {width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false});
+    await evaluate("document.querySelector('nav [data-pane=bn]').click()");
+    await evaluate("document.documentElement.dataset.theme = 'light'");
+    assert.equal(await evaluate('getComputedStyle(document.body).backgroundColor'), 'rgb(249, 249, 247)');
+    assert.equal(await evaluate("getComputedStyle(document.querySelector('#bn-viewport')).backgroundColor"), 'rgb(0, 0, 0)');
+    assert.equal(await evaluate("document.querySelectorAll('#pane-map .diagram-navigation, #pane-assume .diagram-navigation, #pane-proposals .diagram-navigation').length"), 0);
+    await evaluate("document.querySelector('#bn-viewport [data-nav=in]').click()");
+    assert.equal(await evaluate('bnView.k'), 1.25);
+    await evaluate("document.querySelector('#bn-viewport [data-nav=fit]').click()");
+    assert.deepEqual(await evaluate('bnView'), {k: 1, tx: 0, ty: 0});
+    await call('Page.navigate', {url: `http://127.0.0.1:${server.address().port}/schema.html`});
+    await until("!!document.querySelector('.diagram-navigation') && document.querySelectorAll('.card').length > 0");
+    const fitZoom = await evaluate('state.k');
+    await evaluate("document.querySelector('[data-nav=in]').click()");
+    assert.ok(Math.abs(await evaluate('state.k') - fitZoom * 1.25) < 1e-8);
+    await evaluate("document.querySelector('[data-nav=actual]').click()");
+    assert.equal(await evaluate('state.k'), 1);
+    const anchor = await evaluate('({x: (200-state.tx)/state.k, y: (150-state.ty)/state.k})');
+    await evaluate("canvas.dispatchEvent(new WheelEvent('wheel', {clientX:200,clientY:canvas.getBoundingClientRect().top+150,deltaY:-30,ctrlKey:true,bubbles:true,cancelable:true}))");
+    const zoomedAnchor = await evaluate('({x: (200-state.tx)/state.k, y: (150-state.ty)/state.k})');
+    assert.ok(Math.abs(anchor.x - zoomedAnchor.x) < 1e-8 && Math.abs(anchor.y - zoomedAnchor.y) < 1e-8);
+    const beforePan = await evaluate('({k:state.k,tx:state.tx,ty:state.ty})');
+    await evaluate("canvas.dispatchEvent(new WheelEvent('wheel', {deltaX:40,deltaY:60,bubbles:true,cancelable:true}))");
+    assert.deepEqual(await evaluate('({k:state.k,tx:state.tx,ty:state.ty})'), {...beforePan, tx:beforePan.tx-40, ty:beforePan.ty-60});
+    await evaluate("canvas.focus(); canvas.dispatchEvent(new KeyboardEvent('keydown',{key:'f',bubbles:true,cancelable:true}))");
+    assert.ok(Math.abs(await evaluate('state.k') - fitZoom) < 1e-8);
+    await call('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: true});
+    await until("!document.body.classList.contains('inspector-open')");
+    assert.equal(await evaluate('canvas.clientHeight > innerHeight * 0.6'), true);
+    await evaluate("document.querySelector('#inspector-toggle').click()");
+    assert.equal(await evaluate("document.querySelector('#inspector-toggle').getAttribute('aria-expanded')"), 'true');
+    await evaluate("document.querySelector('#inspector-close').click()");
+    assert.equal(await evaluate("(() => {const r=document.querySelector('.diagram-navigation').getBoundingClientRect(); return r.x>=0 && r.right<=innerWidth})()"), true);
     assert.deepEqual(errors, []);
-    console.log('Offline browser checks passed: tables, review/approval/cancellation, clarification, analyses, proposals, activation, interruptions, export and mobile layout.');
+    console.log('Offline browser checks passed: tables, review/approval/cancellation, clarification, analyses, proposals, activation, interruptions, export, diagram navigation and mobile layout.');
   } finally {
     if (closeBrowser) await closeBrowser().catch(() => {});
     ws?.close(); browser.kill(); server.closeAllConnections(); server.close();

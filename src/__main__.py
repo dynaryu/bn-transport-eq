@@ -167,7 +167,7 @@ def _query_from_args(args: argparse.Namespace) -> dict:
             owner, _, name = key.rpartition(".")
             bucket = "parameters" if owner.count(".") >= 1 else "rows"
             query.setdefault(bucket, {}).setdefault(owner, {})[name] = _parse_value(value)
-        for text in args.use or []:         # "functionality.usable-from-damage=policy.closed-at-moderate"
+        for text in args.use or []:         # "edge.open=policy.closed-at-moderate"
             fn, _, set_id = text.partition("=")
             query.setdefault("parameter_sets", {})[fn] = set_id
         query["samples"] = args.samples

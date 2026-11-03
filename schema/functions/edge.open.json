@@ -1,17 +1,17 @@
 {
   "$schema": "../meta/function.schema.json",
   "id": "edge.open",
-  "label": "Edge open unless a bridge on it is unusable",
-  "version": "0.1.0",
+  "label": "Edge open unless a bridge on it is damaged to a closing state",
+  "version": "0.2.0",
   "role": "edge",
   "per": "Edge",
   "inputs": [
     {
-      "name": "usable",
-      "quantity": "Usable",
+      "name": "damage",
+      "quantity": "{damage_scale}",
       "over": "Bridge",
       "via": "Bridge.edge",
-      "description": "Every bridge whose `edge` is this edge: zero, one or several parents."
+      "description": "The damage state of every bridge whose `edge` is this edge, on the damage scale the closure policy is written for: zero, one or several parents."
     }
   ],
   "outputs": [
@@ -20,6 +20,57 @@
       "quantity": "EdgeOpen"
     }
   ],
+  "instance_schema": {
+    "type": "object",
+    "required": [
+      "damage_scale",
+      "usable_states"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "damage_scale": {
+        "description": "The damage-state quantity the closure policy reads.",
+        "enum": [
+          "DamageState.HazusBridge"
+        ]
+      },
+      "usable_states": {
+        "description": "The damage states in which a bridge stays open to traffic.",
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "damage_scale": {
+              "const": "DamageState.HazusBridge"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "usable_states": {
+              "items": {
+                "enum": [
+                  "none",
+                  "slight",
+                  "moderate",
+                  "extensive",
+                  "complete"
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
   "implementation": "src.builder.kernels.edge:EdgeOpen",
   "deterministic": true,
   "drawKind": "Marginal",
@@ -27,5 +78,5 @@
     "SampleForward",
     "EvaluateLikelihood"
   ],
-  "description": "Each bridge sits on one edge (Bridge.edge); the edge closes if any of its bridges is unusable. An edge with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here."
+  "description": "Each bridge sits on one edge (Bridge.edge). The edge is open only if every bridge on it is in a damage state its closure policy keeps open, the parameter set's usable_states; an edge with no bridge is always open, as only bridges are fragile in this library. A roadway fragility would add a second input here."
 }

@@ -1,0 +1,144 @@
+{
+  "Node": [
+    {
+      "id": "n1",
+      "lat": 36.2754377087278,
+      "lon": -120.2697236285474,
+      "key_destination": true
+    },
+    {
+      "id": "n2",
+      "lat": 37.04506407340175,
+      "lon": -120.9711829700426,
+      "key_destination": true
+    },
+    {
+      "id": "n3",
+      "lat": 36.83099716309577,
+      "lon": -121.3875291153705,
+      "key_destination": false
+    },
+    {
+      "id": "n4",
+      "lat": 36.50390064627767,
+      "lon": -121.1278788769556,
+      "key_destination": false
+    },
+    {
+      "id": "n5",
+      "lat": 36.17742103427384,
+      "lon": -120.827670470779,
+      "key_destination": false
+    },
+    {
+      "id": "n6",
+      "lat": 36.11216661361079,
+      "lon": -121.0225573012664,
+      "key_destination": false
+    },
+    {
+      "id": "n7",
+      "lat": 36.40997125618332,
+      "lon": -121.3284746027899,
+      "key_destination": false
+    },
+    {
+      "id": "n8",
+      "lat": 36.66619851776886,
+      "lon": -121.6458130936544,
+      "key_destination": false
+    }
+  ],
+  "Edge": [
+    {
+      "id": "e1",
+      "source": "n1",
+      "target": "n2",
+      "directed": false,
+      "length_km": 106.011906,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e2",
+      "source": "n1",
+      "target": "n5",
+      "directed": false,
+      "length_km": 51.220587,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e3",
+      "source": "n2",
+      "target": "n3",
+      "directed": false,
+      "length_km": 43.998194,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e4",
+      "source": "n3",
+      "target": "n4",
+      "directed": false,
+      "length_km": 43.118452,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e5",
+      "source": "n3",
+      "target": "n8",
+      "directed": false,
+      "length_km": 29.417095,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e6",
+      "source": "n4",
+      "target": "n5",
+      "directed": false,
+      "length_km": 45.176621,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e7",
+      "source": "n4",
+      "target": "n7",
+      "directed": false,
+      "length_km": 20.759042,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e8",
+      "source": "n5",
+      "target": "n6",
+      "directed": false,
+      "length_km": 18.944186,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e9",
+      "source": "n6",
+      "target": "n7",
+      "directed": false,
+      "length_km": 42.998648,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    },
+    {
+      "id": "e10",
+      "source": "n7",
+      "target": "n8",
+      "directed": false,
+      "length_km": 40.193808,
+      "capacity": 1,
+      "avg_speed_kph": 60
+    }
+  ]
+}

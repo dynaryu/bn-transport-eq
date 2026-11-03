@@ -12,7 +12,7 @@ assembly of functions over a network's rows gives the Bayesian network. A query
 | # | Part | Where | What it holds |
 |---|---|---|---|
 | 1 | **Schema**: what can exist | [`schema/`](schema/README.md) | quantities (the types), entity types (the plates), functions (typed signatures), and in `meta/` the JSON Schema every file obeys. [`diagram.md`](schema/diagram.md) draws it |
-| 2 | **Instances**: what does exist | [`instances/`](instances/README.md) | parameter sets, filed by role: GMMs and correlation models under `hazard/`, the 28 Hazus bridge curves under `fragility/`, closure policies under `functionality/` |
+| 2 | **Instances**: what does exist | [`instances/`](instances/README.md) | parameter sets, filed by role: GMMs and correlation models under `hazard/`, the 28 Hazus bridge curves under `fragility/`, edge closure policies under `edge/` |
 | 3 | **BN builder** | `src/builder/bn_builder.py` | validate 1 and 2, then build BN nodes and parents; the kernels behind each function and the ShakeMap reader live alongside it |
 | 4 | **Inference engine** | `src/inference/` | a probabilistic query ([`query.schema.json`](src/inference/query.schema.json)) in, an answer out, by forward sampling with [tbnpy](https://pypi.org/project/tbnpy/) (PyTorch) |
 | 5 | **Language** | `src/llm/` | a question in words becomes a query, the engine's numbers become an answer |
@@ -98,13 +98,13 @@ The schema's design and how to add to it: [`schema/README.md`](schema/README.md)
   "assembly": "ema-highway/gmm",
   "events": [{"node": "EdgeOpen::*", "op": "==", "value": 0}],
   "rows": {"ema-reference": {"mw": 7.0}},
-  "parameter_sets": {"functionality.usable-from-damage": "policy.closed-at-moderate"},
+  "parameter_sets": {"edge.open": "policy.closed-at-moderate"},
   "samples": 2000
 }
 ```
 
 reads back as `P(EdgeOpen[*] = 0) | do(ema-reference.mw = 7.0,
-functionality.usable-from-damage with policy.closed-at-moderate)`: the chance that each
+edge.open with policy.closed-at-moderate)`: the chance that each
 edge is closed. The answer gives one probability per matching node, with a 95%
 interval, and runs only the bindings those nodes depend on.
 

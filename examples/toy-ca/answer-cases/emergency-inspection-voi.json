@@ -20,7 +20,7 @@
             "assembly": "toy-ca/demo"
           },
           "state_nodes": [
-            "Usable::b2"
+            "EdgeOpen::e2"
           ],
           "loss_units": "demo loss units",
           "actions": [
@@ -41,7 +41,7 @@
           ],
           "inspections": [
             {
-              "node": "Usable::b2",
+              "node": "EdgeOpen::e2",
               "cost": 2,
               "accuracy": [
                 [

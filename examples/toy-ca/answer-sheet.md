@@ -13,7 +13,9 @@ not the probability of an event. Do not invent composite priority scores.
 
 ## Notation
 
-- **B_i** = 1 means bridge i is usable; B_i = 0 means it is unusable (`Usable::b_i`).
+- **B_i** = 1 means bridge i is open to traffic; B_i = 0 means it is closed. A bridge has no
+  node of its own: its damage closes the edge it carries, so B_i is that edge's state
+  (`EdgeOpen::e_i` for bridge `b_i`, which carries edge `e_i` in this demo).
 - **F** means the selected system service requirement fails (`SystemState::<origin> = 0`).
 - **H** is the selected hazard scenario (the Event row and the hazard model).
 - **E** is the available emergency evidence, such as inspection results.
@@ -48,7 +50,7 @@ definitions and ask the user to choose before calculating:
 | Diagnostic association with an observed system failure | P(B_i = 0 given F, H) |
 
 After the user chooses, read back and compute that definition. The forced-outage
-and forced-usable cases are interventions: other bridges retain their hazard-driven
+and forced-open cases are interventions: other bridges retain their hazard-driven
 uncertainty. The diagnostic case conditions on observed failure and is not a
 causal importance measure. If explicitly requested, the closed-minus-open
 probability difference is a defined sensitivity comparison; label it as such,
@@ -91,7 +93,7 @@ uses the identity accuracy matrix. Sequential policies remain future work.
 If the intended question is instead "Which bridge should we restore first?":
 
     Current scenario: P(F | H, E)
-    Forced-usable scenario: P(F | do(B_i = 1), H, E)
+    Forced-open scenario: P(F | do(B_i = 1), H, E)
 
 Report the two system-failure probabilities separately for each candidate
 bridge. An explicitly requested reduction can be reported as a probability
@@ -127,7 +129,7 @@ adding cases. The examples are expectations, not stored numerical answers.
 | Bridge importance | clarify the intended definition, then compute its event queries; an explicitly requested closed-minus-open comparison can use `analysis.kind=importance` |
 | 1,000-year hazard | clarification, then a sourced proposal; no magnitude guessed |
 | Inspection | `analysis.kind=voi`; supplied finite losses, accuracy and cost |
-| Restoration scenarios | separate current and forced-usable failure probabilities; no temporal repair model |
+| Restoration scenarios | separate current and forced-open failure probabilities; no temporal repair model |
 | Path to N1 | `analysis.kind=paths`; joint probabilities of valid candidate routes to N1 |
 
 VOI is an expected improvement in the best decision, with loss units; it is a

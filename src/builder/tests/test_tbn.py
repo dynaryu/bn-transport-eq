@@ -1,6 +1,5 @@
 """Checks of the generated toy-ca model against independent calculations."""
 
-import copy
 import importlib.util
 import itertools
 import json
@@ -11,7 +10,7 @@ import torch
 from tbnpy import inference
 
 from src.builder.bn_builder import (
-    build_tbn, compile_path, define_tbn_probabilities, define_tbn_variables, generate_tbn, tbn_data,
+    _network_inline, build_tbn, compile_path, generate_tbn, load_generated, system_nodes, tbn_data,
 )
 from src.builder.load import assembly_path
 from src.inference.engine import compile_query
@@ -22,26 +21,45 @@ MODEL = Path(__file__).resolve().parents[3] / "examples/toy-ca/tbnpy/demo"
 @pytest.fixture
 def model():
     data = json.loads((MODEL / "model.json").read_text(encoding="utf-8"))
-    variables = define_tbn_variables(data)
-    return data, variables, define_tbn_probabilities(data, variables, directory=MODEL)
+    variables, probs = load_generated(MODEL)
+    return data, variables, probs
 
 
 def test_generated_snapshot_matches_sources_and_owns_joint_hazard(model):
     data, variables, probs = model
     expected = tbn_data(compile_path(assembly_path("toy-ca/demo")))
-    actual = copy.deepcopy(data)
+    actual = _network_inline(data, MODEL)
     for key in ("source_sha256", "versions"):
         actual.pop(key)
-    for spec in actual["probabilities"].values():
-        spec.pop("references", None)
+    for node in system_nodes(actual):
+        node["kwargs"].pop("rules", None)
     assert actual == expected
     owned = [v.name for p in probs.values() for v in p.childs]
-    assert len(owned) == len(set(owned)) == len(variables) == 46
-    hazard = [p for p in probs.values() if p.spec["function"] == "hazard.gmm"]
+    assert len(owned) == len(set(owned)) == len(variables) == 36
+    hazard = [p for p in probs.values() if p.spec_metadata["function"] == "hazard.gmm"]
     assert len(hazard) == 1
     assert len(hazard[0].childs) == 10
     assert len(hazard[0].parents) == 0                 # the event is fixed data, not a parent
     assert set(inference.get_ancestor_order(probs, list(probs))) == set(probs)
+
+
+def test_model_json_is_a_tbnpy_spec_that_tbnpy_compiles_alone():
+    """No repository loader needed: tbnpy builds every object from the spec and the files it names."""
+    import tbnpy
+    from tbnpy.compile import compile_file
+
+    spec, varis, probs = compile_file(MODEL / "model.json")
+    assert {n.type for n in spec.nodes} == {"custom"}
+    assert list(probs) == list(load_generated(MODEL)[1])
+    assert all(p.rules is not None for p in probs.values() if p.spec_metadata["role"] == "system")
+    assert tbnpy.check_model(probs, n_sample=32).ok
+
+
+def test_the_gmm_is_written_once_and_the_network_once():
+    text = (MODEL / "model.json").read_text(encoding="utf-8")
+    assert text.count('"c1"') == 1                     # the coefficients once, for every site
+    data = json.loads(text)
+    assert {n["kwargs"]["network"] for n in system_nodes(data)} == {"system-network.json"}
 
 
 def test_every_object_is_a_tbnpy_probability_that_reads_as_its_distribution(model):
@@ -50,10 +68,12 @@ def test_every_object_is_a_tbnpy_probability_that_reads_as_its_distribution(mode
     _, _, probs = model
     assert all(isinstance(p, tbnpy.Probability) for p in probs.values())
     assert repr(probs["DamageState.HazusBridge::b4"]).startswith(
-        "Fragility(P(DamageState.HazusBridge::b4 | SA(1.0)::b4): lognormal, P(DS >= k)")
-    assert repr(probs["EdgeOpen::e4"]) == "EdgeOpen(P(EdgeOpen::e4 | Usable::b4): 1 if Usable::b4 is 1, else 0)"
+        "Fragility(P(DamageState.HazusBridge::b4 | SA(1.0)::b4): P(DS >= k) = Phi(ln(SA(1.0)::b4 / median_k)")
+    assert repr(probs["EdgeOpen::e4"]) == ("EdgeOpen(P(EdgeOpen::e4 | DamageState.HazusBridge::b4): 1 if "
+                                           "DamageState.HazusBridge::b4 is none, slight, moderate, else 0 "
+                                           "[policy.closed-at-extensive])")
     assert "object at 0x" not in repr(probs)
-    assert "rules for n4:" in str(probs["SystemState::n4"])
+    assert "rules: " in str(probs["SystemState::n4"])
     assert "note: hazard.gmm draws each Bridge's residual independently" in str(probs["hazard.gmm"])
     assert tbnpy.check_model(probs, n_sample=64).ok
 
@@ -69,7 +89,7 @@ def test_samples_and_log_probabilities_agree(model):
         assert logp.shape == (100,)
         assert torch.isfinite(logp).all()
         torch.testing.assert_close(logp, results[key].ps, check_dtype=False)
-        if prob.spec["function"] not in ("hazard.gmm", "fragility.bridge"):
+        if prob.spec_metadata["function"] not in ("hazard.gmm", "fragility.bridge"):
             invalid = full.clone()
             invalid[:, 0] = -1
             assert torch.isneginf(prob.log_prob(invalid)).all()
@@ -77,30 +97,30 @@ def test_samples_and_log_probabilities_agree(model):
 
 def test_system_rules_match_ndtools_for_every_edge_configuration(model):
     _, _, probs = model
-    states = [p for p in probs.values() if p.spec["role"] == "system"]
-    assert len(states) == 6 and all(len(s.childs) == 1 and s.refs[0] is not None for s in states)
+    states = [p for p in probs.values() if p.spec_metadata["role"] == "system"]
+    assert len(states) == 6 and all(len(s.childs) == 1 and s.rules is not None for s in states)
     for state in states:                  # one object per origin, each with its own rules
         edges = list(itertools.product((0, 1), repeat=len(state.parents)))
         pars = torch.tensor(edges, dtype=torch.float64)
         classified = state.evaluate(pars)
-        evaluate = state.system_function(0)
+        evaluate = state.system_function()
         names = [v.name.split("::", 1)[1] for v in state.parents]
         expected = [evaluate(dict(zip(names, row))) for row in edges]
         torch.testing.assert_close(classified[:, 0], torch.tensor([e[1] for e in expected], dtype=torch.float64))
         # Force every state to be unclassified: the ndtools fallback must give identical results.
-        state.refs = [(torch.empty((0, len(state.parents), 2), dtype=torch.int32),) * 2]
+        state.rules = (torch.empty((0, len(state.parents), 2), dtype=torch.int32),) * 2
         torch.testing.assert_close(state.evaluate(pars), classified)
 
 
 def test_every_child_outside_the_hazard_field_is_its_own_object(model):
     _, _, probs = model
     for key, prob in probs.items():
-        if prob.spec["function"] == "hazard.gmm":
+        if prob.spec_metadata["function"] == "hazard.gmm":
             assert len(prob.childs) == 10                     # the field: every bridge's intensity together
         else:
             assert [v.name for v in prob.childs] == [key]     # one child, keyed by it
     assert [v.name for v in probs["DamageState.HazusBridge::b4"].parents] == ["SA(1.0)::b4"]
-    assert [v.name for v in probs["EdgeOpen::e4"].parents] == ["Usable::b4"]
+    assert [v.name for v in probs["EdgeOpen::e4"].parents] == ["DamageState.HazusBridge::b4"]   # no Usable layer
 
 
 @pytest.fixture
@@ -120,12 +140,12 @@ def stored_at_network_threshold(tmp_path, monkeypatch):
 
 
 def _sources(query):
-    from src.builder.bn_builder import rules_source, rules_threshold
+    from src.builder.bn_builder import rules_source
 
     _, probs = build_tbn(compile_query(query))
-    systems = [p for p in probs.values() if p.spec["role"] == "system"]
-    return {p.spec["rows"][0]["id"]: rules_source(p.spec["references"][0] if p.refs[0] is not None else None,
-                                                  rules_threshold(p.spec)) for p in systems}
+    systems = [p for p in probs.values() if p.spec_metadata["role"] == "system"]
+    return {p.origin: rules_source(p.rules_reference if p.rules is not None else None, p.target_add_h)
+            for p in systems}
 
 
 def test_the_engine_reuses_stored_rules_under_another_scenario(stored_at_network_threshold):
@@ -173,8 +193,8 @@ def test_extracted_rules_are_stored_by_threshold_and_then_used(tmp_path, monkeyp
     assert (tmp_path / "rsr" / "n4" / "target_add_h=0.25" / "refs_up_1.pt").is_file()
     data = bn_builder.tbn_data(compiled)
     assert bn_builder.attach_rules(data, tmp_path) == 1                  # n4 only: the others have none stored here
-    n4 = next(s for s in data["probabilities"].values() if s["role"] == "system" and s["rows"][0]["id"] == "n4")
-    assert bn_builder.rules_source(n4["references"][0], 0.25) == "exact"
+    n4 = next(n for n in bn_builder.system_nodes(data) if n["kwargs"]["origin"] == "n4")
+    assert bn_builder.rules_source(n4["kwargs"]["rules"], 0.25) == "exact"
 
 
 def test_generation_without_rules_is_importable_and_rejects_stale_rules(tmp_path):
@@ -190,14 +210,18 @@ def test_generation_without_rules_is_importable_and_rejects_stale_rules(tmp_path
     spec = importlib.util.spec_from_file_location("generated_toy", out / "model.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    variables = module.define_variables()
-    probs = module.define_probs(variables)
-    assert len(inference.sample(probs, list(probs), 10)) == 37      # 1 hazard field + 10 + 10 + 10 + 6
+    variables, probs = module.define_model()
+    assert len(inference.sample(probs, list(probs), 10)) == 27      # 1 hazard field + 10 damage + 10 edges + 6
 
+    stale = tmp_path / "stale"
+    stale.mkdir()
     data = json.loads((MODEL / "model.json").read_text(encoding="utf-8"))
     data["source_sha256"] = "different model"
+    (stale / "model.json").write_text(json.dumps(data), encoding="utf-8")
+    (stale / "system-network.json").write_text((MODEL / "system-network.json").read_text(encoding="utf-8"),
+                                               encoding="utf-8")
     with pytest.raises(ValueError, match="different generated model"):
-        define_tbn_probabilities(data, define_tbn_variables(data), directory=MODEL)
+        load_generated(stale)
 
 
 def test_every_threshold_without_its_own_rules_gets_them(stored_at_network_threshold):

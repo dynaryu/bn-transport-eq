@@ -102,7 +102,7 @@
         },
         "edge": {
           "ref": "Edge",
-          "description": "The edge this bridge carries. An edge with several bridges is open only if all are usable."
+          "description": "The edge this bridge carries. An edge with several bridges is open only if every one is in a damage state its closure policy keeps open."
         },
         "hazus_class": {
           "type": "string",

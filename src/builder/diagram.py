@@ -24,7 +24,7 @@ from pathlib import Path
 from .load import SCHEMA, Library, load_library, port_choices, quantity_template, via_kind
 
 OUTPUT = SCHEMA / "diagram.md"
-ROLES = ["scenario", "hazard", "fragility", "functionality", "edge", "system"]
+ROLES = ["scenario", "hazard", "fragility", "edge", "system"]
 
 # Crow's-foot ends, producer on the left, consumer on the right, by how the consumer reaches it.
 _ENDS = {"self": "||--||", "fk": "||--o{", "reverse": "}o--||", "all": "}o--o{"}

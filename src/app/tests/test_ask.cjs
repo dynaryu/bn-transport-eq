@@ -17,12 +17,12 @@ test('result cards show tables, escaped values and all additional rows', () => {
   const r = renderer();
   const events = Array.from({length: 12}, (_, i) => ({node: `edge-${i}`, op: '==', value: 1, p: .25, ci95: [.2, .3]}));
   events[0].node = '<img src=x onerror=alert(1)>';
-  const html = r.queryResults({events, targets: [{node: 'Usable::b2', summary: {P: {'0': .25, '1': .75}}}]});
+  const html = r.queryResults({events, targets: [{node: 'EdgeOpen::e2', summary: {P: {'0': .25, '1': .75}}}]});
   assert.match(html, /<table/);
   assert.match(html, /95% interval/);
   assert.match(html, /Show 6 more results/);
   assert.match(html, /edge-11/);
-  assert.match(html, /Usable::b2 = 1/);
+  assert.match(html, /EdgeOpen::e2 = 1/);
   assert.ok(!html.includes('<img'));
   assert.match(html, /&lt;img/);
 });
@@ -66,10 +66,10 @@ test('stream parser handles fragmented UTF-8, final lines without newlines and s
 test('conversation export preserves full results, analyses, proposals, review decisions and clarification', () => {
   const r = renderer();
   const turn = {question: 'Which bridge?', assembly: 'toy-ca/demo', model: 'offline fixture', started: '2026-10-22', scenario: {rows: {event: {mw: 7}}},
-    queries: [{state: 'computed', statement: 'P(F)', review: 'approved', result: {targets: [{node: 'Usable::b2', summary: {P: {'0': .25}}}],
+    queries: [{state: 'computed', statement: 'P(F)', review: 'approved', result: {targets: [{node: 'EdgeOpen::e2', summary: {P: {'0': .25}}}],
       events: Array.from({length: 12}, (_, i) => ({node: `event-${i}`, p: .25}))}}],
     analyses: [{kind: 'compare'}, {kind: 'paths'}], proposals: [{id: 'proposal-1'}], clarification: {question: 'Which definition?'}, answer: 'Choose one.', record: 'ask-1'};
   vm.runInContext(`conversation.push(${JSON.stringify(turn)})`, r);
   const markdown = r.conversationMarkdown();
-  for (const text of ['event-11', 'Usable::b2', 'approved', 'proposal-1', 'Which definition?', 'ask-1', 'toy-ca/demo', '"mw": 7']) assert.ok(markdown.includes(text), text);
+  for (const text of ['event-11', 'EdgeOpen::e2', 'approved', 'proposal-1', 'Which definition?', 'ask-1', 'toy-ca/demo', '"mw": 7']) assert.ok(markdown.includes(text), text);
 });

@@ -46,7 +46,7 @@ function analysisCard(result) {
     headers = ["Variant", "Baseline P(fails)", "Variant P(fails)", "Reduction (pp)"];
     rows = result.rows.map(r => [r.name, fmtP(r.baseline_p), fmtP(r.variant_p), num(r.reduction_pp)]);
   } else if (result.kind === "importance") {
-    headers = ["Bridge", "P(fails), forced unusable", "P(fails), forced usable", "Change (pp)"];
+    headers = ["Bridge", "P(fails), its edge forced closed", "P(fails), its edge forced open", "Change (pp)"];
     rows = result.rows.map(r => [r.bridge, fmtP(r.forced_closed_p), fmtP(r.forced_open_p), num(100 * r.importance)]);
   } else if (result.kind === "paths") {
     headers = ["Route", "Path", "P(survives)", "95% interval", "Time (h)"];

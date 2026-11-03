@@ -1,7 +1,12 @@
 """Generated tbnpy model. Regenerate with: python -m src build toy-ca/demo.
 
+model.json is a tbnpy spec: each probability object is a custom node naming its class (in
+this repository's src/builder/kernels), its childs and parents, and its constructor's
+arguments, and tbnpy.compile builds every object from it. The system objects read the
+network from system-network.json and their stored rules from rsr/, beside this file.
+
 Run from any directory: python path/to/model.py --samples 2000 --device cpu
-Or import define_variables() and define_probs(varis, device="cpu").
+Or import define_model(device="cpu") for tbnpy's (varis, probs).
 """
 from pathlib import Path
 import argparse
@@ -11,21 +16,15 @@ import sys
 BASE = Path(__file__).resolve().parent
 ROOT = next(p for p in BASE.parents if (p / "src/builder/bn_builder.py").is_file())
 if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT))        # so tbnpy can import the kernel classes the spec names
 
-from src.builder.bn_builder import define_tbn_variables, define_tbn_probabilities
-
-
-def read_data():
-    return json.loads((BASE / "model.json").read_text(encoding="utf-8"))
+from tbnpy.compile import compile_file
 
 
-def define_variables():
-    return define_tbn_variables(read_data())
-
-
-def define_probs(varis, device="cpu"):
-    return define_tbn_probabilities(read_data(), varis, device=device, directory=BASE)
+def define_model(device="cpu"):
+    """tbnpy's variables and probability objects, compiled from model.json."""
+    _, varis, probs = compile_file(BASE / "model.json", device=device)
+    return varis, probs
 
 
 if __name__ == "__main__":
@@ -38,8 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=20261022)
     args = parser.parse_args()
     torch.manual_seed(args.seed)
-    varis = define_variables()
-    probs = define_probs(varis, device=args.device)
+    varis, probs = define_model(device=args.device)
     sampled = inference.sample(probs, list(probs), n_sample=args.samples)
     summary = {}
     for prob in sampled.values():

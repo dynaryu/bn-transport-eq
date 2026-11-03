@@ -29,7 +29,7 @@ def test_defaults_merge_without_losing_the_hazard_when_retrofitting():
 def test_declined_readback_never_runs_engine(monkeypatch):
     monkeypatch.setattr(chat.engine, "answer", lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not sample")))
     events, runs = [], []
-    reply = json.loads(chat.run_tool({"targets": ["Usable::b2"]}, assembly="toy-ca/demo", defaults=None,
+    reply = json.loads(chat.run_tool({"targets": ["EdgeOpen::e2"]}, assembly="toy-ca/demo", defaults=None,
                                     runs=runs, on_event=events.append, review=lambda q: False))
     assert reply["refused"] and "cancelled" in reply["error"]
     assert any(e.get("readback") for e in events)
@@ -83,7 +83,7 @@ def test_clarification_stops_the_turn_before_other_batched_queries(monkeypatch, 
     monkeypatch.setattr(chat.engine, "answer", lambda *a, **k: pytest.fail("must wait for the user's definition"))
     args = next(c for c in cases.load_cases() if c["id"] == "clarify-bridge-importance")["expected"]["tool_arguments"][0]
     # The model even puts a numerical query first: clarification must take priority.
-    arguments = [{"targets": ["Usable::b2"]}, args]
+    arguments = [{"targets": ["EdgeOpen::e2"]}, args]
     requests = []
     def client(path, payload):
         requests.append(payload)

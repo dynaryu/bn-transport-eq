@@ -10,7 +10,7 @@ provenance, and sits in the folder named by that function's `role`:
 | `hazard/demo-gmm.json` | `hazard.gmm` | Campbell's numbers over a California box, for the `toy-ca` demo only |
 | `hazard/spatial-correlation.json` | `hazard.spatial-correlation` | Jayaram & Baker (2009) at PGA, 0.3 s, 1 s and 3 s, and independent residuals |
 | `fragility/hazus61-bridge-sa1.json` | `fragility.bridge` | the 28 Hazus 6.1 bridge classes (base Table 7-6 curves); `hazus61-source.md` is the transcription those numbers were taken from |
-| `functionality/usable-from-damage.json` | `functionality.usable-from-damage` | closure policies: which damage states leave a bridge usable |
+| `edge/closure-policies.json` | `edge.open` | closure policies: which damage states leave a bridge, and so its edge, open |
 
 A fragility curve is one set: its `form`, the `imt` it is defined on, the
 `damage_scale` it predicts and that form's values. Another source's curves are

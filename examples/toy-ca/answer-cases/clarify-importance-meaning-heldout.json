@@ -21,7 +21,7 @@
           "choices": [
             {
               "label": "Forced outage",
-              "definition": "P(F | do(B_i=0), H): system failure when bridge i is forced unusable; other bridges retain their scenario uncertainty."
+              "definition": "P(F | do(B_i=0), H): system failure when bridge i is forced closed (its edge closed); other bridges retain their scenario uncertainty."
             },
             {
               "label": "Availability comparison",
@@ -29,7 +29,7 @@
             },
             {
               "label": "Diagnostic association",
-              "definition": "P(B_i=0 | F, H): bridge i is unusable given an observed system failure; this is not a causal effect."
+              "definition": "P(B_i=0 | F, H): bridge i is closed given an observed system failure; this is not a causal effect."
             }
           ]
         }

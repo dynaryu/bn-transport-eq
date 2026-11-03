@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,34 +11,38 @@
   --wire: #a3a3ae; --hi: #0e9f6e; --hi-soft: rgba(14,159,110,.12); --warn: #b45309; --warn-soft: #fef3c7;
   --bad: #b91c1c; --bad-soft: #fee2e2;
   --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.05);
-  --r-scenario: #7c5cd6; --r-hazard: #e8752a; --r-fragility: #d9463b; --r-functionality: #c69214;
+  --r-scenario: #7c5cd6; --r-hazard: #e8752a; --r-fragility: #d9463b;
   --r-edge: #129a8b; --r-system: #2f6fdb;
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #111112; --canvas: #151516; --grid: #2a2a2d; --card: #1d1d1f; --card-line: #303034;
-    --head: #252528; --text: #ececee; --muted: #a0a0a8; --faint: #6f6f78; --chip: #2a2a2e;
-    --wire: #5d5d66; --hi: #3ecf8e; --hi-soft: rgba(62,207,142,.14); --warn: #fbbf24; --warn-soft: #3a2c0b;
+    --bg: #111112; --canvas: #000000; --grid: #2a2a2d; --card: #1d1d1f; --card-line: #303034;
+    --head: #252528; --text: #ececee; --muted: #a0a0a8; --faint: #9898a3; --chip: #2a2a2e;
+    --wire: #8b8b96; --hi: #3ecf8e; --hi-soft: rgba(62,207,142,.14); --warn: #fbbf24; --warn-soft: #3a2c0b;
     --bad: #fca5a5; --bad-soft: #3b1212;
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
   }
 }
 :root[data-theme="dark"] {
-  --bg: #111112; --canvas: #151516; --grid: #2a2a2d; --card: #1d1d1f; --card-line: #303034;
-  --head: #252528; --text: #ececee; --muted: #a0a0a8; --faint: #6f6f78; --chip: #2a2a2e;
-  --wire: #5d5d66; --hi: #3ecf8e; --hi-soft: rgba(62,207,142,.14); --warn: #fbbf24; --warn-soft: #3a2c0b;
+  color-scheme: dark;
+  --bg: #111112; --canvas: #000000; --grid: #2a2a2d; --card: #1d1d1f; --card-line: #303034;
+  --head: #252528; --text: #ececee; --muted: #a0a0a8; --faint: #9898a3; --chip: #2a2a2e;
+  --wire: #8b8b96; --hi: #3ecf8e; --hi-soft: rgba(62,207,142,.14); --warn: #fbbf24; --warn-soft: #3a2c0b;
   --bad: #fca5a5; --bad-soft: #3b1212;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+body { height: 100dvh; }
 body { background: var(--bg); color: var(--text); font: 13px/1.4 var(--sans); display: flex; flex-direction: column; overflow: hidden; }
 button, select, input, textarea { font: inherit; color: inherit; }
 
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--card-line); background: var(--card); z-index: 3; }
 .brand { font-weight: 600; margin-right: 6px; }
+.bar > * { min-width: 0; }
+.bar select { max-width: min(260px, 100%); text-overflow: ellipsis; }
 .bar select, .bar button, .side button, .side select, .side input, .side textarea {
   background: var(--chip); border: 1px solid var(--card-line); border-radius: 6px; padding: 4px 9px; }
 .bar button, .side button { cursor: pointer; }
@@ -52,6 +56,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 
 main { position: relative; flex: 1; min-height: 0; display: flex; }
 #canvas { position: relative; flex: 1; overflow: hidden; cursor: grab; touch-action: none;
+  container-type: inline-size;
   background-color: var(--canvas);
   background-image: radial-gradient(var(--grid) 1px, transparent 1px); background-size: 18px 18px; }
 #canvas.panning { cursor: grabbing; }
@@ -93,9 +98,11 @@ main { position: relative; flex: 1; min-height: 0; display: flex; }
 .row.more { color: var(--faint); font-style: italic; }
 .card .foot { height: 6px; }
 
-.side { width: 400px; max-width: 94vw; border-left: 1px solid var(--card-line); background: var(--card); display: flex; flex-direction: column; z-index: 2; }
+.side { width: clamp(260px, 30vw, 360px); min-width: 0; min-height: 0; flex: none; border-left: 1px solid var(--card-line); background: var(--card); display: none; flex-direction: column; z-index: 5; }
+body.inspector-open .side { display: flex; }
+#inspector-close { margin-left: auto; }
 .side .tabs { padding: 8px 12px; border-bottom: 1px solid var(--card-line); display: flex; gap: 8px; align-items: center; }
-.pane { flex: 1; overflow: auto; padding: 12px 16px 24px; }
+.pane { flex: 1; min-height: 0; overflow: auto; overflow-wrap: anywhere; padding: 12px 16px 24px; overscroll-behavior: contain; }
 .pane[hidden] { display: none; }
 .pane h2 { font: 600 14px/1.3 var(--mono); margin: 0 0 2px; word-break: break-all; }
 .pane h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 16px 0 6px; }
@@ -130,7 +137,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
 #askform[hidden] { display: none; }
 
 #legend { position: absolute; left: 16px; bottom: 14px; background: var(--card); border: 1px solid var(--card-line); border-radius: 8px;
-  padding: 8px 10px; font-size: 11.5px; color: var(--muted); box-shadow: var(--shadow); display: grid; gap: 4px; max-width: calc(100% - 32px); }
+  padding: 8px 10px; font-size: 11.5px; color: var(--muted); box-shadow: var(--shadow); display: grid; gap: 4px; max-width: calc(100% - 292px); }
 #legend .roles { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 #legend .roles span { display: inline-flex; align-items: center; gap: 5px; }
 #legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; }
@@ -142,10 +149,20 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
   font-size: 12px; box-shadow: var(--shadow); pointer-events: none; }
 #tip[hidden] { display: none; }
 #tip b { font-family: var(--mono); }
-@media (max-width: 760px) {
-  main { flex-direction: column; }
-  .side { width: 100%; max-width: none; height: 55%; border-left: 0; border-top: 1px solid var(--card-line); }
+#canvas.compact-navigation #legend { display: none; }
+@container (max-width: 650px) {
   #legend { display: none; }
+}
+@media (max-width: 1000px), (max-height: 500px) {
+  .side { position: absolute; top: 0; right: 0; bottom: 0; width: min(360px, calc(100% - 24px)); box-shadow: -4px 0 20px #0005; }
+}
+@media (max-width: 900px) {
+  #stats { display: none; }
+  .bar { padding: 6px 8px; gap: 5px; }
+}
+@media (max-width: 640px) {
+  .brand { display: none; }
+  .bar select { max-width: 180px; }
 }
 </style>
 </head>
@@ -160,22 +177,22 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
   </div>
   <span class="spacer"></span>
   <span id="stats">Loading…</span>
-  <button id="fit" title="Fit to screen">Fit</button>
+  <button id="inspector-toggle" aria-controls="inspector-panel" aria-expanded="false">Inspector</button>
   <button id="relayout" title="Discard dragged positions">Auto-layout</button>
   <button id="theme" title="Toggle theme">Theme</button>
 </header>
 <main>
-  <div id="canvas">
+  <div id="canvas" role="region" aria-label="Interactive schema diagram">
     <div id="world"><svg id="wires"></svg><div id="labels"></div><div id="cards"></div></div>
     <div id="banner" hidden></div>
     <div id="legend"></div>
   </div>
-  <aside class="side">
+  <aside class="side" id="inspector-panel" aria-label="Diagram inspector">
     <div class="tabs"><div class="seg" id="sidetabs">
       <button data-pane="query" class="on">Query</button>
       <button data-pane="ask">Ask</button>
       <button data-pane="details">Details</button>
-    </div></div>
+    </div><button id="inspector-close" aria-label="Hide diagram inspector">Hide</button></div>
     <section class="pane" id="pane-query"></section>
     <section class="pane" id="pane-ask" hidden><div id="chatlog"></div></section>
     <section class="pane" id="pane-details" hidden><p>Select a card to see its signature, parameter sets and an example node.</p></section>
@@ -183,6 +200,170 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
   </aside>
   <div id="tip" hidden></div>
 </main>
+<script>
+/* Shared navigation for the schema canvas and the application's BN drawing. */
+function diagramNavigation(viewport, { get, set, fit, ignoreDrag = () => false, onClick = () => {}, help = "" }) {
+  if (!document.getElementById("diagram-navigation-style")) {
+    const style = document.createElement("style");
+    style.id = "diagram-navigation-style";
+    style.textContent = `
+      .diagram-viewport { cursor: grab; touch-action: none; container-type: inline-size; }
+      .diagram-viewport.panning { cursor: grabbing; }
+      .diagram-viewport:focus-visible { outline: 2px solid var(--hi, var(--accent)); outline-offset: -3px; }
+      .diagram-navigation { position: absolute; right: 12px; bottom: 12px; z-index: 4; max-width: calc(100% - 24px);
+        background: var(--card, var(--raised)); color: var(--text, var(--ink)); border: 1px solid var(--card-line, var(--border));
+        border-radius: 9px; padding: 5px; box-shadow: 0 2px 12px #0005; cursor: default; }
+      .diagram-navigation .nav-buttons { display: flex; gap: 3px; align-items: center; }
+      .diagram-navigation button, .diagram-navigation summary { min-width: 38px; min-height: 38px; padding: 6px 9px;
+        background: var(--chip, var(--surface)); color: inherit; border: 1px solid transparent; border-radius: 5px;
+        font: inherit; cursor: pointer; text-align: center; }
+      .diagram-navigation button:focus-visible, .diagram-navigation summary:focus-visible { outline: 2px solid var(--hi, var(--accent)); }
+      .diagram-navigation button:hover, .diagram-navigation summary:hover { border-color: var(--faint, var(--muted)); }
+      .diagram-navigation button:disabled { opacity: .4; cursor: default; }
+      .diagram-navigation [data-nav=actual] { min-width: 62px; font-variant-numeric: tabular-nums; }
+      .diagram-navigation summary { display: grid; place-items: center; list-style: none; }
+      .diagram-navigation summary::-webkit-details-marker { display: none; }
+      .diagram-navigation .nav-help { position: absolute; right: 0; bottom: 56px; width: 290px; max-width: calc(100vw - 36px);
+        padding: 12px; border-radius: 8px; background: inherit; border: inherit; box-shadow: inherit; font: 12px/1.7 system-ui; }
+      .diagram-navigation .nav-hint { padding: 2px 6px 5px; color: var(--muted, var(--ink-2)); font: 11px/1.4 system-ui; }
+      .compact-navigation .diagram-navigation .nav-hint { display: none; }
+      @container (max-width: 480px) {
+        .diagram-navigation { right: 8px; bottom: 8px; padding: 3px; }
+        .diagram-navigation .nav-hint { display: none; }
+      }
+    `;
+    document.head.append(style);
+  }
+  viewport.classList.add("diagram-viewport");
+  viewport.tabIndex = 0;
+  const controls = document.createElement("div");
+  controls.className = "diagram-navigation";
+  controls.setAttribute("role", "group");
+  controls.setAttribute("aria-label", "Diagram navigation");
+  controls.innerHTML = `<div class="nav-hint">Drag to pan · Pinch or Ctrl/⌘ + scroll to zoom</div><div class="nav-buttons">
+    <button type="button" data-nav="out" aria-label="Zoom out" title="Zoom out (−)">−</button>
+    <button type="button" data-nav="actual" aria-label="Reset zoom to 100 percent" title="Reset zoom to 100% (0)">100%</button>
+    <button type="button" data-nav="in" aria-label="Zoom in" title="Zoom in (+)">+</button>
+    <button type="button" data-nav="fit" title="Fit the whole diagram (F or Home)">Fit</button>
+    <details><summary aria-label="Navigation help" title="Navigation help">?</summary><div class="nav-help">
+      Drag the diagram to move around.<br>Scroll to move; Shift + scroll to move sideways.<br>
+      Pinch or Ctrl/⌘ + scroll to zoom at the pointer.<br>Double-click to zoom in; Shift + double-click to zoom out.<br>
+      Keyboard: + / − to zoom, arrows to move, F to fit, 0 for 100%.${help ? `<br>${help}` : ""}
+    </div></details></div>`;
+  viewport.append(controls);
+  const MIN = 0.02, MAX = 4;
+  let fitted = true;
+  const update = () => {
+    const { k } = get();
+    controls.querySelector('[data-nav="actual"]').textContent = `${Math.round(k * 100)}%`;
+    controls.querySelector('[data-nav="out"]').disabled = k <= MIN;
+    controls.querySelector('[data-nav="in"]').disabled = k >= MAX;
+  };
+  const change = value => { fitted = false; set(value); update(); };
+  const fitAll = () => { fit(); fitted = true; update(); };
+  const zoom = (k, x = viewport.clientWidth / 2, y = viewport.clientHeight / 2) => {
+    const old = get();
+    k = Math.min(MAX, Math.max(MIN, k));
+    change({ k, tx: x - (x - old.tx) * k / old.k, ty: y - (y - old.ty) * k / old.k });
+  };
+  const pan = (dx, dy) => { const v = get(); change({ ...v, tx: v.tx + dx, ty: v.ty + dy }); };
+  const local = e => { const r = viewport.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  controls.addEventListener("click", e => {
+    const action = e.target.closest("[data-nav]")?.dataset.nav;
+    if (!action) return;
+    if (action === "fit") fitAll();
+    else zoom(action === "actual" ? 1 : get().k * (action === "in" ? 1.25 : 0.8));
+  });
+  viewport.addEventListener("wheel", e => {
+    if (e.target.closest(".diagram-navigation")) return;
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? viewport.clientHeight : 1;
+    if (e.ctrlKey || e.metaKey) {
+      const p = local(e);
+      zoom(get().k * Math.exp(-Math.max(-200, Math.min(200, e.deltaY * unit)) * 0.01), p.x, p.y);
+    } else if (e.shiftKey && !e.deltaX) pan(-e.deltaY * unit, 0);
+    else pan(-e.deltaX * unit, -e.deltaY * unit);
+  }, { passive: false });
+  viewport.addEventListener("dblclick", e => {
+    if (e.target.closest(".diagram-navigation, #legend, #banner")) return;
+    e.preventDefault();
+    const p = local(e);
+    zoom(get().k * (e.shiftKey ? 0.5 : 2), p.x, p.y);
+  });
+  const pointers = new Map();
+  let gesture = null;
+  const seed = () => {
+    if (!pointers.size) { gesture = null; viewport.classList.remove("panning"); return; }
+    const ps = [...pointers.values()];
+    const center = ps.length > 1 ? { x: (ps[0].x + ps[1].x) / 2, y: (ps[0].y + ps[1].y) / 2 } : ps[0];
+    gesture = { ...get(), center, distance: ps.length > 1 ? Math.hypot(ps[1].x - ps[0].x, ps[1].y - ps[0].y) : 0,
+      moved: ps.length > 1, target: ps[0].target, button: ps[0].button };
+  };
+  viewport.addEventListener("pointerdown", e => {
+    if (![0, 1].includes(e.button) || e.target.closest(".diagram-navigation, #legend, #banner") || ignoreDrag(e)) return;
+    viewport.focus({ preventScroll: true });
+    e.preventDefault();
+    pointers.set(e.pointerId, { ...local(e), target: e.target, button: e.button });
+    viewport.setPointerCapture(e.pointerId);
+    seed();
+  });
+  viewport.addEventListener("pointermove", e => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { ...pointers.get(e.pointerId), ...local(e) });
+    const ps = [...pointers.values()];
+    const center = ps.length > 1 ? { x: (ps[0].x + ps[1].x) / 2, y: (ps[0].y + ps[1].y) / 2 } : ps[0];
+    const dx = center.x - gesture.center.x, dy = center.y - gesture.center.y;
+    if (ps.length > 1 || Math.abs(dx) + Math.abs(dy) > 3) gesture.moved = true;
+    if (!gesture.moved) return;
+    viewport.classList.add("panning");
+    const k = ps.length > 1 && gesture.distance
+      ? Math.min(MAX, Math.max(MIN, gesture.k * Math.hypot(ps[1].x - ps[0].x, ps[1].y - ps[0].y) / gesture.distance)) : gesture.k;
+    change({ k, tx: center.x - (gesture.center.x - gesture.tx) * k / gesture.k,
+      ty: center.y - (gesture.center.y - gesture.ty) * k / gesture.k });
+  });
+  const end = e => {
+    if (!pointers.has(e.pointerId)) return;
+    if (e.type === "pointerup" && pointers.size === 1 && !gesture.moved && gesture.button === 0) onClick(gesture.target);
+    pointers.delete(e.pointerId);
+    if (viewport.hasPointerCapture(e.pointerId)) viewport.releasePointerCapture(e.pointerId);
+    seed();
+    if (gesture) gesture.moved = true; // Lifting one finger after a pinch is never a click.
+  };
+  for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) viewport.addEventListener(event, end);
+  viewport.addEventListener("keydown", e => {
+    if (e.target !== viewport || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (["+", "="].includes(e.key)) zoom(get().k * 1.25);
+    else if (e.key === "-") zoom(get().k * 0.8);
+    else if (e.key === "0") zoom(1);
+    else if (["f", "F", "Home"].includes(e.key)) fitAll();
+    else if (e.key.startsWith("Arrow")) {
+      const d = e.shiftKey ? 160 : 60;
+      pan(e.key === "ArrowLeft" ? d : e.key === "ArrowRight" ? -d : 0,
+        e.key === "ArrowUp" ? d : e.key === "ArrowDown" ? -d : 0);
+    } else return;
+    e.preventDefault();
+  });
+  update();
+  let previousSize = null;
+  new ResizeObserver(() => {
+    const width = viewport.clientWidth, height = viewport.clientHeight;
+    if (!width || !height) return;
+    const compact = width < 480 || height < 320;
+    const controlsChanged = viewport.classList.contains("compact-navigation") !== compact;
+    viewport.classList.toggle("compact-navigation", compact);
+    if (controlsChanged || previousSize && (width !== previousSize.width || height !== previousSize.height)) {
+      if (fitted) fitAll();
+      else if (previousSize) {
+        const value = get();
+        set({ ...value, tx: value.tx + (width - previousSize.width) / 2, ty: value.ty + (height - previousSize.height) / 2 });
+        update();
+      }
+    }
+    previousSize = { width, height };
+  }).observe(viewport);
+  return { update, zoom, fit: fitAll, markFitted: () => { fitted = true; } };
+}
+</script>
 <script>window.BN_DATA = {
  "quantities": {
   "PGA": {
@@ -269,17 +450,6 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     "complete"
    ],
    "type": "enum(5)"
-  },
-  "Usable": {
-   "id": "Usable",
-   "label": "Component usable after the event",
-   "kind": "discrete",
-   "states": [
-    0,
-    1
-   ],
-   "description": "0 closed, 1 open.",
-   "type": "{0,1}"
   },
   "EdgeOpen": {
    "id": "EdgeOpen",
@@ -406,7 +576,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     },
     "edge": {
      "ref": "Edge",
-     "description": "The edge this bridge carries. An edge with several bridges is open only if all are usable."
+     "description": "The edge this bridge carries. An edge with several bridges is open only if every one is in a damage state its closure policy keeps open."
     },
     "hazus_class": {
      "type": "string",
@@ -463,20 +633,20 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
     {
      "key": "edge.open",
      "function": "edge.open",
-     "label": "Edge open unless a bridge on it is unusable",
+     "label": "Edge open unless a bridge on it is damaged to a closing state",
      "role": "edge",
      "per": "Edge",
      "inputs": [
       {
-       "name": "usable",
-       "quantity": "Usable",
+       "name": "damage",
+       "quantity": "{damage_scale}",
        "over": "Bridge",
        "via": "Bridge.edge",
-       "description": "Every bridge whose `edge` is this edge: zero, one or several parents.",
+       "description": "The damage state of every bridge whose `edge` is this edge, on the damage scale the closure policy is written for: zero, one or several parents.",
        "choices": [
-        "Usable"
+        "DamageState.HazusBridge"
        ],
-       "template": null,
+       "template": "damage_scale",
        "kind": "reverse"
       }
      ],
@@ -492,7 +662,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      ],
      "attributes": [],
      "tables": [],
-     "has_parameters": false,
+     "has_parameters": true,
      "implementation": "src.builder.kernels.edge:EdgeOpen",
      "deterministic": true,
      "drawKind": "Marginal",
@@ -500,9 +670,20 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
       "SampleForward",
       "EvaluateLikelihood"
      ],
-     "description": "Each bridge sits on one edge (Bridge.edge); the edge closes if any of its bridges is unusable. An edge with no bridge is always open: only bridges are fragile in this library. A roadway fragility would add a second input here.",
-     "parameter_sets": [],
-     "n_parameter_sets": 0
+     "description": "Each bridge sits on one edge (Bridge.edge). The edge is open only if every bridge on it is in a damage state its closure policy keeps open, the parameter set's usable_states; an edge with no bridge is always open, as only bridges are fragile in this library. A roadway fragility would add a second input here.",
+     "parameter_sets": [
+      {
+       "id": "policy.closed-at-extensive",
+       "label": "Closed at Extensive or Complete",
+       "count": null
+      },
+      {
+       "id": "policy.closed-at-moderate",
+       "label": "Closed at Moderate or worse (conservative)",
+       "count": null
+      }
+     ],
+     "n_parameter_sets": 2
     },
     {
      "key": "fragility.bridge",
@@ -550,7 +731,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
       "EvaluateLikelihood",
       "EvaluateDensity"
      ],
-     "description": "Whichever curve the parameter set is, on whichever IM and damage scale it names: a curve on PGA wires only to a hazard that produces PGA, and one on a damage scale wires only to a functionality mapping on that scale. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`.",
+     "description": "Whichever curve the parameter set is, on whichever IM and damage scale it names: a curve on PGA wires only to a hazard that produces PGA, and one on a damage scale wires only to an edge closure policy on that scale. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`.",
      "parameter_sets": [
       {
        "id": "hazus61.HWB1",
@@ -694,61 +875,6 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
       }
      ],
      "n_parameter_sets": 28
-    },
-    {
-     "key": "functionality.usable-from-damage",
-     "function": "functionality.usable-from-damage",
-     "label": "Bridge usable unless damage reaches a closing state",
-     "role": "functionality",
-     "per": "Bridge",
-     "inputs": [
-      {
-       "name": "damage",
-       "quantity": "{damage_scale}",
-       "over": "Bridge",
-       "via": "self",
-       "description": "On the damage scale this policy is written for.",
-       "choices": [
-        "DamageState.HazusBridge"
-       ],
-       "template": "damage_scale",
-       "kind": "self"
-      }
-     ],
-     "outputs": [
-      {
-       "name": "usable",
-       "quantity": "Usable",
-       "choices": [
-        "Usable"
-       ],
-       "template": null
-      }
-     ],
-     "attributes": [],
-     "tables": [],
-     "has_parameters": true,
-     "implementation": "src.builder.kernels.functionality:UsableFromDamage",
-     "deterministic": true,
-     "drawKind": "Marginal",
-     "capabilities": [
-      "SampleForward",
-      "EvaluateLikelihood"
-     ],
-     "description": "",
-     "parameter_sets": [
-      {
-       "id": "policy.closed-at-extensive",
-       "label": "Closed at Extensive or Complete",
-       "count": null
-      },
-      {
-       "id": "policy.closed-at-moderate",
-       "label": "Closed at Moderate or worse (conservative)",
-       "count": null
-      }
-     ],
-     "n_parameter_sets": 2
     },
     {
      "key": "hazard.gmm",
@@ -965,11 +1091,11 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
    ],
    "links": [
     {
-     "from": "functionality.usable-from-damage",
-     "out": "usable",
+     "from": "fragility.bridge",
+     "out": "damage",
      "to": "edge.open",
-     "in": "usable",
-     "quantity": "Usable",
+     "in": "damage",
+     "quantity": "{damage_scale}",
      "via": "Bridge.edge",
      "kind": "reverse",
      "parents": null
@@ -990,16 +1116,6 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
      "to": "fragility.bridge",
      "in": "im",
      "quantity": "{imt}",
-     "via": "self",
-     "kind": "self",
-     "parents": null
-    },
-    {
-     "from": "fragility.bridge",
-     "out": "damage",
-     "to": "functionality.usable-from-damage",
-     "in": "damage",
-     "quantity": "{damage_scale}",
      "via": "self",
      "kind": "self",
      "parents": null
@@ -1035,7 +1151,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
 <script>
 let DATA = window.BN_DATA || null;
 const STATIC = !!window.BN_DATA;           // a snapshot from python -m src export: no server behind it
-const ROLES = ["scenario", "hazard", "fragility", "functionality", "edge", "system"];
+const ROLES = ["scenario", "hazard", "fragility", "edge", "system"];
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const store = {
@@ -1333,7 +1449,7 @@ function render() {
   else state.pos = modelLayout(fkeys, flayer(), frank, ekeys, wires);
   place();
   updateStats(v);
-  if (!saved) fit();
+  fit();
 }
 
 function place() {
@@ -1360,6 +1476,24 @@ function legend() {
 }
 
 // ---- side panel: tabs ------------------------------------------------------------
+
+const compactInspector = matchMedia("(max-width: 1000px), (max-height: 500px)");
+const inspectorVisibility = { wide: true, compact: false };
+function showInspector(open, focus = false) {
+  inspectorVisibility[compactInspector.matches ? "compact" : "wide"] = open;
+  document.body.classList.toggle("inspector-open", open);
+  $("#inspector-toggle").setAttribute("aria-expanded", String(open));
+  $("#inspector-panel").inert = !open;
+  if (focus) $(open ? "#inspector-close" : "#inspector-toggle").focus();
+}
+$("#inspector-toggle").onclick = () => showInspector(!document.body.classList.contains("inspector-open"), true);
+$("#inspector-close").onclick = () => showInspector(false, true);
+compactInspector.addEventListener("change", () => {
+  const focusWasInside = $("#inspector-panel").contains(document.activeElement);
+  showInspector(inspectorVisibility[compactInspector.matches ? "compact" : "wide"]);
+  if (focusWasInside && !document.body.classList.contains("inspector-open")) $("#inspector-toggle").focus();
+});
+showInspector(!compactInspector.matches);
 
 function showPane(name) {
   state.pane = name;
@@ -1409,7 +1543,7 @@ function detailsFor(key) {
 function select(key) {
   state.sel = key;
   highlight(key);
-  if (key) { detailsFor(key); showPane("details"); }
+  if (key) { detailsFor(key); showPane("details"); showInspector(true); }
 }
 
 // ---- query (4) ----------------------------------------------------------------------
@@ -1636,7 +1770,11 @@ async function ask(e) {
 // ---- pan, zoom, drag -------------------------------------------------------------
 
 const world = $("#world"), canvas = $("#canvas");
-const applyT = () => { world.style.transform = `translate(${state.tx}px,${state.ty}px) scale(${state.k})`; };
+let navigation;
+const applyT = () => {
+  world.style.transform = `translate(${state.tx}px,${state.ty}px) scale(${state.k})`;
+  navigation?.update();
+};
 
 function fit() {
   const ks = Object.keys(state.pos);
@@ -1648,49 +1786,50 @@ function fit() {
     x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
     x1 = Math.max(x1, p.x + el.offsetWidth); y1 = Math.max(y1, p.y + el.offsetHeight);
   }
-  const W = canvas.clientWidth, H = canvas.clientHeight, pad = 40;
-  state.k = Math.min(1.1, (W - 2 * pad) / (x1 - x0), (H - 2 * pad - 70) / (y1 - y0));
+  const W = canvas.clientWidth, H = canvas.clientHeight, pad = H < 320 ? 12 : 24;
+  if (!isFinite(x0) || W <= 0 || H <= 0) return;
+  const bottom = Math.max($("#legend").offsetHeight, canvas.querySelector(".diagram-navigation")?.offsetHeight || 0) + 20;
+  state.k = Math.max(0.02, Math.min(1.1, Math.max(1, W - 2 * pad) / (x1 - x0), Math.max(1, H - 2 * pad - bottom) / (y1 - y0)));
   state.tx = (W - (x1 - x0) * state.k) / 2 - x0 * state.k;
-  state.ty = Math.max(pad, (H - 70 - (y1 - y0) * state.k) / 2) - y0 * state.k;
+  state.ty = Math.max(pad, (H - bottom - (y1 - y0) * state.k) / 2) - y0 * state.k;
   applyT();
+  navigation?.markFitted();
 }
 
 let drag = null;
+navigation = diagramNavigation(canvas, {
+  get: () => ({ k: state.k, tx: state.tx, ty: state.ty }),
+  set: value => { Object.assign(state, value); applyT(); }, fit,
+  ignoreDrag: e => e.pointerType !== "touch" && e.button === 0 && !!e.target.closest(".card .head"),
+  onClick: target => select(target.closest(".card")?.dataset.key || null),
+  help: "Drag a card's header to rearrange it. Click a card to inspect it.",
+});
 canvas.addEventListener("pointerdown", e => {
-  if (e.button !== 0 || e.target.closest("#banner")) return;
+  if (e.button !== 0 || e.pointerType === "touch" || !e.target.closest(".card .head")) return;
   const card = e.target.closest(".card");
-  drag = { x: e.clientX, y: e.clientY, moved: false, card: card && card.dataset.key,
-           start: card ? { ...state.pos[card.dataset.key] } : { tx: state.tx, ty: state.ty } };
+  e.preventDefault();
+  canvas.focus({ preventScroll: true });
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, card: card.dataset.key,
+           start: { ...state.pos[card.dataset.key] } };
   canvas.setPointerCapture(e.pointerId);
-  if (!card) canvas.classList.add("panning");
 });
 canvas.addEventListener("pointermove", e => {
-  if (!drag) return;
+  if (!drag || drag.id !== e.pointerId) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
   if (!drag.moved) return;
-  if (drag.card) {
-    state.pos[drag.card] = { x: drag.start.x + dx / state.k, y: drag.start.y + dy / state.k };
-    const el = cardEl(drag.card);
-    el.style.left = state.pos[drag.card].x + "px"; el.style.top = state.pos[drag.card].y + "px";
-    drawWires();
-  } else {
-    state.tx = drag.start.tx + dx; state.ty = drag.start.ty + dy; applyT();
-  }
+  state.pos[drag.card] = { x: drag.start.x + dx / state.k, y: drag.start.y + dy / state.k };
+  const el = cardEl(drag.card);
+  el.style.left = state.pos[drag.card].x + "px"; el.style.top = state.pos[drag.card].y + "px";
+  drawWires();
 });
-canvas.addEventListener("pointerup", () => {
-  if (!drag) return;
-  if (drag.card && drag.moved) store.set(posKey(), state.pos);
-  if (!drag.moved) select(drag.card || null);
-  drag = null; canvas.classList.remove("panning");
+for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) canvas.addEventListener(event, e => {
+  if (!drag || drag.id !== e.pointerId) return;
+  if (drag.moved) store.set(posKey(), state.pos);
+  if (event === "pointerup" && !drag.moved) select(drag.card);
+  drag = null;
+  if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
 });
-canvas.addEventListener("wheel", e => {
-  e.preventDefault();
-  const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
-  const k = Math.min(2.5, Math.max(0.2, state.k * Math.exp(-e.deltaY * 0.0015)));
-  state.tx = cx - (cx - state.tx) * (k / state.k); state.ty = cy - (cy - state.ty) * (k / state.k); state.k = k;
-  applyT();
-}, { passive: false });
 
 const tip = $("#tip");
 canvas.addEventListener("mousemove", e => {
@@ -1747,7 +1886,6 @@ async function start() {
   renderAsk();
 }
 
-$("#fit").onclick = fit;
 $("#relayout").onclick = () => { store.del(posKey()); render(); fit(); };
 $("#theme").onclick = () => {
   const dark = matchMedia("(prefers-color-scheme: dark)").matches;
@@ -1757,7 +1895,12 @@ $("#theme").onclick = () => {
 };
 const savedTheme = store.get("theme");
 if (savedTheme) document.documentElement.dataset.theme = savedTheme;
-addEventListener("keydown", e => { if (e.key === "Escape") select(null); });
+addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    select(null);
+    if (compactInspector.matches && document.body.classList.contains("inspector-open")) showInspector(false, true);
+  }
+});
 start();
 </script>
 </body>

@@ -1,8 +1,8 @@
 {
   "$schema": "../../schema/meta/parameter-sets.schema.json",
-  "function": "functionality.usable-from-damage",
+  "function": "edge.open",
   "source": {
-    "basis": "Forward-pilot assumption, stated in each package manifest: a bridge is unusable when damage reaches Extensive or Complete.",
+    "basis": "Forward-pilot assumption, stated in each package manifest: a bridge closes its edge when damage reaches Extensive or Complete.",
     "verification": "A modelling policy, not a measured mapping."
   },
   "sets": [

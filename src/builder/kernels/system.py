@@ -6,16 +6,17 @@ and one graph edge per Edge row carrying its ``eid`` and a ``time_h`` weight
 and ``length_attr="time_h"``, so travel times come out in hours with each
 edge's own speed. A sample's ``EdgeOpen`` values are its ``comps_state``.
 
-The output is the binary system state of each origin. Each sample is first
-classified by the origin's stored rsr rules that hold at the system event's
-threshold: exact ones, or survival rules from a stricter threshold and failure
-rules from a looser one (``bn_builder.choose_rules``). ndtools evaluates only what
-they leave unclassified, and ``tally`` counts how much that was, so the engine can
-say when the rules need extending. The travel time is internal to the judgement.
+Each sample is first classified by the origin's stored rsr rules that hold at
+the system event's threshold: exact ones, or survival rules from a stricter
+threshold and failure rules from a looser one (``bn_builder.choose_rules``).
+ndtools evaluates only what they leave unclassified, and ``tally`` counts how
+much that was, so the engine can say when the rules need extending.
 """
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import networkx as nx
@@ -25,8 +26,8 @@ from . import Probability
 
 
 class Tally(dict):
-    """Samples seen and left unclassified, per origin row. tbnpy deep-copies its probability
-    objects before sampling; the copies keep counting into this same tally."""
+    """Samples seen and left unclassified. tbnpy deep-copies its probability objects
+    before sampling; the copies keep counting into this same tally."""
 
     def __deepcopy__(self, memo: dict) -> "Tally":
         return self
@@ -46,89 +47,112 @@ def base_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> nx.G
 
 
 class TravelTimeToNearest(Probability):
-    """ndtools.fun_binary_graph.eval_travel_time_to_nearest, for each origin row."""
+    """Whether an origin still reaches a key destination in time, given every edge's state (deterministic).
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        tables = self.spec["tables"]
-        self.graph = base_graph(tables["Node"], tables["Edge"])
-        self.destinations = [r["id"] for r in tables["Node"] if r["key_destination"]]
+        S = 1 if t(origin -> nearest key destination | edge states) <= t(same, intact network) + target_add_h
+        S = 0 otherwise
+
+    The travel time t comes from ndtools.fun_binary_graph.eval_travel_time_to_nearest.
+    """
+
+    def __init__(self, childs, parents, origin, edge_ids, target_add_h, network, rules=None,
+                 directory=None, device="cpu"):
+        """
+        childs       : [Variable S], values [0, 1]
+        parents      : [Variable EdgeOpen] of every edge, values [0, 1]
+        origin       : the origin node id
+        edge_ids     : the network's edge id of each parent, in the same order
+        target_add_h : hours allowed on top of the intact network's travel time
+        network      : the Node and Edge tables, {"Node": [...], "Edge": [...]}, or the name of a
+                       JSON file holding them, relative to directory. Nodes marked key_destination
+                       are the destinations.
+        rules        : the stored rsr rules that hold at target_add_h, or None:
+                       {"upper": survival rules file, "lower": failure rules file} relative to
+                       directory, each a (m, n_edges, 2) tensor or null for none, with the threshold
+                       each was extracted at ("upper_at", "lower_at"). An edge state matching a
+                       survival rule is S = 1, a failure rule S = 0.
+        directory    : the folder file names are relative to (tbnpy passes the spec's folder)
+        """
+        super().__init__(childs, parents, device)
+        assert len(childs) == 1, "TravelTimeToNearest: one S child"
+        assert len(edge_ids) == len(parents), "one edge id per EdgeOpen parent"
+
+        if isinstance(network, str):
+            network = json.loads((Path(directory) / network).read_text(encoding="utf-8"))
+        self.graph = base_graph(network["Node"], network["Edge"])
+        self.destinations = [node["id"] for node in network["Node"] if node["key_destination"]]
         if not self.destinations:
             raise ValueError("no node is a key_destination, so there is nothing to travel to")
-        events = tables["SystemEvent"]
-        if len(events) != 1:
-            raise ValueError(f"a system function judges exactly one system event, got {len(events)}")
-        self.target_add_h = events[0]["target_add_h"]
-        rows = len(self.spec["rows"])
-        self.refs: list[tuple[torch.Tensor, torch.Tensor] | None] = [None] * rows
-        if self.directory:
-            for j, ref in enumerate(self.spec.get("references", [])):
-                if ref:
-                    # A side with no rules that hold at this threshold is an empty set: it classifies nothing.
-                    empty = torch.empty((0, len(self.edges(j)), 2), dtype=torch.int32, device=self.device)
-                    self.refs[j] = tuple(
-                        torch.load(self.directory / ref[k], map_location=self.device, weights_only=True)
-                        if ref.get(k) else empty for k in ("upper", "lower"))
-        self.tally = Tally(seen=[0] * rows, unclassified=[0] * rows)
-        never = [row["id"] for j, row in enumerate(self.spec["rows"])
-                 if self.system_function(j)(dict.fromkeys(self.edges(j), 1))[1] == 0]
-        if never:
-            self.notes.add(f"{len(never)} origin(s) fail even with every edge open (no route to a key "
-                           f"destination): {', '.join(never[:5])}")
 
-    def form(self) -> str:
-        origins = [row["id"] for row in self.spec["rows"]]
-        who = origins[0] if len(origins) == 1 else f"each of {len(origins)} origins"
-        return (f"1 if {who} reaches its nearest key destination within {self.target_add_h:g} h "
+        self.origin = origin
+        self.edge_ids = list(edge_ids)
+        self.target_add_h = float(target_add_h)
+        self.rules_reference = rules
+        self.rules = None if rules is None else self._load_rules(rules, Path(directory))
+        self.tally = Tally(seen=0, unclassified=0)
+
+        intact = self.system_function()(dict.fromkeys(self.edge_ids, 1))
+        if intact[1] == 0:
+            self.notes.add(f"{origin} has no route to a key destination even with every edge open, "
+                           f"so it always fails")
+
+    def _load_rules(self, rules, directory):
+        """(survival, failure) tensors; a side with no rules that hold here is an empty set: it classifies nothing."""
+        empty = torch.empty((0, len(self.edge_ids), 2), dtype=torch.int32, device=self.device)
+        return tuple(torch.load(directory / rules[side], map_location=self.device, weights_only=True)
+                     if rules.get(side) else empty for side in ("upper", "lower"))
+
+    # ------------------------------------------------------------------
+    def form(self):
+        return (f"1 if {self.origin} reaches its nearest key destination within {self.target_add_h:g} h "
                 f"of the intact network's time, else 0 (ndtools, after the stored rules)")
 
-    def form_details(self) -> list[str]:
-        lines = [f"key destinations: {', '.join(self.destinations)}"]
-        for row, refs in zip(self.spec["rows"], self.refs):
-            rules = ("none, so ndtools evaluates every sample" if refs is None else
-                     f"{len(refs[0])} survival and {len(refs[1])} failure reference sets")
-            lines.append(f"rules for {row['id']}: {rules}")
-        return lines + super().form_details()
+    def form_details(self):
+        rules = ("none, so ndtools evaluates every sample" if self.rules is None else
+                 f"{len(self.rules[0])} survival and {len(self.rules[1])} failure reference sets")
+        return [f"key destinations: {', '.join(self.destinations)}", f"rules: {rules}"] + super().form_details()
 
-    def edges(self, j: int) -> list[str]:
-        return self.spec["parent_rows"]["open"][j]
-
-    def system_function(self, j: int):
-        """(travel time in hours, state, None) for origin row j, from a {edge id: 0/1} dict."""
+    # ------------------------------------------------------------------
+    def system_function(self):
+        """ndtools' judgement: {edge id: 0 or 1} -> (travel time in hours, S, None)."""
         from ndtools import fun_binary_graph as fbg
-
-        origin, target_add_h = self.spec["rows"][j]["id"], self.target_add_h
 
         def evaluate(comps: dict[str, int]) -> tuple[float, int, None]:
             time_h, state, _ = fbg.eval_travel_time_to_nearest(
-                comps, self.graph, origin, self.destinations, avg_speed=1.0, target_max=target_add_h,
-                length_attr="time_h")
+                comps, self.graph, self.origin, self.destinations, avg_speed=1.0,
+                target_max=self.target_add_h, length_attr="time_h")
             return (float("inf") if time_h is None else float(time_h)), int(state), None
 
         return evaluate
 
-    def evaluate(self, pars: torch.Tensor) -> torch.Tensor:
-        if ((pars != 0) & (pars != 1)).any():
+    def evaluate(self, Cs_pars):
+        """
+        Cs_pars : (N, n_edges) EdgeOpen of each edge, in the order of edge_ids
+        Returns (N, 1) S
+        """
+        if ((Cs_pars != 0) & (Cs_pars != 1)).any():
             raise ValueError("edge states must be binary")
-        out = torch.empty((len(pars), len(self.childs)), dtype=torch.float64, device=self.device)
-        for j, columns in enumerate(self.spec["input_columns"]):
-            x = pars[:, columns["open"]].long()
-            unknown = torch.ones(len(x), dtype=torch.bool, device=self.device)
-            if self.refs[j] is not None:
-                from rsr.rsr import classify_samples_with_indices
+        x = Cs_pars.long()
+        S = torch.empty(len(x), dtype=torch.float64, device=self.device)
 
-                result = classify_samples_with_indices(
-                    torch.nn.functional.one_hot(x, 2).to(torch.int32), *self.refs[j], return_masks=True)
-                out[result["mask_upper"], j] = 1
-                out[result["mask_lower"], j] = 0
-                unknown = result["mask_unknown"]
-            rows = torch.where(unknown)[0]
-            self.tally["seen"][j] += len(x)
-            self.tally["unclassified"][j] += len(rows)
-            if len(rows):
-                # Only what the rules leave unclassified goes to ndtools, once per distinct edge state.
-                distinct, inverse = torch.unique(x[rows], dim=0, return_inverse=True)
-                evaluate, names = self.system_function(j), self.edges(j)
-                states = self.tensor([evaluate(dict(zip(names, s)))[1] for s in distinct.tolist()])
-                out[rows, j] = states[inverse]
-        return out
+        # 1. The stored rules classify what they can.
+        unknown = torch.ones(len(x), dtype=torch.bool, device=self.device)
+        if self.rules is not None:
+            from rsr.rsr import classify_samples_with_indices
+
+            result = classify_samples_with_indices(
+                torch.nn.functional.one_hot(x, 2).to(torch.int32), *self.rules, return_masks=True)
+            S[result["mask_upper"]] = 1
+            S[result["mask_lower"]] = 0
+            unknown = result["mask_unknown"]
+
+        # 2. ndtools decides the rest, once per distinct edge state.
+        rows = torch.where(unknown)[0]
+        self.tally["seen"] += len(x)
+        self.tally["unclassified"] += len(rows)
+        if len(rows):
+            distinct, inverse = torch.unique(x[rows], dim=0, return_inverse=True)
+            evaluate = self.system_function()
+            states = self.tensor([evaluate(dict(zip(self.edge_ids, s)))[1] for s in distinct.tolist()])
+            S[rows] = states[inverse]
+        return S[:, None]

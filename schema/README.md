@@ -41,9 +41,9 @@ A function's `per` is its plate. Each input names the plate its parent lives on
 
 | `via` | Parents of one row | Example |
 |---|---|---|
-| `self` | the same row | `Usable[bridge] ← DamageState[bridge]` |
+| `self` | the same row | `DamageState[bridge] ← SA[bridge]` |
 | `<fk>` | the row this foreign key points at | e.g. `X[bridge] ← EdgeOpen[bridge.edge]`, a bridge reading its own edge's state; none in use yet |
-| `<Over>.<fk>` | every `Over` row whose key points here | `EdgeOpen[edge] ← Usable[b] for every b with b.edge = edge` |
+| `<Over>.<fk>` | every `Over` row whose key points here | `EdgeOpen[edge] ← DamageState[b] for every b with b.edge = edge` |
 | `*` | every row of `Over` | a system function reading every `EdgeOpen` |
 
 A fixed scenario is not a variable: the GMM reads the one `Event` row as a whole table
@@ -114,8 +114,8 @@ curve it is, which decides how it is wired, and gives the form's own parameters:
 - `imt` is the input's quantity, as above.
 - `damage_scale` is the output's quantity, declared `"{damage_scale}"` the same way.
   The limit states the values are keyed by are that scale's states after the first,
-  and the check holds them to it. `functionality.usable-from-damage` reads
-  `{damage_scale}` too, so a closure policy wires only to curves on its own scale.
+  and the check holds them to it. `edge.open` reads `{damage_scale}` too, so an
+  edge's closure policy wires only to curves on its own scale.
 
 A curve of an existing form on an existing scale is an instance file and nothing else.
 The schema grows only for a new form (a kernel and its `allOf` branch) or a new damage
@@ -157,10 +157,11 @@ silently: the check names the bridges and the IM they do have.
 - **A system function**: one that reads every `EdgeOpen` via `*` and the `Node`/`Edge`
   tables, and calls an ndtools evaluator (`src/builder/kernels/system.py`). Its rsr
   rules are extracted once by `python -m src build` and stored with the example.
-- **A kernel** is a tbnpy probability class in `src/builder/kernels/`, built for one
-  binding as `Class(childs, parents, spec)`: its childs are every row's outputs, its
-  parents every input they read. It samples with `sample()` and evaluates `log_prob()`,
-  in PyTorch.
+- **A kernel** is a tbnpy probability class in `src/builder/kernels/`, written like
+  tbnpy's own examples: its constructor takes `childs`, `parents` and the distribution's
+  parameters by name, and it samples with `sample()` and evaluates `log_prob()`, in
+  PyTorch. `Class.from_spec(childs, parents, spec)` builds it for one binding's rows
+  from the generated model.json, reading their parameter sets and tables.
 
 The records map one-to-one onto relational tables (quantity, entity, function,
 port, parameter_set, binding), so they could be loaded into Postgres or Supabase.

@@ -39,7 +39,6 @@
         "scenario",
         "hazard",
         "fragility",
-        "functionality",
         "edge",
         "system"
       ]
@@ -84,7 +83,7 @@
       "type": "object"
     },
     "implementation": {
-      "description": "\"python.module:Class\": a tbnpy probability class, built as Class(childs, parents, spec) for one binding, whose childs are all its rows' outputs. See src/builder/kernels/__init__.py.",
+      "description": "\"python.module:Class\": a tbnpy probability class, built for one binding by Class.from_spec(childs, parents, spec), whose childs are all its rows' outputs. See src/builder/kernels/__init__.py.",
       "type": "string",
       "pattern": "^[A-Za-z_][\\w.]*:[A-Za-z_]\\w*$"
     },

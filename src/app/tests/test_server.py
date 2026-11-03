@@ -55,7 +55,7 @@ def test_view_data_has_the_schema_and_every_bn():
     links = {(x["from"], x["to"]) for x in views["library"]["links"]}
     for hazard in ("hazard.gmm", "hazard.shakemap"):
         assert (hazard, "fragility.bridge") in links          # alternatives, all type-compatible
-    assert views["ema-highway/gmm"]["n_nodes"] == 588            # 516 + a system state for each of 72 origins
+    assert views["ema-highway/gmm"]["n_nodes"] == 459            # 387 + a system state for each of 72 origins
     assert views["ema-highway/gmm"]["menu"]["settable"]["rows"]
 
 
@@ -64,6 +64,8 @@ def test_the_export_is_one_file_with_the_views_inside(tmp_path):
 
     html = export_page(tmp_path / "schema.html").read_text(encoding="utf-8")
     assert html.count("window.BN_DATA = ") == 1 and '"ema-highway/gmm"' in html
+    assert 'src="/diagram-navigation.js"' not in html
+    assert "function diagramNavigation(" in html
     assert "</script>" not in html.split("window.BN_DATA = ", 1)[1].split(";</script>", 1)[0]
 
 
@@ -80,6 +82,9 @@ def test_the_page_and_its_data_are_served(base_url):
     with urlopen(base_url + "/ask.js", timeout=10) as response:
         assert response.status == 200 and response.headers.get_content_type() == "text/javascript"
         assert b"function queryResults" in response.read()
+    with urlopen(base_url + "/diagram-navigation.js", timeout=10) as response:
+        assert response.status == 200 and response.headers.get_content_type() == "text/javascript"
+        assert b"function diagramNavigation(" in response.read()
     status, body = get(base_url + "/bn")
     assert status == 200 and b"/api/views" in body                # the BN drawing, embedded in quakenet's BN tab
     status, body = get(base_url + "/api/views")
@@ -102,14 +107,33 @@ def test_ask_without_a_model_says_why(base_url, monkeypatch):
     assert status == 503 and "GEMINI_API_KEY" in body["error"]
 
 
+@pytest.mark.parametrize("failure,status,expected", [
+    (ModuleNotFoundError("No module named 'rsr.rsr'", name="rsr.rsr"), 503, "rsr.rsr"),
+    (RuntimeError("sampling failed"), 500, "RuntimeError"),
+])
+def test_inference_failures_return_json_instead_of_dropping_the_connection(
+        base_url, monkeypatch, failure, status, expected):
+    from src.app import server
+
+    def fail(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(server.engine, "answer", fail)
+    code, body = post(base_url + "/api/query", {"assembly": "ema-highway/gmm", "samples": 200})
+    assert code == status and expected in body["error"]
+    if status == 503:
+        assert "conda run -n quakenet python -m src serve" in body["error"]
+    assert get(base_url + "/api/examples")[0] == 200
+
+
 def test_an_example_carries_its_network_menu_and_rules(base_url):
     status, body = get(base_url + "/api/examples")
     assert status == 200 and "toy-ca/demo" in {e["id"] for e in json.loads(body)["examples"]}
     status, body = get(base_url + "/api/example?assembly=toy-ca/demo")
     ex = json.loads(body)
     assert status == 200 and set(ex["network"]["tables"]) >= {"Node", "Edge", "Bridge", "Event", "SystemEvent"}
-    assert ex["objects"] == 37 and ex["rules"] == {"stored": 6, "origins": 6}
-    assert len(ex["nodes"]) == 46 and ex["joint"] == ["hazard.gmm"]          # what the BN tab draws, layer by layer
+    assert ex["objects"] == 27 and ex["rules"] == {"stored": 6, "origins": 6}
+    assert len(ex["nodes"]) == 36 and ex["joint"] == ["hazard.gmm"]          # what the BN tab draws, layer by layer
     settable = {(r["entity"], r["attribute"]) for r in ex["menu"]["settable"]["rows"]}
     assert {("Event", "mw"), ("SystemEvent", "target_add_h")} <= settable
     with pytest.raises(HTTPError) as missing:
@@ -118,9 +142,9 @@ def test_an_example_carries_its_network_menu_and_rules(base_url):
 
 
 def test_a_map_run_returns_every_family_and_says_rules_were_used(base_url):
-    events = [{"node": f"{q}::*", "op": "==", "value": 0} for q in ("SystemState", "EdgeOpen", "Usable")]
+    events = [{"node": f"{q}::*", "op": "==", "value": 0} for q in ("SystemState", "EdgeOpen")]
     status, body = post(base_url + "/api/query", {"assembly": "toy-ca/demo", "events": events, "samples": 500})
-    assert status == 200 and len(body["events"]) == 6 + 10 + 10
+    assert status == 200 and len(body["events"]) == 6 + 10
     assert any("rsr rules exact for 6 of 6" in w for w in body["warnings"])
 
 
@@ -194,7 +218,7 @@ def test_optional_readback_waits_and_cancellation_prevents_sampling(base_url, mo
     def client(path, payload):
         calls.append(payload)
         if len(calls) == 1:
-            return {"message": {"tool_calls": [{"function": {"name": "run_query", "arguments": {"targets": ["Usable::b2"]}}}]}}
+            return {"message": {"tool_calls": [{"function": {"name": "run_query", "arguments": {"targets": ["EdgeOpen::e2"]}}}]}}
         return {"message": {"content": "Cancelled."}}
     monkeypatch.setenv("BN_LLM", "ollama")
     monkeypatch.setattr(server.chat, "ask", lambda *a, **kw: original(*a, **kw, client=client, model="test"))

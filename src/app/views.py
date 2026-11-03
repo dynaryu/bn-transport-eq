@@ -155,6 +155,8 @@ def static_page(data: dict[str, Any], indent: int | None = None) -> str:
     """The page with ``data`` embedded, so it opens without the server: drawings and details, no queries."""
     embedded = json.dumps(data, ensure_ascii=False, indent=indent).replace("</", "<\\/")   # no "</script>" inside
     page = Path(__file__).with_name("page.html").read_text(encoding="utf-8")
+    navigation = Path(__file__).with_name("diagram-navigation.js").read_text(encoding="utf-8")
+    page = page.replace('<script src="/diagram-navigation.js"></script>', f"<script>\n{navigation}</script>")
     marker = "<script>\nlet DATA = "
     if marker not in page:
         raise RuntimeError("page.html no longer has the marker the data is injected before")

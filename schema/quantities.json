@@ -80,16 +80,6 @@
       ]
     },
     {
-      "id": "Usable",
-      "label": "Component usable after the event",
-      "kind": "discrete",
-      "states": [
-        0,
-        1
-      ],
-      "description": "0 closed, 1 open."
-    },
-    {
       "id": "EdgeOpen",
       "label": "Edge open to traffic",
       "kind": "discrete",

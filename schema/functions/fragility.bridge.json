@@ -168,5 +168,5 @@
   "source": {
     "note": "Each parameter set cites its own curve. The kernel holds the functional forms."
   },
-  "description": "Whichever curve the parameter set is, on whichever IM and damage scale it names: a curve on PGA wires only to a hazard that produces PGA, and one on a damage scale wires only to a functionality mapping on that scale. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`."
+  "description": "Whichever curve the parameter set is, on whichever IM and damage scale it names: a curve on PGA wires only to a hazard that produces PGA, and one on a damage scale wires only to an edge closure policy on that scale. Skew, span-count or shape modifiers would be Bridge attributes under `attributes`."
 }

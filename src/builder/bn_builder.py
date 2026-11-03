@@ -19,6 +19,7 @@ shakes. The binding graph must be acyclic; that order is the sampling order.
 
 from __future__ import annotations
 
+import copy
 import re
 import hashlib
 import json
@@ -338,18 +339,92 @@ def compile_path(path: Path | str, lib: Library | None = None) -> Compiled:
     return compile_assembly(assembly, lib, load_network(assembly["network"], lib))
 
 
-def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, Any]:
-    """Scalar tbnpy variables and their probability specifications.
+# ---------------------------------------------------------------------------
+# The model as a tbnpy spec
+# ---------------------------------------------------------------------------
+TBN_FORMAT = "quakenet.tbnpy.v4"
+NETWORK_FILE = "system-network.json"       # the network the system objects share, written once beside model.json
 
-    A stochastic binding drawn jointly (``drawKind: Joint``, e.g. a hazard field)
-    is one object whose childs are every row's outputs: its sites are sampled
-    together. Every other binding is one object per row, each child with its own
-    parents, as a Bayesian network has it: a bridge's damage depends on its own
-    intensity, an origin's state on the edge states. ``bindings`` restricts the
-    data to those bindings, which must be closed under ``upstream``. The JSON is a
-    portable snapshot of the selected inputs, not sampled data.
+
+def _sites(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{"id": row["id"], "lat": row["lat"], "lon": row["lon"]} for row in rows]
+
+
+def _gmm_arguments(rows, params, tables, parent_rows, states):
+    """Gmm: the Event row, the one GMM parameter set, and the sites."""
+    from .kernels.hazard import fixed_event
+
+    event = fixed_event(tables["Event"])
+    return {"event": {k: event[k] for k in ("id", "mw", "lat", "lon", "depth_km")},
+            "gmm": params[0], "sites": _sites(rows)}
+
+
+def _correlation_arguments(rows, params, tables, parent_rows, states):
+    """SpatialCorrelationField: the sites and the correlation model's parameter set."""
+    return {"sites": _sites(rows), "correlation": params[0]}
+
+
+def _shakemap_arguments(rows, params, tables, parent_rows, states):
+    """ShakeMap: which map, and the site."""
+    (row,), (p,) = rows, params
+    return {"event_id": p["event_id"], "imt": p["imt"], "lat": row["lat"], "lon": row["lon"],
+            "source": p.get("source"), "version": p.get("version")}
+
+
+def _fragility_arguments(rows, params, tables, parent_rows, states):
+    """Fragility: the curve's median and beta for each damage state after the first."""
+    (p,) = params
+    curve, limit_states = p["parameters"], states["damage"][1:]
+    return {"medians": [curve["medians"][s] for s in limit_states],
+            "betas": [curve["betas"][s] for s in limit_states] if "betas" in curve else curve["beta"],
+            "curve": p["form"]}
+
+
+def _edge_arguments(rows, params, tables, parent_rows, states):
+    """EdgeOpen: the damage states its closure policy keeps a bridge open in."""
+    (p,) = params
+    return {"usable_states": p["usable_states"]}
+
+
+def _system_arguments(rows, params, tables, parent_rows, states):
+    """TravelTimeToNearest: the origin, the edges in parent order, the threshold, and the network."""
+    events = tables["SystemEvent"]
+    if len(events) != 1:
+        raise ValueError(f"a system function judges exactly one system event, got {len(events)}")
+    (row,) = rows
+    return {"origin": row["id"], "edge_ids": parent_rows["open"][0], "target_add_h": events[0]["target_add_h"],
+            "network": {name: table for name, table in tables.items() if name != "SystemEvent"}}
+
+
+# The constructor arguments of each kernel, from one group of a binding's rows: the rows, their
+# parameter values, the function's tables, each input port's parent row ids, and the discrete states.
+KERNEL_ARGUMENTS = {
+    "src.builder.kernels.hazard:Gmm": _gmm_arguments,
+    "src.builder.kernels.hazard:SpatialCorrelationField": _correlation_arguments,
+    "src.builder.kernels.hazard:ShakeMap": _shakemap_arguments,
+    "src.builder.kernels.fragility:Fragility": _fragility_arguments,
+    "src.builder.kernels.edge:EdgeOpen": _edge_arguments,
+    "src.builder.kernels.system:TravelTimeToNearest": _system_arguments,
+}
+
+
+def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, Any]:
+    """The model as a tbnpy spec: its variables, and each probability object as a ``custom`` node.
+
+    A node names the object's class (``module``, ``cls``), its ``childs`` and ``parents``,
+    and its constructor's arguments (``kwargs``), so ``tbnpy.compile`` builds the object
+    from the node alone. ``metadata`` keeps what this repository's engine needs to know
+    about it: the function, its role, the rows and the parameter sets it came from.
+
+    A stochastic binding drawn jointly (``drawKind: Joint``, e.g. a hazard field) is one
+    object per parameter set, whose childs are its rows' outputs: those sites are sampled
+    together, by one model written once. Every other binding is one object per row, each
+    child with its own parents, as a Bayesian network has it: a bridge's damage depends on
+    its own intensity, an origin's state on the edge states. ``bindings`` restricts the
+    spec to those bindings, which must be closed under ``upstream``. The spec is a portable
+    snapshot of the selected inputs, not sampled data.
     """
-    variables, probabilities = {}, {}
+    variables, nodes = {}, []
     lib = compiled.library
 
     for index in compiled.order:
@@ -368,22 +443,29 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
                 states[port["name"]] = lib.quantities[next(iter(used))]["states"]
         tables = {t: compiled.network.rows(t) for t in fn.get("tables", [])}
 
-        joint = fn["drawKind"] == "Joint" and not fn["deterministic"]
-        for group in ([list(range(len(b.rows)))] if joint else [[r] for r in range(len(b.rows))]):
-            # The group's parent list, with explicit indices for each row and port.
-            parents, input_columns = [], []
+        arguments = KERNEL_ARGUMENTS.get(fn["implementation"])
+        if arguments is None:
+            raise ValueError(f"{fn['id']}: no constructor arguments are defined for {fn['implementation']}")
+        module, cls = fn["implementation"].split(":")
+
+        # A joint object is one model over its sites: rows on different parameter sets
+        # (e.g. two GMM regions) become one object per set, each set written once.
+        if fn["drawKind"] == "Joint" and not fn["deterministic"]:
+            by_set: dict[str, list[int]] = {}
+            for r in range(len(b.rows)):
+                by_set.setdefault(b.parameter_sets[r] or json.dumps(b.parameters[r], sort_keys=True), []).append(r)
+            groups, joint = list(by_set.values()), True
+        else:
+            groups, joint = [[r] for r in range(len(b.rows))], False
+
+        for group in groups:
+            parents = []
             for r in group:
-                ports = {}
                 for port in fn["inputs"]:
-                    quantity = b.quantities[r][port["name"]]
-                    columns = []
                     for pid in b.parents[port["name"]][r]:
-                        name = node_id(quantity, pid)
+                        name = node_id(b.quantities[r][port["name"]], pid)
                         if name not in parents:
                             parents.append(name)
-                        columns.append(parents.index(name))
-                    ports[port["name"]] = columns
-                input_columns.append(ports)
 
             childs = []
             for r in group:
@@ -391,23 +473,32 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
                     q = lib.quantities[b.quantities[r][port["name"]]]
                     name = node_id(q["id"], b.rows[r]["id"])
                     childs.append(name)
-                    variables[name] = ({"states": q["states"]} if q["kind"] == "discrete"
-                                       else {"range": q.get("range", [None, None])})
+                    variables[name] = _variable_spec(name, q)
+
             # A per-row object is keyed by its child, as tbnpy's examples key theirs.
-            key = (fn["id"] if joint else childs[0] if len(childs) == 1
-                   else node_id(fn["id"], b.rows[group[0]]["id"]))
-            if key in probabilities:
+            if joint:
+                key = fn["id"] if len(groups) == 1 else f"{fn['id']}[{b.parameter_sets[group[0]] or index}]"
+            else:
+                key = childs[0] if len(childs) == 1 else node_id(fn["id"], b.rows[group[0]]["id"])
+            if any(node["name"] == key for node in nodes):
                 key = f"{key}#{index}"
-            probabilities[key] = {
-                "function": fn["id"], "role": fn["role"], "implementation": fn["implementation"], "binding": index,
-                "childs": childs, "parents": parents, "input_columns": input_columns,
-                "parent_rows": {p: [b.parents[p][r] for r in group] for p in b.parents},
-                "rows": [b.rows[r] for r in group], "parameters": [b.parameters[r] for r in group],
-                "parameter_sets": [b.parameter_sets[r] for r in group], "states": states, "tables": tables,
-            }
+
+            rows, params = [b.rows[r] for r in group], [b.parameters[r] for r in group]
+            parent_rows = {port: [b.parents[port][r] for r in group] for port in b.parents}
+            # One parameter set per object: a joint object is grouped by set, any other has one row.
+            metadata = {"function": fn["id"], "role": fn["role"], "binding": index,
+                        "parameter_set": b.parameter_sets[group[0]]}
+            if "SystemEvent" in tables:
+                metadata["analysis"] = tables["SystemEvent"][0].get("analysis") if tables["SystemEvent"] else None
+            nodes.append({"name": key, "type": "custom", "module": module, "cls": cls,
+                          "childs": childs, "parents": parents,
+                          "kwargs": arguments(rows, params, tables, parent_rows, states),
+                          "metadata": metadata})
 
     return {
-        "format": "quakenet.tbnpy.v3", "assembly": compiled.assembly,
+        "format": TBN_FORMAT, "spec_version": 2,
+        "name": compiled.assembly["id"], "description": compiled.assembly.get("label", ""),
+        "assembly": compiled.assembly,
         "network": compiled.network.id,
         "network_assumptions": compiled.network.assumptions,
         "instance_sources": {
@@ -415,48 +506,43 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
             for i, b in enumerate(compiled.bindings) if bindings is None or i in bindings
             for s in b.parameter_sets if s
         },
-        "variables": variables, "probabilities": probabilities,
+        "variables": list(variables.values()), "nodes": nodes,
     }
 
 
-def define_tbn_variables(data: dict[str, Any]) -> dict[str, Any]:
-    """Construct tbnpy Variable objects from generated model data."""
-    from tbnpy.variable import Variable
+def _variable_spec(name: str, quantity: dict[str, Any]) -> dict[str, Any]:
+    """A tbnpy variable: discrete with its states, or continuous with its support (null: unbounded)."""
+    if quantity["kind"] == "discrete":
+        return {"name": name, "kind": "discrete", "states": quantity["states"]}
+    out = {"name": name, "kind": "continuous"}
+    support = quantity.get("range", [None, None])
+    if support != [None, None]:
+        out["support"] = support
+    if quantity.get("unit"):
+        out["unit"] = quantity["unit"]
+    return out
 
-    return {
-        name: Variable(name, spec["states"] if "states" in spec else tuple(
-            (-float("inf") if i == 0 else float("inf")) if v is None else v
-            for i, v in enumerate(spec["range"])))
-        for name, spec in data["variables"].items()
-    }
+
+def tbn_nodes(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """The spec's nodes by name."""
+    return {node["name"]: node for node in data["nodes"]}
 
 
-def define_tbn_probabilities(data: dict[str, Any], variables: dict[str, Any], device: str = "cpu",
-                             directory: Path | str | None = None) -> dict[str, Any]:
-    """Construct each probability object from its spec, with the class its function names."""
-    from .load import resolve_implementation
+def compile_tbn(data: dict[str, Any], device: str = "cpu",
+                directory: Path | str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """tbnpy's two dictionaries, variables and probability objects, compiled from the spec by tbnpy.
+    ``directory`` is the folder the spec's file names (the system objects' rules) are relative to."""
+    from tbnpy.compile import compile_model
+    from tbnpy.spec import ModelSpec
 
-    if "source_sha256" in data and _tbn_fingerprint(data) != data["source_sha256"]:
-        raise ValueError("Data belong to a different generated model; regenerate")
-    if directory:
-        for spec in data["probabilities"].values():
-            for j, ref in enumerate(spec.get("references", [])):
-                if ref:
-                    _check_reference(Path(directory), spec, j, ref)
-    return {
-        key: resolve_implementation(spec["implementation"])(
-            [variables[n] for n in spec["childs"]], [variables[n] for n in spec["parents"]],
-            spec, device=device, directory=directory)
-        for key, spec in data["probabilities"].items()
-    }
+    return compile_model(ModelSpec.from_dict(data), device=device, directory=directory)
 
 
 def _tbn_fingerprint(data: dict[str, Any]) -> str:
+    """The model's identity: the spec without its provenance and without which stored rules it uses."""
     snapshot = {k: v for k, v in data.items() if k not in ("source_sha256", "versions")}
-    snapshot["probabilities"] = {
-        k: {name: value for name, value in spec.items() if name != "references"}
-        for k, spec in data["probabilities"].items()
-    }
+    snapshot["nodes"] = [{**node, "kwargs": {k: v for k, v in node["kwargs"].items() if k != "rules"}}
+                         for node in data["nodes"]]
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
 
 
@@ -467,19 +553,25 @@ RSR_UNKNOWN_TARGET = 0.01
 RSR_MAX_ROUNDS = 3000
 
 
-def rules_threshold(spec: dict[str, Any]) -> float:
-    """The system event's threshold a system-state spec is judged by: its target_add_h, in hours."""
-    return float(spec["tables"]["SystemEvent"][0]["target_add_h"])
+def system_nodes(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """The spec's system-state nodes, one per origin."""
+    return [node for node in data["nodes"] if node["metadata"]["role"] == "system"]
 
 
-def rules_fingerprint(spec: dict[str, Any], j: int) -> str:
-    """What origin j's system rules depend on, apart from the threshold: the graph, the destinations,
+def rules_threshold(node: dict[str, Any]) -> float:
+    """The system event's threshold a system-state node is judged by: its target_add_h, in hours."""
+    return float(node["kwargs"]["target_add_h"])
+
+
+def rules_fingerprint(node: dict[str, Any]) -> str:
+    """What an origin's system rules depend on, apart from the threshold: the graph, the destinations,
     the analysis, the origin and the edge order. Not the hazard: rules extracted once serve every
-    scenario. The threshold is stored beside the rules, since some rules hold across thresholds."""
-    tables = {name: rows for name, rows in spec["tables"].items() if name != "SystemEvent"}
-    events = [{"analysis": e.get("analysis")} for e in spec["tables"].get("SystemEvent", [])]
-    snapshot = {"function": spec["function"], "tables": tables, "events": events,
-                "origin": spec["rows"][j]["id"], "edges": spec["parent_rows"]["open"][j]}
+    scenario. The threshold is stored beside the rules, since some rules hold across thresholds.
+    (The snapshot keeps the form it had before model.json became a tbnpy spec, so stored rules stay valid.)"""
+    kwargs = node["kwargs"]
+    snapshot = {"function": node["metadata"]["function"], "tables": kwargs["network"],
+                "events": [{"analysis": node["metadata"].get("analysis")}],
+                "origin": kwargs["origin"], "edges": kwargs["edge_ids"]}
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
 
 
@@ -499,10 +591,10 @@ def rules_folder(directory: Path, origin: str, threshold: float) -> Path:
     return Path(directory) / "rsr" / origin / f"target_add_h={threshold:g}"
 
 
-def stored_rules(directory: Path, spec: dict[str, Any], j: int) -> list[tuple[float, Path]]:
-    """(threshold, folder) for every set of rules stored for origin j's definition, by threshold."""
-    fingerprint, found = rules_fingerprint(spec, j), []
-    for folder in (Path(directory) / "rsr" / spec["rows"][j]["id"]).glob("target_add_h=*"):
+def stored_rules(directory: Path, node: dict[str, Any]) -> list[tuple[float, Path]]:
+    """(threshold, folder) for every set of rules stored for this origin's definition, by threshold."""
+    fingerprint, found = rules_fingerprint(node), []
+    for folder in (Path(directory) / "rsr" / node["kwargs"]["origin"]).glob("target_add_h=*"):
         meta = _rules_meta(folder / "refs_up_1.pt")
         if meta.get("rules_sha256") == fingerprint and (folder / "refs_up_1.pt").is_file():
             found.append((float(meta["target_add_h"]), folder))
@@ -542,23 +634,20 @@ def rules_source(ref: dict[str, Any] | None, threshold: float) -> str:
 
 
 def attach_rules(data: dict[str, Any], directory: Path) -> int:
-    """Give each system-state origin the stored rules that hold at its threshold. Returns how many have any."""
+    """Give each system-state node the stored rules that hold at its threshold, as its ``rules``
+    argument: file names relative to ``directory``. Returns how many origins have any."""
     found = 0
-    for spec in data["probabilities"].values():
-        if spec["role"] != "system":
-            continue
-        threshold, spec["references"] = rules_threshold(spec), []
-        for j in range(len(spec["rows"])):
-            ref = choose_rules(stored_rules(directory, spec, j), threshold)
-            if ref:
-                ref = {k: (v.relative_to(directory).as_posix() if isinstance(v, Path) else v) for k, v in ref.items()}
-            spec["references"].append(ref)
-            found += ref is not None
+    for node in system_nodes(data):
+        ref = choose_rules(stored_rules(directory, node), rules_threshold(node))
+        if ref:
+            ref = {k: (v.relative_to(directory).as_posix() if isinstance(v, Path) else v) for k, v in ref.items()}
+        node["kwargs"]["rules"] = ref
+        found += ref is not None
     return found
 
 
-def _check_reference(directory: Path, spec: dict[str, Any], j: int, ref: dict[str, Any]) -> None:
-    threshold, fingerprint = rules_threshold(spec), rules_fingerprint(spec, j)
+def _check_reference(directory: Path, node: dict[str, Any], ref: dict[str, Any]) -> None:
+    threshold, fingerprint = rules_threshold(node), rules_fingerprint(node)
     for side, holds in (("upper", lambda t: t <= threshold + _SAME), ("lower", lambda t: t >= threshold - _SAME)):
         if ref.get(side) is None:
             continue
@@ -584,8 +673,7 @@ def build_tbn(compiled: Compiled, bindings: set[int] | None = None, device: str 
             candidate = None
         if candidate is not None and attach_rules(data, candidate):
             directory = candidate
-    variables = define_tbn_variables(data)
-    return variables, define_tbn_probabilities(data, variables, device=device, directory=directory)
+    return compile_tbn(data, device=device, directory=directory)
 
 
 def extract_system_rules(compiled: Compiled, directory: Path, origins: set[str] | None = None, *,
@@ -597,53 +685,48 @@ def extract_system_rules(compiled: Compiled, directory: Path, origins: set[str] 
     from rsr.rsr import run_ref_extraction_by_mcs
 
     data = tbn_data(compiled)
-    probabilities = define_tbn_probabilities(data, define_tbn_variables(data))
+    _, probs = compile_tbn(data)
     done = []
     python_state = random.getstate()
     try:
         with torch.random.fork_rng(devices=[]):
             torch.manual_seed(seed)
             random.seed(seed)
-            for key, prob in probabilities.items():
-                spec = data["probabilities"][key]
-                if spec["role"] != "system":
+            for node in system_nodes(data):
+                origin, edges, threshold = node["kwargs"]["origin"], node["kwargs"]["edge_ids"], rules_threshold(node)
+                if origins is not None and origin not in origins:
                     continue
-                threshold = rules_threshold(spec)
-                for j, row in enumerate(spec["rows"]):
-                    if origins is not None and row["id"] not in origins:
-                        continue
-                    folder = rules_folder(directory, row["id"], threshold)
-                    folder.mkdir(parents=True, exist_ok=True)
-                    # RSR appends metrics; a new extraction starts a fresh record.
-                    (folder / "metrics.json").write_text("", encoding="utf-8")
-                    log(f"Extracting system rules for {row['id']} at target_add_h={threshold:g}...")
-                    evaluate = prob.system_function(j)
+                folder = rules_folder(directory, origin, threshold)
+                folder.mkdir(parents=True, exist_ok=True)
+                # RSR appends metrics; a new extraction starts a fresh record.
+                (folder / "metrics.json").write_text("", encoding="utf-8")
+                log(f"Extracting system rules for {origin} at target_add_h={threshold:g}...")
+                evaluate = probs[node["name"]].system_function()
 
-                    def binary_system(comps):
-                        # The system value rsr sees is the binary state itself; travel times
-                        # (infinite when cut off) stay internal to ndtools' judgement.
-                        _, state, _ = evaluate(comps)
-                        return state, state, None
+                def binary_system(comps, evaluate=evaluate):
+                    # The system value rsr sees is the binary state itself; travel times
+                    # (infinite when cut off) stay internal to ndtools' judgement.
+                    _, state, _ = evaluate(comps)
+                    return state, state, None
 
-                    edges = spec["parent_rows"]["open"][j]
-                    # The independent 50/50 proposal explores topology; it does not replace
-                    # the BN's component distribution or its hazard-induced dependence.
-                    run_ref_extraction_by_mcs(
-                        sfun=binary_system, probs=torch.full((len(edges), 2), 0.5),
-                        row_names=edges, n_state=2, sys_upper_st=1,
-                        unk_prob_thres=RSR_UNKNOWN_TARGET, unk_prob_opt="abs", max_rounds=RSR_MAX_ROUNDS,
-                        prob_update_every=10, save_every=128, n_sample=4096,
-                        sample_batch_size=4096, max_search_loops=2,
-                        ref_update_verbose=False, output_dir=str(folder))
-                    (folder / "model.json").write_text(json.dumps({
-                        "rules_sha256": rules_fingerprint(spec, j), "target_add_h": threshold,
-                        "origin": row["id"], "edge_order": edges, "seed": seed,
-                        "unknown_target": RSR_UNKNOWN_TARGET, "max_rounds": RSR_MAX_ROUNDS,
-                        "proposal": "independent Bernoulli(0.5), for rule search only",
-                        "system_value": "binary state",
-                        "unclassified": "evaluate with ndtools",
-                    }, indent=2) + "\n", encoding="utf-8")
-                    done.append(row["id"])
+                # The independent 50/50 proposal explores topology; it does not replace
+                # the BN's component distribution or its hazard-induced dependence.
+                run_ref_extraction_by_mcs(
+                    sfun=binary_system, probs=torch.full((len(edges), 2), 0.5),
+                    row_names=edges, n_state=2, sys_upper_st=1,
+                    unk_prob_thres=RSR_UNKNOWN_TARGET, unk_prob_opt="abs", max_rounds=RSR_MAX_ROUNDS,
+                    prob_update_every=10, save_every=128, n_sample=4096,
+                    sample_batch_size=4096, max_search_loops=2,
+                    ref_update_verbose=False, output_dir=str(folder))
+                (folder / "model.json").write_text(json.dumps({
+                    "rules_sha256": rules_fingerprint(node), "target_add_h": threshold,
+                    "origin": origin, "edge_order": edges, "seed": seed,
+                    "unknown_target": RSR_UNKNOWN_TARGET, "max_rounds": RSR_MAX_ROUNDS,
+                    "proposal": "independent Bernoulli(0.5), for rule search only",
+                    "system_value": "binary state",
+                    "unclassified": "evaluate with ndtools",
+                }, indent=2) + "\n", encoding="utf-8")
+                done.append(origin)
     finally:
         random.setstate(python_state)
     return done
@@ -656,7 +739,7 @@ def generate_tbn(path: Path | str, *, extract_rules: bool = True, seed: int = 20
     path = Path(path).resolve()
     compiled = compile_path(path)
     data = tbn_data(compiled)
-    define_tbn_probabilities(data, define_tbn_variables(data))       # every object builds before anything is written
+    compile_tbn(data)                       # every object builds before anything is written
     fingerprint = _tbn_fingerprint(data)
     out = model_dir(path)
     out.mkdir(parents=True, exist_ok=True)
@@ -664,17 +747,60 @@ def generate_tbn(path: Path | str, *, extract_rules: bool = True, seed: int = 20
     data["versions"] = {n: importlib.metadata.version(n) for n in ("tbnpy", "torch", "ndtools-duco", "rsr-duco")}
     if extract_rules:
         extract_system_rules(compiled, out, seed=seed)
-        attach_rules(data, out)
-    (out / "model.json").write_text(json.dumps(data, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    attach_rules(data, out)                 # the stored rules that hold, extracted now or before
+    written = _network_to_file(data, out)
+    (out / "model.json").write_text(json.dumps(written, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     script = _GENERATED_MODEL.replace("python -m src build toy-ca/demo", f"python -m src build {compiled.assembly['id']}")
     (out / "model.py").write_text(script, encoding="utf-8")
     return out
 
 
+def _network_to_file(data: dict[str, Any], directory: Path) -> dict[str, Any]:
+    """The spec as written: the network every system node reads, moved to NETWORK_FILE once."""
+    systems = system_nodes(data)
+    networks = {json.dumps(node["kwargs"]["network"], sort_keys=True) for node in systems}
+    if len(networks) != 1:
+        return data
+    (directory / NETWORK_FILE).write_text(json.dumps(systems[0]["kwargs"]["network"], indent=2) + "\n",
+                                          encoding="utf-8")
+    written = copy.deepcopy(data)
+    for node in system_nodes(written):
+        node["kwargs"]["network"] = NETWORK_FILE
+    return written
+
+
+def _network_inline(data: dict[str, Any], directory: Path) -> dict[str, Any]:
+    """The spec with each system node's network file read back in: the form its fingerprint is of."""
+    inline = copy.deepcopy(data)
+    for node in system_nodes(inline):
+        if isinstance(node["kwargs"]["network"], str):
+            node["kwargs"]["network"] = json.loads((directory / node["kwargs"]["network"]).read_text(encoding="utf-8"))
+    return inline
+
+
+def load_generated(directory: Path | str, device: str = "cpu") -> tuple[dict[str, Any], dict[str, Any]]:
+    """A generated model's (varis, probs), after checking that model.json and its stored rules still
+    belong together. (tbnpy.compile.compile_file loads the same file without the checks.)"""
+    directory = Path(directory)
+    data = json.loads((directory / "model.json").read_text(encoding="utf-8"))
+    inline = _network_inline(data, directory)
+    if "source_sha256" in data and _tbn_fingerprint(inline) != data["source_sha256"]:
+        raise ValueError("Data belong to a different generated model; regenerate")
+    for node in system_nodes(inline):
+        if node["kwargs"].get("rules"):
+            _check_reference(directory, node, node["kwargs"]["rules"])
+    return compile_tbn(data, device=device, directory=directory)
+
+
 _GENERATED_MODEL = '''"""Generated tbnpy model. Regenerate with: python -m src build toy-ca/demo.
 
+model.json is a tbnpy spec: each probability object is a custom node naming its class (in
+this repository's src/builder/kernels), its childs and parents, and its constructor's
+arguments, and tbnpy.compile builds every object from it. The system objects read the
+network from system-network.json and their stored rules from rsr/, beside this file.
+
 Run from any directory: python path/to/model.py --samples 2000 --device cpu
-Or import define_variables() and define_probs(varis, device="cpu").
+Or import define_model(device="cpu") for tbnpy's (varis, probs).
 """
 from pathlib import Path
 import argparse
@@ -684,21 +810,15 @@ import sys
 BASE = Path(__file__).resolve().parent
 ROOT = next(p for p in BASE.parents if (p / "src/builder/bn_builder.py").is_file())
 if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT))        # so tbnpy can import the kernel classes the spec names
 
-from src.builder.bn_builder import define_tbn_variables, define_tbn_probabilities
-
-
-def read_data():
-    return json.loads((BASE / "model.json").read_text(encoding="utf-8"))
+from tbnpy.compile import compile_file
 
 
-def define_variables():
-    return define_tbn_variables(read_data())
-
-
-def define_probs(varis, device="cpu"):
-    return define_tbn_probabilities(read_data(), varis, device=device, directory=BASE)
+def define_model(device="cpu"):
+    """tbnpy's variables and probability objects, compiled from model.json."""
+    _, varis, probs = compile_file(BASE / "model.json", device=device)
+    return varis, probs
 
 
 if __name__ == "__main__":
@@ -711,8 +831,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=20261022)
     args = parser.parse_args()
     torch.manual_seed(args.seed)
-    varis = define_variables()
-    probs = define_probs(varis, device=args.device)
+    varis, probs = define_model(device=args.device)
     sampled = inference.sample(probs, list(probs), n_sample=args.samples)
     summary = {}
     for prob in sampled.values():

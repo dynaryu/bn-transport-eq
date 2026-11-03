@@ -23,7 +23,7 @@ This is an illustration using the toy network `toy-ca`. The only user input requ
 The system behind it is drawn in [`schema/diagram.html`](../../schema/diagram.html). Open it in a browser, or run `python -m src diagram --open`. It has three tabs:
 
 - **Model:** every function, with the tables it reads.
-- **Functions:** how each function's outputs feed the next one's inputs, from hazard to fragility, usability, edge and system state.
+- **Functions:** how each function's outputs feed the next one's inputs, from hazard to fragility, edge and system state.
 - **Plates:** the tables of `network.json` and their keys.
 
 Clicking a card shows its signature and parameter sets.
@@ -185,19 +185,18 @@ The builder resolves the assembly and saves the model and RSR rules under this e
 
 ```{python}
 #| output: false
-from src.builder.bn_builder import (
-    generate_tbn, define_tbn_variables, define_tbn_probabilities,
-)
+from src.builder.bn_builder import generate_tbn
 
 model_dir = generate_tbn(Path("examples/toy-ca/demo.assembly.json"))
 ```
 
-Load the saved data into tbnpy's two dictionaries:
+`model.json` is a tbnpy spec: each probability object is a `custom` node naming its class, its childs and parents, and its constructor's arguments. tbnpy itself builds the two dictionaries from it; the system objects read the network and their rules from files beside it.
 
 ```{python}
-model_data = json.loads((model_dir / "model.json").read_text(encoding="utf-8"))
-varis = define_tbn_variables(model_data)
-probs = define_tbn_probabilities(model_data, varis, directory=model_dir)
+from tbnpy.compile import compile_file
+
+spec, varis, probs = compile_file(model_dir / "model.json")
+model_data = json.loads((model_dir / "model.json").read_text(encoding="utf-8"))   # the spec as written
 print(f"{len(varis)} variables; {len(probs)} probability objects")
 ```
 
@@ -224,7 +223,7 @@ display(Markdown(f"Total: **{kind_counts['continuous']} continuous** and "
 ```{python}
 by_function = {}
 for k, p in probs.items():
-    by_function.setdefault(p.spec["function"], []).append((k, p))
+    by_function.setdefault(p.spec_metadata["function"], []).append((k, p))
 
 def span(values):
     return str(min(values)) if min(values) == max(values) else f"{min(values)}–{max(values)}"
@@ -247,8 +246,8 @@ The graph groups variables by quantity. Arrows show the conditional direction; e
 #| fig-width: 7
 #| fig-height: 2.1
 fig, ax = plt.subplots(figsize=(7, 2.1))
-positions = [(1.6, 0.5), (3.2, 0.5), (4.8, 0.5), (6.4, 0.5), (8, 0.5)]
-labels = ["SA(1.0) (10)", "DamageState (10)", "Usable (10)", "EdgeOpen (10)", "SystemState (6)"]
+positions = [(1.6, 0.5), (3.7, 0.5), (5.8, 0.5), (7.9, 0.5)]
+labels = ["SA(1.0) (10)", "DamageState (10)", "EdgeOpen (10)", "SystemState (6)"]
 boxes = []
 for pos, label in zip(positions, labels):
     boxes.append(ax.text(*pos, label, ha="center", va="center", fontsize=7,
@@ -257,7 +256,7 @@ ax.set(xlim=(0.7, 8.9), ylim=(-0.5, 1.5))
 ax.axis("off")
 plt.tight_layout()
 fig.canvas.draw()
-for i, j in [(0, 1), (1, 2), (2, 3), (3, 4)]:
+for i, j in [(0, 1), (1, 2), (2, 3)]:
     ax.annotate("", xy=positions[j], xytext=positions[i],
                 arrowprops=dict(arrowstyle="->", color="0.35", shrinkA=3, shrinkB=3,
                                 patchA=boxes[i].get_bbox_patch(), patchB=boxes[j].get_bbox_patch()))
@@ -289,8 +288,8 @@ hazard = probs["hazard.gmm"]
 fragility = probs["DamageState.HazusBridge::b4"]
 bridge_index = next(i for i, v in enumerate(hazard.childs) if v.name == "SA(1.0)::b4")
 motion = hazard.distribution(1)
-mass = fragility.distribution(example_parents(fragility))[0, 0]
-damage_states = fragility.spec["states"]["damage"]
+mass = fragility.distribution(example_parents(fragility)[:, 0])[0]
+damage_states = fragility.states
 ```
 
 **Intensity — `SA(1.0)::b4`.** No parents: the event's Mw, epicentre and depth are fixed data from `network.json`. Outputs: all ten bridge intensities jointly; b4's output feeds `DamageState.HazusBridge::b4`. The Campbell function calculates log-median $\mu$ and dispersion $\sigma$, then draws $I=\exp(\mu+\sigma Z)$ with $Z\sim N(0,1)$. This demo supplies only SA(1.0), with independent residuals between bridges.
@@ -302,7 +301,7 @@ display(Markdown(f"For b4: median = {motion.loc[0, bridge_index].exp().item():.3
                  f"sampled intensity = {sampled_value('SA(1.0)::b4'):.3f} g."))
 ```
 
-**Damage — `DamageState.HazusBridge::b4`.** Parent: `SA(1.0)::b4`. Child: `DamageState.HazusBridge::b4`, which feeds `Usable::b4`. Lognormal exceedances are differenced into five state probabilities, then one uniform draw per bridge picks a state index. Indices 0–4 denote none through complete.
+**Damage — `DamageState.HazusBridge::b4`.** Parent: `SA(1.0)::b4`. Child: `DamageState.HazusBridge::b4`, which feeds `EdgeOpen::e4`. Lognormal exceedances are differenced into five state probabilities, then one uniform draw per bridge picks a state index. Indices 0–4 denote none through complete.
 
 ```{python}
 #| echo: false
@@ -314,9 +313,7 @@ display(Markdown(f"Sampled damage at b4: index {sampled_index}, "
                  f"state **{damage_states[sampled_index]}**{meaning}."))
 ```
 
-**Usability — `Usable::b4`.** Parent: `DamageState.HazusBridge::b4`. Child: `Usable::b4`, which feeds `EdgeOpen::e4`. The closure policy deterministically maps none/slight/moderate to 1, and extensive/complete to 0.
-
-**Edge state — `EdgeOpen::e4`.** Parents: the usability of every bridge on e4, here `Usable::b4`. Child: `EdgeOpen::e4`. An edge is open only if every bridge on it is usable. Every edge state feeds each origin's system state, n3–n8.
+**Edge state — `EdgeOpen::e4`.** Parents: the damage state of every bridge on e4, here `DamageState.HazusBridge::b4`. Child: `EdgeOpen::e4`. The closure policy (`policy.closed-at-extensive`) keeps a bridge open at none, slight or moderate damage and closes it at extensive or complete; the edge is open only if every bridge on it is. A bridge therefore has no state variable of its own: its damage closes its edge. Every edge state feeds each origin's system state, n3–n8.
 
 For example, this calls the edge object's sampling method directly. The tensor columns follow `parents`; returned columns follow `childs`.
 
@@ -325,7 +322,7 @@ edge = probs["EdgeOpen::e4"]
 Cs_pars = example_parents(edge)
 Cs_child, logp = edge.sample(Cs_pars=Cs_pars)
 print("parents:", [v.name for v in edge.parents], "; childs:", [v.name for v in edge.childs])
-print("b4 usability:", int(sampled_value("Usable::b4")))
+print("b4 damage state:", fragility.states[int(sampled_value("DamageState.HazusBridge::b4"))])
 print("e4 state:", int(Cs_child[0, 0]), "; probability:", float(np.exp(logp[0])))
 ```
 
@@ -346,17 +343,17 @@ import itertools
 import torch
 from rsr.rsr import classify_samples_with_indices
 
-state_keys = [k for k, p in probs.items() if p.spec["role"] == "system"]
+state_keys = [k for k, p in probs.items() if p.spec_metadata["role"] == "system"]
 coverage = []
 for key in state_keys:
-    system, row = probs[key], probs[key].spec["rows"][0]
+    system = probs[key]
     configurations = torch.tensor(list(itertools.product((0, 1), repeat=len(system.parents))))
     one_hot = torch.nn.functional.one_hot(configurations, 2).to(torch.int32)
-    upper, lower = system.refs[0]
+    upper, lower = system.rules
     classified = classify_samples_with_indices(one_hot, upper, lower)
     metrics = [json.loads(line) for line in
-               (model_dir / "rsr" / row["id"] / "target_add_h=0.5" / "metrics.json").read_text().splitlines()]
-    coverage.append({"origin": row["id"], "survival rules": len(upper),
+               (model_dir / "rsr" / system.origin / "target_add_h=0.5" / "metrics.json").read_text().splitlines()]
+    coverage.append({"origin": system.origin, "survival rules": len(upper),
                      "failure rules": len(lower), "rounds": len(metrics),
                      "unclassified / 1024": classified["unknown"]})
 show_table(pd.DataFrame(coverage))
@@ -547,8 +544,8 @@ from src.inference.engine import compile_query
 
 _, other = build_tbn(compile_query({"assembly": "toy-ca/demo",
                                     "rows": {"demo-san-andreas": {"mw": 7.0}}}))
-print("rules reused at M7.0:", all(p.refs[0] is not None
-                                   for p in other.values() if p.spec["role"] == "system"))
+print("rules reused at M7.0:", all(p.rules is not None
+                                   for p in other.values() if p.spec_metadata["role"] == "system"))
 ```
 
 ### Emergency mode: ShakeCast to ShakeMap (in place)

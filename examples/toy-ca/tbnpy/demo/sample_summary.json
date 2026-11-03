@@ -43,250 +43,190 @@
       "mean_finite": 0.23834978150300035,
       "P_inf": 0.0
     },
-    "SystemState::n3": {
-      "P": {
-        "0": 0.0075,
-        "1": 0.9925
-      }
-    },
-    "SystemState::n4": {
-      "P": {
-        "0": 0.1225,
-        "1": 0.8775
-      }
-    },
-    "SystemState::n5": {
-      "P": {
-        "0": 0.0825,
-        "1": 0.9175
-      }
-    },
-    "SystemState::n6": {
-      "P": {
-        "0": 0.105,
-        "1": 0.895
-      }
-    },
-    "SystemState::n7": {
-      "P": {
-        "0": 0.0015,
-        "1": 0.9985
-      }
-    },
-    "SystemState::n8": {
-      "P": {
-        "0": 0.018,
-        "1": 0.982
-      }
-    },
-    "Usable::b1": {
-      "P": {
-        "0": 0.0215,
-        "1": 0.9785
-      }
-    },
-    "Usable::b2": {
-      "P": {
-        "0": 0.0825,
-        "1": 0.9175
-      }
-    },
-    "Usable::b3": {
-      "P": {
-        "0": 0.0075,
-        "1": 0.9925
-      }
-    },
-    "Usable::b4": {
-      "P": {
-        "0": 0.2695,
-        "1": 0.7305
-      }
-    },
-    "Usable::b5": {
-      "P": {
-        "0": 0.0105,
-        "1": 0.9895
-      }
-    },
-    "Usable::b6": {
-      "P": {
-        "0": 0.4105,
-        "1": 0.5895
-      }
-    },
-    "Usable::b7": {
-      "P": {
-        "0": 0.1025,
-        "1": 0.8975
-      }
-    },
-    "Usable::b8": {
-      "P": {
-        "0": 0.0245,
-        "1": 0.9755
-      }
-    },
-    "Usable::b9": {
-      "P": {
-        "0": 0.0495,
-        "1": 0.9505
-      }
-    },
-    "Usable::b10": {
-      "P": {
-        "0": 0.024,
-        "1": 0.976
-      }
-    },
-    "EdgeOpen::e1": {
-      "P": {
-        "0": 0.0215,
-        "1": 0.9785
-      }
-    },
-    "EdgeOpen::e2": {
-      "P": {
-        "0": 0.0825,
-        "1": 0.9175
-      }
-    },
-    "EdgeOpen::e3": {
-      "P": {
-        "0": 0.0075,
-        "1": 0.9925
-      }
-    },
-    "EdgeOpen::e4": {
-      "P": {
-        "0": 0.2695,
-        "1": 0.7305
-      }
-    },
-    "EdgeOpen::e5": {
-      "P": {
-        "0": 0.0105,
-        "1": 0.9895
-      }
-    },
-    "EdgeOpen::e6": {
-      "P": {
-        "0": 0.4105,
-        "1": 0.5895
-      }
-    },
-    "EdgeOpen::e7": {
-      "P": {
-        "0": 0.1025,
-        "1": 0.8975
-      }
-    },
-    "EdgeOpen::e8": {
-      "P": {
-        "0": 0.0245,
-        "1": 0.9755
-      }
-    },
-    "EdgeOpen::e9": {
-      "P": {
-        "0": 0.0495,
-        "1": 0.9505
-      }
-    },
-    "EdgeOpen::e10": {
-      "P": {
-        "0": 0.024,
-        "1": 0.976
-      }
-    },
     "DamageState.HazusBridge::b1": {
       "P": {
         "none": 0.967,
         "slight": 0.0,
-        "moderate": 0.0115,
-        "extensive": 0.013,
-        "complete": 0.0085
+        "moderate": 0.014,
+        "extensive": 0.009,
+        "complete": 0.01
       }
     },
     "DamageState.HazusBridge::b2": {
       "P": {
-        "none": 0.756,
-        "slight": 0.1025,
-        "moderate": 0.059,
-        "extensive": 0.0515,
-        "complete": 0.031
+        "none": 0.749,
+        "slight": 0.1105,
+        "moderate": 0.0595,
+        "extensive": 0.0485,
+        "complete": 0.0325
       }
     },
     "DamageState.HazusBridge::b3": {
       "P": {
-        "none": 0.984,
+        "none": 0.979,
         "slight": 0.0,
-        "moderate": 0.0085,
-        "extensive": 0.0035,
-        "complete": 0.004
+        "moderate": 0.009,
+        "extensive": 0.0075,
+        "complete": 0.0045
       }
     },
     "DamageState.HazusBridge::b4": {
       "P": {
-        "none": 0.4575,
-        "slight": 0.155,
-        "moderate": 0.118,
-        "extensive": 0.1315,
-        "complete": 0.138
+        "none": 0.4585,
+        "slight": 0.138,
+        "moderate": 0.107,
+        "extensive": 0.146,
+        "complete": 0.1505
       }
     },
     "DamageState.HazusBridge::b5": {
       "P": {
-        "none": 0.981,
+        "none": 0.975,
         "slight": 0.0,
-        "moderate": 0.0085,
-        "extensive": 0.0065,
+        "moderate": 0.0115,
+        "extensive": 0.0095,
         "complete": 0.004
       }
     },
     "DamageState.HazusBridge::b6": {
       "P": {
-        "none": 0.332,
-        "slight": 0.154,
-        "moderate": 0.1035,
-        "extensive": 0.177,
-        "complete": 0.2335
+        "none": 0.3185,
+        "slight": 0.148,
+        "moderate": 0.114,
+        "extensive": 0.199,
+        "complete": 0.2205
       }
     },
     "DamageState.HazusBridge::b7": {
       "P": {
-        "none": 0.8445,
+        "none": 0.8495,
         "slight": 0.0,
-        "moderate": 0.053,
-        "extensive": 0.05,
-        "complete": 0.0525
+        "moderate": 0.049,
+        "extensive": 0.045,
+        "complete": 0.0565
       }
     },
     "DamageState.HazusBridge::b8": {
       "P": {
-        "none": 0.9545,
+        "none": 0.9605,
         "slight": 0.0,
-        "moderate": 0.021,
-        "extensive": 0.013,
-        "complete": 0.0115
+        "moderate": 0.0165,
+        "extensive": 0.017,
+        "complete": 0.006
       }
     },
     "DamageState.HazusBridge::b9": {
       "P": {
-        "none": 0.917,
+        "none": 0.928,
         "slight": 0.0,
-        "moderate": 0.0335,
-        "extensive": 0.03,
-        "complete": 0.0195
+        "moderate": 0.0305,
+        "extensive": 0.021,
+        "complete": 0.0205
       }
     },
     "DamageState.HazusBridge::b10": {
       "P": {
-        "none": 0.9585,
+        "none": 0.9535,
         "slight": 0.0,
-        "moderate": 0.0175,
-        "extensive": 0.015,
-        "complete": 0.009
+        "moderate": 0.0215,
+        "extensive": 0.0135,
+        "complete": 0.0115
+      }
+    },
+    "EdgeOpen::e1": {
+      "P": {
+        "0": 0.019,
+        "1": 0.981
+      }
+    },
+    "EdgeOpen::e2": {
+      "P": {
+        "0": 0.081,
+        "1": 0.919
+      }
+    },
+    "EdgeOpen::e3": {
+      "P": {
+        "0": 0.012,
+        "1": 0.988
+      }
+    },
+    "EdgeOpen::e4": {
+      "P": {
+        "0": 0.2965,
+        "1": 0.7035
+      }
+    },
+    "EdgeOpen::e5": {
+      "P": {
+        "0": 0.0135,
+        "1": 0.9865
+      }
+    },
+    "EdgeOpen::e6": {
+      "P": {
+        "0": 0.4195,
+        "1": 0.5805
+      }
+    },
+    "EdgeOpen::e7": {
+      "P": {
+        "0": 0.1015,
+        "1": 0.8985
+      }
+    },
+    "EdgeOpen::e8": {
+      "P": {
+        "0": 0.023,
+        "1": 0.977
+      }
+    },
+    "EdgeOpen::e9": {
+      "P": {
+        "0": 0.0415,
+        "1": 0.9585
+      }
+    },
+    "EdgeOpen::e10": {
+      "P": {
+        "0": 0.025,
+        "1": 0.975
+      }
+    },
+    "SystemState::n3": {
+      "P": {
+        "0": 0.012,
+        "1": 0.988
+      }
+    },
+    "SystemState::n4": {
+      "P": {
+        "0": 0.145,
+        "1": 0.855
+      }
+    },
+    "SystemState::n5": {
+      "P": {
+        "0": 0.081,
+        "1": 0.919
+      }
+    },
+    "SystemState::n6": {
+      "P": {
+        "0": 0.1015,
+        "1": 0.8985
+      }
+    },
+    "SystemState::n7": {
+      "P": {
+        "0": 0.0035,
+        "1": 0.9965
+      }
+    },
+    "SystemState::n8": {
+      "P": {
+        "0": 0.0255,
+        "1": 0.9745
       }
     }
   }

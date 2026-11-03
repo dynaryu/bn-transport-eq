@@ -11,7 +11,7 @@
       },
       {
         "role": "assistant",
-        "content": "Which mathematical meaning of most important should I use?\nForced outage: P(F | do(B_i=0), H): system failure when bridge i is forced unusable; other bridges retain their scenario uncertainty.\nAvailability comparison: P(F | do(B_i=0), H) and P(F | do(B_i=1), H), reported separately for each bridge.\nDiagnostic association: P(B_i=0 | F, H): bridge i is unusable given an observed system failure; this is not a causal effect."
+        "content": "Which mathematical meaning of most important should I use?\nForced outage: P(F | do(B_i=0), H): system failure when bridge i is forced closed (its edge closed); other bridges retain their scenario uncertainty.\nAvailability comparison: P(F | do(B_i=0), H) and P(F | do(B_i=1), H), reported separately for each bridge.\nDiagnostic association: P(B_i=0 | F, H): bridge i is closed given an observed system failure; this is not a causal effect."
       }
     ],
     "system_failure": "SystemState::n4 == 0"
@@ -32,7 +32,7 @@
           }
         ],
         "do": {
-          "Usable::b2": 0
+          "EdgeOpen::e2": 0
         }
       },
       {
@@ -45,7 +45,7 @@
           }
         ],
         "do": {
-          "Usable::b2": 1
+          "EdgeOpen::e2": 1
         }
       },
       {
@@ -58,7 +58,7 @@
           }
         ],
         "do": {
-          "Usable::b4": 0
+          "EdgeOpen::e4": 0
         }
       },
       {
@@ -71,7 +71,7 @@
           }
         ],
         "do": {
-          "Usable::b4": 1
+          "EdgeOpen::e4": 1
         }
       },
       {
@@ -84,7 +84,7 @@
           }
         ],
         "do": {
-          "Usable::b6": 0
+          "EdgeOpen::e6": 0
         }
       },
       {
@@ -97,7 +97,7 @@
           }
         ],
         "do": {
-          "Usable::b6": 1
+          "EdgeOpen::e6": 1
         }
       }
     ]

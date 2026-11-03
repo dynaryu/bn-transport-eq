@@ -29,7 +29,7 @@ def test_a_recorded_query_keeps_its_numbers_and_provenance_and_banks_the_whole_b
     assert provenance["parameter_sets"]["fragility.bridge"] == {"hazus61.HWB11": 7, "hazus61.HWB5": 3}
     assert record["samples_from"] == "the whole BN, sampled now and stored" and not record["samples_file"]["reused"]
     bank = records.load_samples(record)
-    assert len(bank) == 46 and bank["SA(1.0)::b4"].dtype == np.float32 and bank["Usable::b4"].dtype == np.uint8
+    assert len(bank) == 36 and bank["SA(1.0)::b4"].dtype == np.float32 and bank["EdgeOpen::e4"].dtype == np.uint8
     for event in record["events"]:                               # the numbers are the bank's
         assert np.mean(bank[event["node"]] == 0) == event["p"]
     assert _replays(record["id"])
@@ -37,12 +37,12 @@ def test_a_recorded_query_keeps_its_numbers_and_provenance_and_banks_the_whole_b
 
 def test_a_follow_up_on_the_same_scenario_reads_the_bank_and_its_scope_only():
     first = engine.answer(QUERY, record={"source": "test"})
-    follow = engine.answer({**QUERY, "events": [{"node": "Usable::b4", "op": "==", "value": 0}]}, record={"source": "test"})
+    follow = engine.answer({**QUERY, "events": [{"node": "EdgeOpen::e4", "op": "==", "value": 0}]}, record={"source": "test"})
     assert follow["samples_from"] == "the scenario's stored samples" and follow["record"]["samples_file"]["reused"]
     assert follow["record"]["samples_file"]["bank"] == first["record"]["samples_file"]["bank"]
-    assert follow["scope"] == {"relevant": 3, "of": 46, "computed": 0}      # read from the bank, nothing sampled
+    assert follow["scope"] == {"relevant": 3, "of": 36, "computed": 0}      # read from the bank, nothing sampled
     bank = records.load_samples(records.find(follow["record"]["id"]))
-    assert follow["events"][0]["p"] == np.mean(bank["Usable::b4"] == 0)
+    assert follow["events"][0]["p"] == np.mean(bank["EdgeOpen::e4"] == 0)
     assert _replays(follow["record"]["id"])                       # sampled afresh, it gives the bank's numbers
 
 
@@ -55,7 +55,7 @@ def test_another_scenario_gets_its_own_bank():
 
 def test_a_bn_too_large_to_bank_is_sampled_on_the_fly_for_its_scope_only(monkeypatch):
     monkeypatch.setattr(records, "SAMPLE_LIMIT_BYTES", 1000)
-    result = engine.answer({**QUERY, "events": [{"node": "Usable::b4", "op": "==", "value": 0}]}, record={"source": "test"})
+    result = engine.answer({**QUERY, "events": [{"node": "EdgeOpen::e4", "op": "==", "value": 0}]}, record={"source": "test"})
     stored = result["record"]["samples_file"]
     assert stored["bank"] is None and "scope only" in stored["reason"]
     assert result["samples_from"] == "the query's scope, sampled now" and result["scope"]["computed"] == 12
@@ -65,10 +65,10 @@ def test_a_bn_too_large_to_bank_is_sampled_on_the_fly_for_its_scope_only(monkeyp
 
 def test_scope_names_the_ancestors_and_prunes_the_rest():
     s = engine.scope({"assembly": TOY, "events": [{"node": "SystemState::n4", "op": "==", "value": 0}]})
-    assert s["relevant"]["count"] == 41 and s["relevant"]["by_quantity"]["SystemState"] == 1
+    assert s["relevant"]["count"] == 31 and s["relevant"]["by_quantity"]["SystemState"] == 1
     assert s["pruned"] == [f"SystemState::{n}" for n in ("n3", "n5", "n6", "n7", "n8")]
-    bridge = engine.scope({"assembly": TOY, "targets": ["Usable::b4"]})
-    assert bridge["relevant"]["by_quantity"] == {"SA(1.0)": 1, "DamageState.HazusBridge": 1, "Usable": 1}
+    bridge = engine.scope({"assembly": TOY, "targets": ["EdgeOpen::e4"]})
+    assert bridge["relevant"]["by_quantity"] == {"SA(1.0)": 1, "DamageState.HazusBridge": 1, "EdgeOpen": 1}
     assert len(bridge["sampled"]["beyond_relevant"]) == 9 and bridge["joint"] == ["hazard.gmm"]
 
 
