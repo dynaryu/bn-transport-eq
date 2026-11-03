@@ -107,7 +107,7 @@ requires-dist = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "rsr-duco", specifier = ">=0.2.0" },
     { name = "scipy", specifier = ">=1.17.1" },
-    { name = "tbnpy", specifier = ">=0.3.1" },
+    { name = "tbnpy", specifier = ">=0.3.2" },
     { name = "torch", specifier = ">=2.0" },
 ]
 provides-extras = ["anthropic"]
@@ -2279,7 +2279,7 @@ wheels = [
 
 [[package]]
 name = "tbnpy"
-version = "0.3.1"
+version = "0.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ndtools-duco" },
@@ -2288,9 +2288,9 @@ dependencies = [
     { name = "pandas" },
     { name = "torch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/31/e9f7622b79f43732f2e111dde574a7f525b7b45b27afcc77ba90f3ab4ec4/tbnpy-0.3.1.tar.gz", hash = "sha256:42b515b1560fe5051b7bc9d46453666b96067bb956c8c034ece08af89ce72558", size = 78507, upload-time = "2026-11-03T13:27:32.28Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/43/f36e2d8ecdb534f62835d9bd9b6cabdd939e93c0becea256137d1de16412/tbnpy-0.3.2.tar.gz", hash = "sha256:87a6f1faf509ea8f0b91193b4dc8e935148b700588700fe0870c4f9bc4d0231b", size = 78438, upload-time = "2026-11-03T13:36:33.754Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/7d/ddf8e04b7db2568acb218b8c40de186b2ce1d7b0b4523c653f1c60d6c56a/tbnpy-0.3.1-py3-none-any.whl", hash = "sha256:ee128183f959846cfeeffe135bc2093f1009b784bffe83470314f1f711984f07", size = 59994, upload-time = "2026-11-03T13:27:31.03Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/99/72bfde1afb7cce680726729664b01857e5061c4e5f89763d35e94bebfb88/tbnpy-0.3.2-py3-none-any.whl", hash = "sha256:939e6ff0d55a351e294bdf82870874e4168c36fff86a3a4e326d401433d40ce4", size = 59837, upload-time = "2026-11-03T13:36:32.487Z" },
 ]
 
 [[package]]

@@ -13,7 +13,7 @@ dependencies = [
     "pytest>=9.1.1",
     "scipy>=1.17.1",
     "torch>=2.0",
-    "tbnpy>=0.3.1",
+    "tbnpy>=0.3.2",
     "rsr-duco>=0.2.0",
 ]
 
