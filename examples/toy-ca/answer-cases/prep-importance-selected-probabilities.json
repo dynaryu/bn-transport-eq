@@ -14,7 +14,7 @@
         "content": "Which mathematical meaning of most important should I use?\nForced outage: P(F | do(B_i=0), H): system failure when bridge i is forced closed (its edge closed); other bridges retain their scenario uncertainty.\nAvailability comparison: P(F | do(B_i=0), H) and P(F | do(B_i=1), H), reported separately for each bridge.\nDiagnostic association: P(B_i=0 | F, H): bridge i is closed given an observed system failure; this is not a causal effect."
       }
     ],
-    "system_failure": "SystemState::n4 == 0"
+    "system_failure": "SystemState::n4 == Fail"
   },
   "questions": [
     "Use the availability comparison: report both forced-unusable and forced-usable failure probabilities for b2, b4 and b6 separately."
@@ -28,11 +28,11 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "do": {
-          "EdgeOpen::e2": 0
+          "EdgeOpen::e2": "False"
         }
       },
       {
@@ -41,11 +41,11 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "do": {
-          "EdgeOpen::e2": 1
+          "EdgeOpen::e2": "True"
         }
       },
       {
@@ -54,11 +54,11 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "do": {
-          "EdgeOpen::e4": 0
+          "EdgeOpen::e4": "False"
         }
       },
       {
@@ -67,11 +67,11 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "do": {
-          "EdgeOpen::e4": 1
+          "EdgeOpen::e4": "True"
         }
       },
       {
@@ -80,11 +80,11 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "do": {
-          "EdgeOpen::e6": 0
+          "EdgeOpen::e6": "False"
         }
       },
       {
@@ -93,11 +93,11 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "do": {
-          "EdgeOpen::e6": 1
+          "EdgeOpen::e6": "True"
         }
       }
     ]

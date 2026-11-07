@@ -126,7 +126,7 @@ def paths(task, run):
         routes.append({"name": name, "nodes": path, "edges": [e["id"] for e in edges],
                        "travel_time_h": sum(e["time"] for e in edges)})
         events.append({"name": name, "expression": {"all": [
-            {"node": f"EdgeOpen::{e['id']}", "op": "==", "value": 1} for e in edges]}})
+            {"node": f"EdgeOpen::{e['id']}", "op": "==", "value": "True"} for e in edges]}})
     query = {k: v for k, v in task["query"].items() if k not in ("events", "targets", "joint_events")}
     result = run({**query, "joint_events": events})
     for route, event in zip(routes, result["events"]):

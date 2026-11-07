@@ -35,13 +35,6 @@ def test_declined_readback_never_runs_engine(monkeypatch):
     assert any(e.get("readback") for e in events)
 
 
-def test_translate_only_does_not_write_proposals_or_run_engine(monkeypatch):
-    from src import proposals
-    monkeypatch.setattr(proposals, "draft", lambda *a: (_ for _ in ()).throw(AssertionError("must not draft")))
-    reply = json.loads(chat.run_tool({"proposal": {}}, assembly="toy-ca/demo", defaults=None, runs=[], translate_only=True))
-    assert reply["translation_only"]
-
-
 def test_heldout_runner_scores_plans_without_running_engine(monkeypatch):
     monkeypatch.setenv("BN_LLM", "ollama")
     expected = {question: case["expected"]["tool_arguments"] for case in cases.load_cases()

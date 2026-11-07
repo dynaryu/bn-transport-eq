@@ -5,9 +5,9 @@ per file; add paraphrases to `questions`. Context must identify the scenario and
 failure requirement. `context.defaults` holds the scenario settings the user sees.
 Do not place expected conclusions or tool arguments in context.
 
-`expected.outcome` is `compute`, `clarify`, `propose_instance` or `unsupported`.
+`expected.outcome` is `compute`, `clarify` or `unsupported`.
 `expected.tool_arguments` is the expected sequence of `run_query` arguments:
-an ordinary query, `analysis`, `clarification` or `proposal`. Computation plans
+an ordinary query, `analysis` or `clarification`. Computation plans
 use `analysis.kind` = `compare`, `importance`, `paths` or `voi`.
 Probability questions use event queries. Before-and-after scenarios use separate
 queries and report both probabilities. Expectations and explicitly requested
@@ -43,5 +43,5 @@ python -m pytest src/inference/tests src/llm/tests src/app/tests
 
 The first command checks case contracts without an LLM. The second uses the
 configured provider and logs held-out translations under `records/queries.jsonl`;
-it does not sample or activate proposals. Fixtures do not pin probability values:
+it does not sample. Fixtures do not pin probability values:
 use versioned model inputs and controlled seeds for numerical regression tests.

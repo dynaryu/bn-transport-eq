@@ -342,7 +342,7 @@ def compile_path(path: Path | str, lib: Library | None = None) -> Compiled:
 # ---------------------------------------------------------------------------
 # The model as a tbnpy spec
 # ---------------------------------------------------------------------------
-TBN_FORMAT = "quakenet.tbnpy.v4"
+TBN_FORMAT = "quakenet.tbnpy.v5"
 NETWORK_FILE = "system-network.json"       # the network the system objects share, written once beside model.json
 
 
@@ -351,57 +351,66 @@ def _sites(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _gmm_arguments(rows, params, tables, parent_rows, states):
-    """Gmm: the Event row, the one GMM parameter set, and the sites."""
+    """Gmm: the GMM's coefficients from its parameter set; the Event row and the sites its own."""
     from .kernels.hazard import fixed_event
 
     event = fixed_event(tables["Event"])
-    return {"event": {k: event[k] for k in ("id", "mw", "lat", "lon", "depth_km")},
-            "gmm": params[0], "sites": _sites(rows)}
+    return {"gmm": params[0]}, {"event": {k: event[k] for k in ("id", "mw", "lat", "lon", "depth_km")},
+                                "sites": _sites(rows)}
 
 
 def _correlation_arguments(rows, params, tables, parent_rows, states):
-    """SpatialCorrelationField: the sites and the correlation model's parameter set."""
-    return {"sites": _sites(rows), "correlation": params[0]}
+    """SpatialCorrelationField: the correlation model from its parameter set; the sites its own."""
+    return {"correlation": params[0]}, {"sites": _sites(rows)}
 
 
 def _shakemap_arguments(rows, params, tables, parent_rows, states):
-    """ShakeMap: which map, and the site."""
+    """ShakeMap: which map, from its parameter set; the site its own."""
     (row,), (p,) = rows, params
-    return {"event_id": p["event_id"], "imt": p["imt"], "lat": row["lat"], "lon": row["lon"],
-            "source": p.get("source"), "version": p.get("version")}
+    return ({"event_id": p["event_id"], "imt": p["imt"], "source": p.get("source"), "version": p.get("version")},
+            {"lat": row["lat"], "lon": row["lon"]})
+
+
+def _observation_arguments(rows, params, tables, parent_rows, states):
+    """ObservedIntensity: the relative standard deviation, from its parameter set."""
+    (p,) = params
+    return {"relative_sd": p["relative_sd"]}, {}
 
 
 def _fragility_arguments(rows, params, tables, parent_rows, states):
-    """Fragility: the curve's median and beta for each damage state after the first."""
+    """Fragility: the curve's median and beta for each damage state after the first, all from its parameter set."""
     (p,) = params
     curve, limit_states = p["parameters"], states["damage"][1:]
     return {"medians": [curve["medians"][s] for s in limit_states],
             "betas": [curve["betas"][s] for s in limit_states] if "betas" in curve else curve["beta"],
-            "curve": p["form"]}
+            "curve": p["form"]}, {}
 
 
 def _edge_arguments(rows, params, tables, parent_rows, states):
-    """EdgeOpen: the damage states its closure policy keeps a bridge open in."""
+    """EdgeOpen: the damage states its closure policy keeps a bridge open in, from its parameter set."""
     (p,) = params
-    return {"usable_states": p["usable_states"]}
+    return {"usable_states": p["usable_states"]}, {}
 
 
 def _system_arguments(rows, params, tables, parent_rows, states):
-    """TravelTimeToNearest: the origin, the edges in parent order, the threshold, and the network."""
+    """TravelTimeToNearest: no parameter set; the origin, the edges in parent order, the threshold, the network."""
     events = tables["SystemEvent"]
     if len(events) != 1:
         raise ValueError(f"a system function judges exactly one system event, got {len(events)}")
     (row,) = rows
-    return {"origin": row["id"], "edge_ids": parent_rows["open"][0], "target_add_h": events[0]["target_add_h"],
-            "network": {name: table for name, table in tables.items() if name != "SystemEvent"}}
+    return {}, {"origin": row["id"], "edge_ids": parent_rows["open"][0], "target_add_h": events[0]["target_add_h"],
+                "network": {name: table for name, table in tables.items() if name != "SystemEvent"}}
 
 
 # The constructor arguments of each kernel, from one group of a binding's rows: the rows, their
 # parameter values, the function's tables, each input port's parent row ids, and the discrete states.
+# Each returns (from the parameter set, the node's own): the first is written once in the spec's
+# parameter_sets, under the set's id, and every node on that set names it.
 KERNEL_ARGUMENTS = {
     "src.builder.kernels.hazard:Gmm": _gmm_arguments,
     "src.builder.kernels.hazard:SpatialCorrelationField": _correlation_arguments,
     "src.builder.kernels.hazard:ShakeMap": _shakemap_arguments,
+    "src.builder.kernels.observation:ObservedIntensity": _observation_arguments,
     "src.builder.kernels.fragility:Fragility": _fragility_arguments,
     "src.builder.kernels.edge:EdgeOpen": _edge_arguments,
     "src.builder.kernels.system:TravelTimeToNearest": _system_arguments,
@@ -412,9 +421,11 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
     """The model as a tbnpy spec: its variables, and each probability object as a ``custom`` node.
 
     A node names the object's class (``module``, ``cls``), its ``childs`` and ``parents``,
-    and its constructor's arguments (``kwargs``), so ``tbnpy.compile`` builds the object
-    from the node alone. ``metadata`` keeps what this repository's engine needs to know
-    about it: the function, its role, the rows and the parameter sets it came from.
+    and its constructor's arguments, so ``tbnpy.compile`` builds the object from the spec.
+    Arguments from a library parameter set (a fragility curve, a closure policy, a GMM) are
+    written once, in ``parameter_sets`` under the set's id, and named by each node built
+    from it (``parameter_set``); ``kwargs`` hold the node's own. ``metadata`` keeps what this
+    repository's engine needs to know about it: the function, its role and its binding.
 
     A stochastic binding drawn jointly (``drawKind: Joint``, e.g. a hazard field) is one
     object per parameter set, whose childs are its rows' outputs: those sites are sampled
@@ -424,7 +435,7 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
     spec to those bindings, which must be closed under ``upstream``. The spec is a portable
     snapshot of the selected inputs, not sampled data.
     """
-    variables, nodes = {}, []
+    variables, nodes, parameter_sets = {}, [], {}
     lib = compiled.library
 
     for index in compiled.order:
@@ -485,18 +496,26 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
 
             rows, params = [b.rows[r] for r in group], [b.parameters[r] for r in group]
             parent_rows = {port: [b.parents[port][r] for r in group] for port in b.parents}
+            shared, own = arguments(rows, params, tables, parent_rows, states)
+            node = {"name": key, "type": "custom", "module": module, "cls": cls,
+                    "childs": childs, "parents": parents}
             # One parameter set per object: a joint object is grouped by set, any other has one row.
-            metadata = {"function": fn["id"], "role": fn["role"], "binding": index,
-                        "parameter_set": b.parameter_sets[group[0]]}
+            set_id = b.parameter_sets[group[0]]
+            if set_id:
+                if parameter_sets.setdefault(set_id, shared) != shared:
+                    raise ValueError(f"{fn['id']}: parameter set {set_id} gives different arguments in two bindings")
+                node["parameter_set"] = set_id
+            else:                                   # inline parameters belong to this binding alone
+                own = {**shared, **own}
+            if own:
+                node["kwargs"] = own
+            node["metadata"] = {"function": fn["id"], "role": fn["role"], "binding": index}
             if "SystemEvent" in tables:
-                metadata["analysis"] = tables["SystemEvent"][0].get("analysis") if tables["SystemEvent"] else None
-            nodes.append({"name": key, "type": "custom", "module": module, "cls": cls,
-                          "childs": childs, "parents": parents,
-                          "kwargs": arguments(rows, params, tables, parent_rows, states),
-                          "metadata": metadata})
+                node["metadata"]["analysis"] = tables["SystemEvent"][0].get("analysis") if tables["SystemEvent"] else None
+            nodes.append(node)
 
     return {
-        "format": TBN_FORMAT, "spec_version": 2,
+        "format": TBN_FORMAT, "spec_version": 3,
         "name": compiled.assembly["id"], "description": compiled.assembly.get("label", ""),
         "assembly": compiled.assembly,
         "network": compiled.network.id,
@@ -506,7 +525,7 @@ def tbn_data(compiled: Compiled, bindings: set[int] | None = None) -> dict[str, 
             for i, b in enumerate(compiled.bindings) if bindings is None or i in bindings
             for s in b.parameter_sets if s
         },
-        "variables": list(variables.values()), "nodes": nodes,
+        "variables": list(variables.values()), "parameter_sets": parameter_sets, "nodes": nodes,
     }
 
 
@@ -541,7 +560,7 @@ def compile_tbn(data: dict[str, Any], device: str = "cpu",
 def _tbn_fingerprint(data: dict[str, Any]) -> str:
     """The model's identity: the spec without its provenance and without which stored rules it uses."""
     snapshot = {k: v for k, v in data.items() if k not in ("source_sha256", "versions")}
-    snapshot["nodes"] = [{**node, "kwargs": {k: v for k, v in node["kwargs"].items() if k != "rules"}}
+    snapshot["nodes"] = [{**node, "kwargs": {k: v for k, v in node.get("kwargs", {}).items() if k != "rules"}}
                          for node in data["nodes"]]
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
 

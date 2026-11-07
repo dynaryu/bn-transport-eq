@@ -26,7 +26,7 @@ from src.inference import engine
 def _type_label(q: dict[str, Any]) -> str:
     if q["kind"] == "discrete":
         states = q["states"]
-        return "{0,1}" if states == [0, 1] else f"enum({len(states)})"
+        return "{" + ",".join(map(str, states)) + "}" if len(states) == 2 else f"enum({len(states)})"
     if q["kind"] == "record":
         return f"record({len(q['fields'])})"
     return q["unit"]

@@ -153,7 +153,7 @@ def _query_from_args(args: argparse.Namespace) -> dict:
             query["targets"] = args.target
         if args.event:
             events = []
-            for text in args.event:          # "SystemState::n4==0"; split at the last operator
+            for text in args.event:          # "SystemState::n4==Fail"; split at the last operator
                 for op in ("<=", ">=", "==", "!=", "<", ">"):
                     node, found, value = text.rpartition(op)
                     if found:
@@ -224,22 +224,6 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     result = evaluate() if args.live else check_contracts()
     print(json.dumps(result, indent=2))
     return int(args.live and result["passed"] != result["total"])
-
-
-def cmd_proposals(args: argparse.Namespace) -> int:
-    from src import proposals
-    if args.action == "list":
-        result = proposals.list_proposals()
-    elif args.action == "draft":
-        if not args.json:
-            raise SystemExit("draft needs --json <file>")
-        result = proposals.draft(json.loads(Path(args.json).read_text(encoding="utf-8")))
-    else:
-        if not (args.id and args.reviewer and args.sha256):
-            raise SystemExit("activate needs --id, --reviewer and --sha256 from the reviewed draft")
-        result = proposals.activate(args.id, args.reviewer, args.sha256)
-    print(json.dumps(result, indent=2))
-    return 0
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -334,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
     def query_options(p: argparse.ArgumentParser) -> None:
         p.add_argument("assembly", nargs="?", help="e.g. ema-highway/gmm (or give --json)")
         p.add_argument("--target", action="append", help="node id or pattern, e.g. 'SA(1.0)::*'")
-        p.add_argument("--event", action="append", help="e.g. 'SystemState::*>n22:*==0' or 'EdgeOpen::*==0'")
+        p.add_argument("--event", action="append", help="e.g. 'SystemState::*>n22:*==Fail' or 'EdgeOpen::*==False' (a state's label or index)")
         p.add_argument("--set", action="append", help="row.attr=value or function.param=value, e.g. ema-reference.mw=7")
         p.add_argument("--use", action="append", help="function=parameter-set, swapping a parameter set")
         p.add_argument("--json", help="a whole query, as a file or inline JSON (overrides the options above)")
@@ -364,13 +348,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--live", action="store_true", help="call the configured LLM; log translations, without numerical runs")
     p.set_defaults(run=cmd_evaluate)
 
-    p = sub.add_parser("proposals", help="draft, inspect or activate reviewed model inputs")
-    p.add_argument("action", choices=["list", "draft", "activate"])
-    p.add_argument("--json")
-    p.add_argument("--id")
-    p.add_argument("--reviewer")
-    p.add_argument("--sha256")
-    p.set_defaults(run=cmd_proposals)
 
     p = sub.add_parser("serve", help="the interactive page")
     p.add_argument("--host", default="127.0.0.1")

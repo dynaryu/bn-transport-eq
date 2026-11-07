@@ -190,7 +190,7 @@ from src.builder.bn_builder import generate_tbn
 model_dir = generate_tbn(Path("examples/toy-ca/demo.assembly.json"))
 ```
 
-`model.json` is a tbnpy spec: each probability object is a `custom` node naming its class, its childs and parents, and its constructor's arguments. tbnpy itself builds the two dictionaries from it; the system objects read the network and their rules from files beside it.
+`model.json` is a tbnpy spec: each probability object is a `custom` node naming its class, its childs and parents, and its constructor's arguments. Arguments from a library parameter set (the GMM, a Hazus curve, the closure policy) are written once under `parameter_sets`, and each node built from one names it; `kwargs` hold what is particular to the node. tbnpy itself builds the two dictionaries from it; the system objects read the network and their rules from files beside it.
 
 ```{python}
 from tbnpy.compile import compile_file
@@ -198,6 +198,9 @@ from tbnpy.compile import compile_file
 spec, varis, probs = compile_file(model_dir / "model.json")
 model_data = json.loads((model_dir / "model.json").read_text(encoding="utf-8"))   # the spec as written
 print(f"{len(varis)} variables; {len(probs)} probability objects")
+for set_id in model_data["parameter_sets"]:
+    users = [n.name for n in spec.nodes if n.parameter_set == set_id]
+    print(f"{set_id}: {len(users)} object(s)")
 ```
 
 `varis` holds scalar variables, grouped below. The scenario (the Event row) is fixed data read by the hazard object, so it is not a variable.
@@ -313,7 +316,7 @@ display(Markdown(f"Sampled damage at b4: index {sampled_index}, "
                  f"state **{damage_states[sampled_index]}**{meaning}."))
 ```
 
-**Edge state — `EdgeOpen::e4`.** Parents: the damage state of every bridge on e4, here `DamageState.HazusBridge::b4`. Child: `EdgeOpen::e4`. The closure policy (`policy.closed-at-extensive`) keeps a bridge open at none, slight or moderate damage and closes it at extensive or complete; the edge is open only if every bridge on it is. A bridge therefore has no state variable of its own: its damage closes its edge. Every edge state feeds each origin's system state, n3–n8.
+**Edge state — `EdgeOpen::e4`.** Parents: the damage state of every bridge on e4, here `DamageState.HazusBridge::b4`. Child: `EdgeOpen::e4`. The closure policy (`policy.closed-at-extensive`) keeps a bridge open at none, slight or moderate damage and closes it at extensive or complete; the edge is open only if every bridge on it is. A bridge therefore has no state variable of its own: its damage closes its edge. The edge state is `False` (closed) or `True` (open), indices 0 and 1. Every edge state feeds each origin's system state, n3–n8.
 
 For example, this calls the edge object's sampling method directly. The tensor columns follow `parents`; returned columns follow `childs`.
 
@@ -323,14 +326,15 @@ Cs_pars = example_parents(edge)
 Cs_child, logp = edge.sample(Cs_pars=Cs_pars)
 print("parents:", [v.name for v in edge.parents], "; childs:", [v.name for v in edge.childs])
 print("b4 damage state:", fragility.states[int(sampled_value("DamageState.HazusBridge::b4"))])
-print("e4 state:", int(Cs_child[0, 0]), "; probability:", float(np.exp(logp[0])))
+print("e4 state:", edge.childs[0].values[int(Cs_child[0, 0])], "; probability:", float(np.exp(logp[0])))
 ```
 
-**System state — `SystemState::n4`.** Parents: all ten edge states. Child: `SystemState::n4`, with no downstream variables; each of the six origins has its own object. RSR first classifies the edge configuration; ndtools handles any unknowns. Survival means n4 reaches n1 or n2 within 0.5 hours of its intact travel time, with edge time = length/speed.
+**System state — `SystemState::n4`.** Parents: all ten edge states. Child: `SystemState::n4`, `Fail` or `Survival` (indices 0 and 1), with no downstream variables; each of the six origins has its own object. RSR first classifies the edge configuration; ndtools handles any unknowns. Survival means n4 reaches n1 or n2 within 0.5 hours of its intact travel time, with edge time = length/speed.
 
 ```{python}
 #| echo: false
-display(Markdown(f"Sampled state of n4: **{int(sampled_value('SystemState::n4'))}**."))
+n4 = probs["SystemState::n4"].childs[0]
+display(Markdown(f"Sampled state of n4: **{n4.values[int(sampled_value('SystemState::n4'))]}**."))
 ```
 
 ## 3. The RSR results
@@ -359,7 +363,7 @@ for key in state_keys:
 show_table(pd.DataFrame(coverage))
 ```
 
-For example, these rules determine whether n4 stays within 0.5 hours of its intact travel time. `1` means open; `0` means closed. Unlisted edges are unrestricted.
+For example, these rules determine whether n4 stays within 0.5 hours of its intact travel time. RSR writes edge states by index: `1` is `True` (open) and `0` is `False` (closed). Unlisted edges are unrestricted.
 
 ```{python}
 for filename, outcome in (("refs_up_1.json", "survives"),

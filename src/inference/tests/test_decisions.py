@@ -14,10 +14,10 @@ TOY = "toy-ca/demo"
 
 def test_forced_states_propagate_and_have_distinct_sample_banks():
     base = {"assembly": TOY, "samples": 200, "targets": ["EdgeOpen::e2"]}
-    a = engine.answer({**base, "do": {"EdgeOpen::e2": 0}}, record={"source": "test"})
-    b = engine.answer({**base, "do": {"EdgeOpen::e2": 1}}, record={"source": "test"})
-    assert a["targets"][0]["summary"]["P"]["0"] == 1
-    assert b["targets"][0]["summary"]["P"]["1"] == 1
+    a = engine.answer({**base, "do": {"EdgeOpen::e2": 0}}, record={"source": "test"})         # by index
+    b = engine.answer({**base, "do": {"EdgeOpen::e2": "True"}}, record={"source": "test"})    # by label
+    assert a["targets"][0]["summary"]["P"]["False"] == 1
+    assert b["targets"][0]["summary"]["P"]["True"] == 1
     assert a["record"]["samples_file"]["bank"] != b["record"]["samples_file"]["bank"]
     again = engine.answer({**base, "do": {"EdgeOpen::e2": 0}}, record={"source": "test"})
     assert again["record"]["samples_file"]["reused"]
@@ -33,43 +33,19 @@ def test_joint_probability_uses_the_same_samples_and_evidence_denominator():
     assert r["events"][2]["p"] == 1
     observed = engine.answer({"assembly": TOY, "samples": 5000, "evidence": {"EdgeOpen::e2": 0}, "events": [leaf]})
     assert observed["events"][0]["p"] == 1
-    assert 30 <= observed["inference"]["accepted"] < 5000
+    assert observed["inference"]["accepted"] == 5000       # the clique tree conditions on it: every row counts
 
 
-def test_observation_and_intervention_differ_with_a_common_cause(monkeypatch):
-    import torch
-    from tbnpy.variable import Variable
-    from src.builder.kernels import Probability
-
-    names = ["Root::r", "A::a", "B::b"]
-    variables = {n: Variable(n, [0, 1]) for n in names}
-    class Root(Probability):
-        def evaluate(self, pars):
-            return (torch.rand((len(pars), 1)) < .5).double()
-    class A(Probability):
-        def evaluate(self, pars):
-            return torch.where(torch.rand((len(pars), 1)) < .8, pars, 1 - pars)
-    class B(Probability):
-        def evaluate(self, pars):
-            return pars
-    probs = {}
-    for i, (n, cls) in enumerate(zip(names, [Root, A, B])):
-        probs[n] = cls([variables[n]], [] if i == 0 else [variables[names[0]]])
-        probs[n].spec_metadata = {"role": "test", "function": n}
-    quantities = {n.split("::")[0]: {"id": n.split("::")[0], "kind": "discrete", "states": [0, 1]} for n in names}
-    nodes = [{"id": n, "quantity": n.split("::")[0], "row": n.split("::")[1],
-              "parents": [] if i == 0 else [names[0]]} for i, n in enumerate(names)]
-    compiled = SimpleNamespace(library=SimpleNamespace(quantities=quantities), nodes=lambda: nodes,
-        producer={(n["quantity"], n["row"]): i for i, n in enumerate(nodes)}, ancestors=lambda _: {0, 1, 2},
-        bindings=[SimpleNamespace(function={"id": n}) for n in names], order=[0, 1, 2], assembly={"label": "confounded"})
-    monkeypatch.setattr(engine, "compile_query", lambda q: compiled)
-    monkeypatch.setattr(engine, "build_tbn", lambda *args: ({}, copy.deepcopy(probs)))
-    monkeypatch.setattr(engine, "_computed", lambda *args: 3)
-    base = {"assembly": "test/demo", "samples": 12000, "events": [{"node": "B::b", "op": "==", "value": 1}]}
-    observed = engine.answer({**base, "evidence": {"A::a": 1}})
-    forced = engine.answer({**base, "do": {"A::a": 1}})
-    assert observed["events"][0]["p"] == pytest.approx(.8, abs=.025)
-    assert forced["events"][0]["p"] == pytest.approx(.5, abs=.025)
+def test_observation_and_intervention_differ_with_a_common_cause():
+    """SA drives both b4's damage and its station's reading: observing complete damage raises the reading,
+    forcing it does not."""
+    event = [{"node": "SAObs(1.0)::b4", "op": ">", "value": 0.5}]
+    base = {"assembly": TOY, "samples": 20000, "events": event}
+    prior = engine.answer(base)["events"][0]["p"]
+    observed = engine.answer({**base, "evidence": {"DamageState.HazusBridge::b4": 4}})["events"][0]["p"]
+    forced = engine.answer({**base, "do": {"DamageState.HazusBridge::b4": 4}})["events"][0]["p"]
+    assert observed > prior + 0.1
+    assert forced == pytest.approx(prior, abs=0.03)
 
 
 def test_impossible_evidence_is_not_reported_as_zero_probability():
@@ -85,7 +61,8 @@ def test_impossible_evidence_is_not_reported_as_zero_probability():
 def test_forced_system_state_does_not_invoke_rule_reports():
     result = engine.answer({"assembly": TOY, "samples": 100, "do": {"SystemState::n4": 0},
                             "events": [{"node": "SystemState::n4", "op": "==", "value": 0}]})
-    assert result["events"][0]["p"] == 1 and result["rules"] is None
+    assert result["events"][0]["p"] == 1
+    assert "n4" not in [o["origin"] for o in result["rules"]["origins"]]      # the forced origin is not evaluated
 
 
 def test_voi_optimises_after_each_observation_and_accounts_for_cost():

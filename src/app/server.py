@@ -9,10 +9,24 @@ Standard library only. Endpoints:
                                   one example: its network's rows, its query menu, its stored rules
     GET  /api/views               the schema and every compiled BN, each with its query menu
     POST /api/query               a probabilistic query -> its answer          (src/inference)
-    POST /api/ask                 a question -> streamed query, computed, answer (src/llm)
     GET  /api/chat-status         whether a language-model backend is ready
     GET  /api/shakemap-events?network=<id>&min_magnitude=5
                                   USGS events with a ShakeMap near a network
+
+    The posterior session of an example (src/inference/session.py), one per example, saved to
+    records/sessions/ after every change and reopened from there after a restart:
+    GET  /api/session?assembly=<id>               its evidence, decision queries and timeline
+    POST /api/session            {assembly, scenario, samples}
+                                                  start it (Run): sample with no evidence, under the
+                                                  page's scenario settings
+    POST /api/session/query      {assembly, query, at}
+                                                  add a decision query
+    POST /api/session/evidence   {assembly, variable, value, at, source, text}
+                                                  add an observation: reweight or sample again
+    GET  /api/session/node?assembly=<id>&node=<variable>
+                                                  one variable's distribution given the evidence so far
+    POST /api/session/draft      {assembly, kind: query | evidence, text}
+                                                  the assistant's draft from a sentence; nothing is added
 """
 
 from __future__ import annotations
@@ -58,7 +72,7 @@ _API_ERRORS = {
 
 def _readable_api_error(exc: Exception) -> str:
     name = type(exc).__name__
-    print(f"[bn] /api/ask failed: {name}: {exc}", flush=True)
+    print(f"[bn] the assistant failed: {name}: {exc}", flush=True)
     return _API_ERRORS.get(name, f"The request failed ({name}). See the server log for detail.")
 
 
@@ -102,6 +116,96 @@ def example(assembly_id: str) -> dict[str, Any]:
         "joint": sorted({n["metadata"]["function"] for n in data["nodes"] if len(n["childs"]) > 1}),
         "rules": {"stored": stored, "origins": len(systems)},
     }
+
+
+# Posterior sessions, one per example, kept while the server runs. Sampling takes seconds to minutes, so a
+# session's requests are served one at a time.
+_sessions: dict[str, Any] = {}
+_sessions_lock = threading.Lock()
+
+
+SESSIONS = ROOT / "records" / "sessions"            # each example's latest session, to pick up after a restart
+
+
+def _session_path(assembly_id: str) -> Path:
+    return SESSIONS / (assembly_id.replace("/", "__") + ".pt")
+
+
+def _session_bn(assembly_id: str, settings: dict[str, Any]) -> tuple[Any, Any, Any, dict[str, float], list[str]]:
+    """The example's BN under the scenario settings: the clique tree's pieces, the tbnpy objects and variables,
+    the towns' populations, and the functions computed."""
+    from src.builder.bn_builder import build_tbn
+    from src.inference import cliques
+
+    compiled = engine.compile_query({"assembly": assembly_id, **settings})
+    variables, probs = build_tbn(compiled)
+    population = {r["id"]: r["population"] for r in compiled.network.rows("Node") if r.get("population") is not None}
+    return (cliques.tree(probs), probs, variables, population,
+            [compiled.bindings[i].function["id"] for i in compiled.order])
+
+
+def save_session(assembly_id: str, s: Any) -> None:
+    """Keep the session on disk after each change, so a restarted server opens it where it was."""
+    s.save(_session_path(assembly_id), scenario=s.scenario, computed=s.computed)
+
+
+def start_session(assembly_id: str, scenario: dict[str, Any] | None = None, samples: int | None = None) -> Any:
+    """A new session for the example (Run): its BN under the page's scenario settings (rows, parameters,
+    parameter_sets), sampled by the clique tree with no evidence; samples rows in all, 100 chains."""
+    from src.inference import session
+
+    settings = {k: v for k, v in (scenario or {}).items() if k in ("rows", "parameters", "parameter_sets")}
+    t, probs, variables, population, computed = _session_bn(assembly_id, settings)
+    n_keep = max(100, -(-int(samples or 200_000) // session.SAMPLER["n_chain"]))
+    s = session.Session(t, probs, variables, population=population, sampler={"n_keep": n_keep})
+    s.computed, s.scenario = computed, settings      # the assumptions the session was started under
+    archive_session(assembly_id)
+    _sessions[assembly_id] = s
+    save_session(assembly_id, s)
+    return s
+
+
+def archive_session(assembly_id: str) -> None:
+    """Move the example's saved session to records/sessions/archive/, stamped with when it was last saved, so a new
+    session never overwrites an old one."""
+    import time as _time
+
+    path = _session_path(assembly_id)
+    if path.is_file():
+        stamp = _time.strftime("%Y%m%d-%H%M%S", _time.localtime(path.stat().st_mtime))
+        target = SESSIONS / "archive" / f"{path.stem}__{stamp}.pt"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        path.replace(target)
+
+
+def session_of(assembly_id: str, required: bool = True) -> Any:
+    """The example's session: in memory, else the one saved on disk (after a restart), else none."""
+    s = _sessions.get(assembly_id)
+    path = _session_path(assembly_id)
+    if s is None and path.is_file():
+        from src.inference import session
+        try:
+            meta = torch_load_meta(path)
+            t, probs, variables, _, _ = _session_bn(assembly_id, meta.get("scenario") or {})
+            s, meta = session.Session.load(path, t, probs, variables)
+            s.computed, s.scenario = meta.get("computed", []), meta.get("scenario") or {}
+            _sessions[assembly_id] = s
+        except Exception as exc:                       # e.g. the model changed since: start afresh with Run
+            print(f"[bn] could not reopen the saved session of {assembly_id}: {type(exc).__name__}: {exc}", flush=True)
+            s = None
+    if s is None and required:
+        raise ValueError(f"no session for {assembly_id!r}: press Run first")
+    return s
+
+
+def torch_load_meta(path: Path) -> dict[str, Any]:
+    import torch
+    return torch.load(path, weights_only=False)["meta"]
+
+
+def session_reply(s: Any) -> dict[str, Any]:
+    """The session's state for the page, with the map's numbers given the evidence so far."""
+    return {**s.state(), "result": s.result(computed=s.computed), "scenario": getattr(s, "scenario", {})}
 
 
 # Rule extractions running in the background, one per (assembly, threshold). A separate process, so a
@@ -153,16 +257,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         url = urlparse(self.path)
-        if url.path == "/api/proposals":
-            from src import proposals
-            return self._json({"proposals": proposals.list_proposals()})
-        if url.path == "/api/scenarios":
-            from src import proposals
-            return self._json({"scenarios": proposals.scenarios((parse_qs(url.query).get("assembly") or [""])[0])})
         if url.path in {"/", "/index.html"}:
             return self._page(PAGE)
-        if url.path == "/ask.js":
-            return self._page(PAGE.with_name("ask.js"), "text/javascript; charset=utf-8")
         if url.path == "/diagram-navigation.js":
             return self._page(PAGE.with_name("diagram-navigation.js"), "text/javascript; charset=utf-8")
         if url.path == "/bn":
@@ -177,6 +273,21 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "; ".join(problems)}, HTTPStatus.NOT_FOUND)
         if url.path == "/api/views":
             return self._json(views())
+        if url.path in {"/api/session", "/api/session/node"}:
+            params = parse_qs(url.query)
+            assembly = (params.get("assembly") or [""])[0]
+            with _sessions_lock:
+                if url.path == "/api/session":
+                    s = session_of(assembly, required=False)
+                    return self._json({"session": session_reply(s) if s else None})
+                try:
+                    return self._json(session_of(assembly).distribution((params.get("node") or [""])[0]))
+                except ValueError as exc:
+                    return self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+        if url.path == "/api/inference":
+            # The clique tree's message passing as src/inference/cliques.py declares it, for the Clique tree tab.
+            from src.inference import cliques
+            return self._json(cliques.describe())
         if url.path == "/api/chat-status":
             ok, reason = chat.available()
             return self._json({"available": ok, "reason": reason, "provider": chat.provider(),
@@ -196,22 +307,6 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         path = urlparse(self.path).path
-        if path in {"/api/proposals", "/api/proposals/activate", "/api/review"}:
-            try:
-                from src import proposals
-                body = self._read_request()
-                if path == "/api/review":
-                    from .reviews import decide
-                    decide(body.get("token"), body.get("approved"))
-                    return self._json({"ok": True})
-                if path == "/api/proposals":
-                    return self._json(proposals.draft(body))
-                result = proposals.activate(body.get("id", ""), body.get("reviewer"), body.get("sha256"))
-                with _views_lock:
-                    _views.clear()
-                return self._json(result)
-            except (engine.QueryError, ValueError, TypeError, FileExistsError) as exc:
-                return self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         if path == "/api/query":
             try:
                 query, notes = self._read_request(), []
@@ -234,54 +329,69 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": (
                     f"The query could not be computed ({type(exc).__name__}). "
                     "See the server log for the full error.")}, HTTPStatus.INTERNAL_SERVER_ERROR)
-        if path == "/api/ask":
-            return self._ask()
+        if path in {"/api/session", "/api/session/query", "/api/session/evidence"}:
+            return self._session(path)
+        if path == "/api/session/draft":
+            return self._draft()
         self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
 
-    def _ask(self) -> None:
-        """Answer a question as a stream of events, one JSON object per line.
-
-        The page shows each query before its values exist, so the reply cannot be
-        one body written at the end: ``query`` goes out when the model picks it,
-        ``computed`` (or ``refused``) when the engine returns, ``answer`` last.
-        Headers are held back until the first event, so a request that fails
-        before then still gets a real status code and a JSON error.
-        """
-        started = False
-
-        def send(event: dict[str, Any]) -> None:
-            nonlocal started
-            try:
-                if not started:
-                    started = True
-                    self.send_response(HTTPStatus.OK)
-                    self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
-                    self.send_header("Cache-Control", "no-store")
-                    self.end_headers()
-                self.wfile.write((json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8"))
-                self.wfile.flush()
-            except OSError:
-                pass           # the reader went away; raising here would tell the model its query failed
-
-        def fail(message: str, status: int) -> None:
-            if started:
-                send({"type": "error", "error": message})
-            else:
-                self._json({"error": message}, status)
-
+    def _draft(self) -> None:
+        """The assistant's draft of a decision query or an observation, from a sentence; nothing is added."""
+        from src.llm import drafts
         try:
-            request = self._read_request()
-            from .reviews import wait_for_review
-            reply = chat.ask(request.get("assembly", ""), request.get("question", ""),
-                             request.get("history") or [], defaults=request.get("defaults"), on_event=send,
-                             review=(lambda query: wait_for_review(query, send)) if request.get("review") else None)
-            send({"type": "answer", **reply})
+            body = self._read_request()
+            assembly = body.get("assembly", "")
+            with _sessions_lock:
+                state = session_of(assembly).state()
+            network = load_network(load_assembly(assembly_path(assembly))["network"], engine.library())
+            bridges: dict[str, list[str]] = {}
+            for b in network.rows("Bridge"):
+                bridges.setdefault(b["edge"], []).append(b["id"])
+            info = {"title": network.title, "description": load_assembly(assembly_path(assembly)).get("description", ""),
+                    "assumptions": network.assumptions,
+                    "edges": [{"id": e["id"], "ends": [e["source"], e["target"]], "bridges": bridges.get(e["id"], [])}
+                              for e in network.rows("Edge")]}
+            return self._json(drafts.draft(body.get("kind", ""), body.get("text", ""), state, info, body.get("history") or []))
         except chat.ChatUnavailable as exc:
-            fail(str(exc), HTTPStatus.SERVICE_UNAVAILABLE)
-        except (engine.QueryError, json.JSONDecodeError) as exc:
-            fail(str(exc), HTTPStatus.BAD_REQUEST)
-        except Exception as exc:  # an API failure should not take the server down
-            fail(_readable_api_error(exc), HTTPStatus.BAD_GATEWAY)
+            return self._json({"error": str(exc)}, HTTPStatus.SERVICE_UNAVAILABLE)
+        except (RegistryError, ValueError, json.JSONDecodeError) as exc:
+            problems = exc.problems if isinstance(exc, RegistryError) else [str(exc)]
+            return self._json({"error": "; ".join(problems)}, HTTPStatus.BAD_REQUEST)
+        except Exception as exc:
+            return self._json({"error": _readable_api_error(exc)}, HTTPStatus.BAD_GATEWAY)
+
+    def _session(self, path: str) -> None:
+        """Start a session, or add a decision query or an observation to it; reply with its state."""
+        try:
+            body = self._read_request()
+            assembly = body.get("assembly", "")
+            with _sessions_lock:
+                if path == "/api/session":
+                    s = start_session(assembly, body.get("scenario"), body.get("samples"))
+                elif path == "/api/session/query":
+                    s = session_of(assembly)
+                    s.add_query(body.get("query") or {}, at=body.get("at"))
+                else:
+                    s = session_of(assembly)
+                    s.observe(body.get("variable", ""), body.get("value"), at=body.get("at"),
+                              source=body.get("source"), text=body.get("text"))
+                if path != "/api/session":
+                    save_session(assembly, s)
+                return self._json(session_reply(s))
+        except (RegistryError, ValueError, json.JSONDecodeError, engine.QueryError) as exc:
+            problems = exc.problems if isinstance(exc, RegistryError) else [str(exc)]
+            return self._json({"error": "; ".join(problems)}, HTTPStatus.BAD_REQUEST)
+        except ImportError as exc:
+            traceback.print_exc()
+            return self._json({"error": (f"The session needs {exc.name or 'a module'}, which this Python "
+                                         f"({sys.executable}) cannot load. Start the server in the quakenet "
+                                         "environment (conda activate quakenet), with the rsr working tree on "
+                                         "PYTHONPATH (see .env).")},
+                              HTTPStatus.SERVICE_UNAVAILABLE)
+        except Exception as exc:
+            traceback.print_exc()
+            return self._json({"error": f"The session could not be updated ({type(exc).__name__}). "
+                                        "See the server log."}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def log_message(self, format: str, *args: Any) -> None:
         print(f"[bn] {self.address_string()} {format % args}")

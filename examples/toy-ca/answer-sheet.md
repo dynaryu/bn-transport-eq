@@ -15,8 +15,8 @@ not the probability of an event. Do not invent composite priority scores.
 
 - **B_i** = 1 means bridge i is open to traffic; B_i = 0 means it is closed. A bridge has no
   node of its own: its damage closes the edge it carries, so B_i is that edge's state
-  (`EdgeOpen::e_i` for bridge `b_i`, which carries edge `e_i` in this demo).
-- **F** means the selected system service requirement fails (`SystemState::<origin> = 0`).
+  (`EdgeOpen::e_i` for bridge `b_i`, which carries edge `e_i` in this demo: `True` open, `False` closed).
+- **F** means the selected system service requirement fails (`SystemState::<origin> = Fail`; the other state is `Survival`).
 - **H** is the selected hazard scenario (the Event row and the hazard model).
 - **E** is the available emergency evidence, such as inspection results.
 
@@ -127,7 +127,7 @@ adding cases. The examples are expectations, not stored numerical answers.
 |---|---|
 | Retrofit scenarios | separate event queries for baseline and post-retrofit failure probabilities |
 | Bridge importance | clarify the intended definition, then compute its event queries; an explicitly requested closed-minus-open comparison can use `analysis.kind=importance` |
-| 1,000-year hazard | clarification, then a sourced proposal; no magnitude guessed |
+| 1,000-year hazard | clarification; no magnitude guessed |
 | Inspection | `analysis.kind=voi`; supplied finite losses, accuracy and cost |
 | Restoration scenarios | separate current and forced-open failure probabilities; no temporal repair model |
 | Path to N1 | `analysis.kind=paths`; joint probabilities of valid candidate routes to N1 |
@@ -160,10 +160,3 @@ scope is sampled on demand. Evidence filters matching rows from the joint draws;
 it does not overwrite node values. `python -m src scope <assembly> --event ...`
 shows scope; `python -m src replay <id>` checks a recorded run. Reusing a seed
 alone does not guarantee paired draws across changed models.
-
-## Proposal dialogues
-
-See `proposals/README.md` at the repository root for examples covering missing
-hazards, closure policies, destination-specific system definitions and VOI inputs.
-Drafts stay outside the active loader until their source, data and validation
-report have been reviewed and a named user activates the displayed version.

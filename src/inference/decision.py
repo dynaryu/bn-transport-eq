@@ -58,8 +58,8 @@ def evaluate(task, run):
     compiled = engine.compile_query(task["query"])
     nodes = {n["id"]: n for n in compiled.nodes()}
     for name in names:
-        if name not in nodes or compiled.library.quantities[nodes[name]["quantity"]].get("states") != [0, 1]:
-            raise engine.QueryError("VOI state_nodes must be exact binary nodes with states [0, 1]")
+        if name not in nodes or len(compiled.library.quantities[nodes[name]["quantity"]].get("states") or []) != 2:
+            raise engine.QueryError("VOI state_nodes must be exact binary nodes, with two states (indices 0 and 1)")
     states = list(itertools.product((0, 1), repeat=len(names)))
     # Validate losses/likelihoods before sampling.
     from_distribution(states, np.full(len(states), 1 / len(states)), task)

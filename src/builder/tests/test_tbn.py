@@ -5,8 +5,10 @@ import itertools
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 import torch
+from scipy import stats
 from tbnpy import inference
 
 from src.builder.bn_builder import (
@@ -15,7 +17,13 @@ from src.builder.bn_builder import (
 from src.builder.load import assembly_path
 from src.inference.engine import compile_query
 
-MODEL = Path(__file__).resolve().parents[3] / "examples/toy-ca/tbnpy/demo"
+ROOT = Path(__file__).resolve().parents[3]
+MODEL = ROOT / "examples/toy-ca/tbnpy/demo"
+
+
+def _toy_tables():
+    """The toy-ca network's rows, as written in its network.json."""
+    return json.loads((ROOT / "examples/toy-ca/network.json").read_text(encoding="utf-8"))["tables"]
 
 
 @pytest.fixture
@@ -35,7 +43,7 @@ def test_generated_snapshot_matches_sources_and_owns_joint_hazard(model):
         node["kwargs"].pop("rules", None)
     assert actual == expected
     owned = [v.name for p in probs.values() for v in p.childs]
-    assert len(owned) == len(set(owned)) == len(variables) == 36
+    assert len(owned) == len(set(owned)) == len(variables) == 46
     hazard = [p for p in probs.values() if p.spec_metadata["function"] == "hazard.gmm"]
     assert len(hazard) == 1
     assert len(hazard[0].childs) == 10
@@ -62,6 +70,18 @@ def test_the_gmm_is_written_once_and_the_network_once():
     assert {n["kwargs"]["network"] for n in system_nodes(data)} == {"system-network.json"}
 
 
+def test_each_parameter_set_is_written_once_and_named_by_its_nodes(model):
+    data, _, probs = model
+    assert sorted(data["parameter_sets"]) == ["demo.campbell-2003-in-california", "hazus61.HWB11",
+                                              "hazus61.HWB5", "policy.closed-at-extensive",
+                                              "relative-sd-10pct.sa1p0"]
+    bridges = [n for n in data["nodes"] if n["metadata"]["function"] == "fragility.bridge"]
+    assert len(bridges) == 10 and all("kwargs" not in n for n in bridges)   # the curve only in its set
+    assert sum(n["parameter_set"] == "hazus61.HWB5" for n in bridges) == 3
+    assert probs["DamageState.HazusBridge::b2"].spec.parameter_set == "hazus61.HWB5"
+    assert data["parameter_sets"]["hazus61.HWB5"]["medians"] == probs["DamageState.HazusBridge::b2"].medians.tolist()
+
+
 def test_every_object_is_a_tbnpy_probability_that_reads_as_its_distribution(model):
     import tbnpy
 
@@ -69,8 +89,8 @@ def test_every_object_is_a_tbnpy_probability_that_reads_as_its_distribution(mode
     assert all(isinstance(p, tbnpy.Probability) for p in probs.values())
     assert repr(probs["DamageState.HazusBridge::b4"]).startswith(
         "Fragility(P(DamageState.HazusBridge::b4 | SA(1.0)::b4): P(DS >= k) = Phi(ln(SA(1.0)::b4 / median_k)")
-    assert repr(probs["EdgeOpen::e4"]) == ("EdgeOpen(P(EdgeOpen::e4 | DamageState.HazusBridge::b4): 1 if "
-                                           "DamageState.HazusBridge::b4 is none, slight, moderate, else 0 "
+    assert repr(probs["EdgeOpen::e4"]) == ("EdgeOpen(P(EdgeOpen::e4 | DamageState.HazusBridge::b4): True if "
+                                           "DamageState.HazusBridge::b4 is none, slight, moderate, else False "
                                            "[policy.closed-at-extensive])")
     assert "object at 0x" not in repr(probs)
     assert "rules: " in str(probs["SystemState::n4"])
@@ -89,10 +109,113 @@ def test_samples_and_log_probabilities_agree(model):
         assert logp.shape == (100,)
         assert torch.isfinite(logp).all()
         torch.testing.assert_close(logp, results[key].ps, check_dtype=False)
-        if prob.spec_metadata["function"] not in ("hazard.gmm", "fragility.bridge"):
+        if prob.spec_metadata["function"] not in ("hazard.gmm", "fragility.bridge", "observation.intensity"):
             invalid = full.clone()
             invalid[:, 0] = -1
             assert torch.isneginf(prob.log_prob(invalid)).all()
+
+
+# ---------------------------------------------------------------------------
+# Each kind of object against an independent calculation from the raw inputs
+# ---------------------------------------------------------------------------
+def test_gmm_matches_campbell_2003_computed_by_hand(model):
+    """ln SA = c1 + c2 M + c3 (8.5 - M)^2 + c4 ln R + (c5 + c6 M) r + f3(r),  R = sqrt(r^2 + (c7 exp(c8 M))^2),
+    r the hypocentral distance; total sigma^2 = sigma_aleatory^2 + sigma_epistemic^2; sites independent."""
+    _, _, probs = model
+    tables = _toy_tables()
+    (event,) = tables["Event"]
+    gmm = json.loads((ROOT / "instances/hazard/demo-gmm.json").read_text(encoding="utf-8"))["sets"][0]["values"]
+    c, s, m = gmm["coefficients"], gmm["sigma"], event["mw"]
+
+    lat0, lon0 = np.radians(event["lat"]), np.radians(event["lon"])
+    lat, lon = np.radians([b["lat"] for b in tables["Bridge"]]), np.radians([b["lon"] for b in tables["Bridge"]])
+    surface_km = 2 * 6371.0 * np.arcsin(np.sqrt(np.sin((lat - lat0) / 2) ** 2
+                                                + np.cos(lat0) * np.cos(lat) * np.sin((lon - lon0) / 2) ** 2))
+    r = np.hypot(surface_km, event["depth_km"])
+    f3 = np.where(r <= 70, 0.0, c["c7"] * np.log(r / 70) + np.where(r <= 130, 0.0, c["c8"] * np.log(r / 130)))
+    ln_median = (c["c1"] + c["c2"] * m + c["c3"] * (8.5 - m) ** 2
+                 + c["c4"] * np.log(np.hypot(r, c["c7"] * np.exp(c["c8"] * m))) + (c["c5"] + c["c6"] * m) * r + f3)
+    sigma_aleatory = s["a"] + s["b"] * m if m < s["m_break"] else s["sigma_above"]
+    sigma = np.hypot(sigma_aleatory, gmm["sigma_epistemic"])
+
+    hazard = probs["hazard.gmm"]
+    assert [v.name for v in hazard.childs] == [f"SA(1.0)::{b['id']}" for b in tables["Bridge"]]
+    im = np.exp(ln_median) * np.array([[0.5], [1.0], [3.0]])           # three fields, each over the ten sites
+    expected = stats.lognorm.logpdf(im, s=sigma, scale=np.exp(ln_median)).sum(axis=1)
+    np.testing.assert_allclose(hazard.log_prob(torch.tensor(im)).numpy(), expected, rtol=1e-10)
+
+
+@pytest.mark.parametrize("bridge", ["b1", "b2"])                       # an HWB11 and an HWB5 bridge
+def test_bridge_damage_matches_its_hazus_curve(model, bridge):
+    """P(DS >= k | sa) = Phi(ln(sa / median_k) / beta), and P(DS = k) the difference of neighbouring exceedances."""
+    _, _, probs = model
+    hazus_class = next(b["hazus_class"] for b in _toy_tables()["Bridge"] if b["id"] == bridge)
+    sets = json.loads((ROOT / "instances/fragility/hazus61-bridge-sa1.json").read_text(encoding="utf-8"))["sets"]
+    curve = next(s for s in sets if s["id"] == f"hazus61.{hazus_class}")["values"]["parameters"]
+    medians = np.array([curve["medians"][k] for k in ("slight", "moderate", "extensive", "complete")])
+
+    sa = np.array([0.05, 0.3, 0.9, 1.4, 4.0])
+    exceed = stats.norm.cdf(np.log(sa[:, None] / medians) / curve["beta"])                   # (5 sa, 4)
+    expected = -np.diff(np.hstack([np.ones((5, 1)), exceed, np.zeros((5, 1))]), axis=1)    # (5 sa, 5 states)
+
+    fragility = probs[f"DamageState.HazusBridge::{bridge}"]
+    for k in range(5):
+        Cs = torch.tensor(np.column_stack([np.full(5, k), sa]))
+        np.testing.assert_allclose(fragility.log_prob(Cs).exp().numpy(), expected[:, k], rtol=1e-9, atol=1e-12)
+
+
+@pytest.mark.parametrize("edge", ["e1", "e2"])
+def test_edge_is_open_exactly_when_its_bridges_are_usable(model, edge):
+    """Under the assembly's policy (closed-at-extensive), an edge is True (open) iff every bridge on it is usable."""
+    _, _, probs = model
+    bridges = [b["id"] for b in _toy_tables()["Bridge"] if b["edge"] == edge]
+    policies = json.loads((ROOT / "instances/edge/closure-policies.json").read_text(encoding="utf-8"))["sets"]
+    usable = next(p for p in policies if p["id"] == "policy.closed-at-extensive")["values"]["usable_states"]
+
+    opening = probs[f"EdgeOpen::{edge}"]
+    assert [v.name for v in opening.parents] == [f"DamageState.HazusBridge::{b}" for b in bridges]
+    damage_states = opening.parents[0].values                          # the labels of the state indices
+    for damage in itertools.product(range(len(damage_states)), repeat=len(bridges)):
+        is_open = all(damage_states[d] in usable for d in damage)
+        for value in (0, 1):                                           # False, True
+            logp = opening.log_prob(torch.tensor([[value, *damage]], dtype=torch.float64))
+            assert logp.item() == (0.0 if value == is_open else -np.inf)
+
+
+@pytest.mark.parametrize("origin", ["n4", "n7"])
+def test_system_failure_matches_enumeration_over_every_edge_state(model, origin):
+    """With every bridge's SA fixed (0.5 g), the edges are independent, so P(Fail) is exact as a sum over all
+    2^10 edge states x:  P(x) = prod_i p_i^x_i (1 - p_i)^(1 - x_i),  p_i = P(edge i open) = P(DS_i < extensive | SA_i)
+    from the Hazus curve, and S(x) from the system object (its rsr rules, then ndtools).
+    tbnpy's sampled P(Fail) under the same fixed SA must agree within its Monte Carlo error."""
+    from src.inference.interventions import Constant
+
+    _, _, probs = model
+    tables = _toy_tables()
+    sets = json.loads((ROOT / "instances/fragility/hazus61-bridge-sa1.json").read_text(encoding="utf-8"))["sets"]
+    curves = {s["id"]: s["values"]["parameters"] for s in sets}
+    sa = 0.5
+
+    system = probs[f"SystemState::{origin}"]
+    p_open = []
+    for edge in system.parents:                                          # EdgeOpen::e*, in the parents' order
+        (bridge,) = [b for b in tables["Bridge"] if b["edge"] == edge.name.split("::")[1]]
+        curve = curves[f"hazus61.{bridge['hazus_class']}"]
+        p_open.append(1 - stats.norm.cdf(np.log(sa / curve["medians"]["extensive"]) / curve["beta"]))
+    p_open = np.array(p_open)
+
+    x = np.array(list(itertools.product((0, 1), repeat=len(p_open))))                  # (1024, 10) edge states
+    p_x = np.prod(np.where(x == 1, p_open, 1 - p_open), axis=1)
+    fails = system.evaluate(torch.tensor(x, dtype=torch.float64))[:, 0].numpy() == 0
+    exact = p_x[fails].sum()
+
+    hazard = probs["hazard.gmm"]
+    fixed = {**probs, "hazard.gmm": Constant(hazard.childs, [sa] * len(hazard.childs))}    # do(SA = 0.5 g)
+    n = 20_000
+    torch.manual_seed(11)
+    S = inference.sample(fixed, [f"SystemState::{origin}"], n_sample=n)[f"SystemState::{origin}"].Cs[:, 0]
+    estimate = (S == 0).double().mean().item()
+    assert abs(estimate - exact) < 4 * np.sqrt(exact * (1 - exact) / n)
 
 
 def test_system_rules_match_ndtools_for_every_edge_configuration(model):
@@ -211,7 +334,7 @@ def test_generation_without_rules_is_importable_and_rejects_stale_rules(tmp_path
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     variables, probs = module.define_model()
-    assert len(inference.sample(probs, list(probs), 10)) == 27      # 1 hazard field + 10 damage + 10 edges + 6
+    assert len(inference.sample(probs, list(probs), 10)) == 37      # 1 hazard field + 10 observations + 10 damage + 10 edges + 6
 
     stale = tmp_path / "stale"
     stale.mkdir()

@@ -95,7 +95,7 @@ def test_the_prompt_describes_the_actual_bn():
     prompt = chat.system_prompt(engine.describe("ema-highway/gmm"))
     assert "EdgeOpen on Edge (129 nodes" in prompt
     assert '"ema-reference": {"mw"' in prompt
-    assert "rejection conditioning" in prompt and "Never estimate" in prompt
+    assert "conditions on the evidence itself" in prompt and "Never estimate" in prompt
 
 
 def test_the_anthropic_loop_runs_the_tool_and_returns_the_text(monkeypatch):

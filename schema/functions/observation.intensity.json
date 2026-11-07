@@ -1,0 +1,61 @@
+{
+  "$schema": "../meta/function.schema.json",
+  "id": "observation.intensity",
+  "label": "Observed intensity measure, with relative error",
+  "version": "0.1.0",
+  "role": "observation",
+  "per": "Bridge",
+  "inputs": [
+    {
+      "name": "im",
+      "quantity": "{imt}",
+      "over": "Bridge",
+      "via": "self",
+      "description": "The intensity measure at this bridge that is measured."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "observed",
+      "quantity": "{observed}"
+    }
+  ],
+  "instance_schema": {
+    "description": "Which intensity measure is observed, as which quantity, and the measurement's relative standard deviation.",
+    "type": "object",
+    "required": [
+      "imt",
+      "observed",
+      "relative_sd"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "imt": {
+        "description": "The intensity measure measured.",
+        "enum": [
+          "SA(1.0)"
+        ]
+      },
+      "observed": {
+        "description": "The quantity the measurement is: SAObs(1.0) for SA(1.0).",
+        "enum": [
+          "SAObs(1.0)"
+        ]
+      },
+      "relative_sd": {
+        "description": "epsilon: the measurement's standard deviation as a fraction of the true value.",
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    }
+  },
+  "implementation": "src.builder.kernels.observation:ObservedIntensity",
+  "deterministic": false,
+  "drawKind": "Marginal",
+  "capabilities": [
+    "SampleForward",
+    "EvaluateDensity",
+    "EvaluateLikelihood"
+  ],
+  "description": "IM_obs ~ N(IM, (epsilon IM)^2) at each bridge, independently: a measurement whose error grows with the value. It has no children, so unobserved it changes nothing upstream; observed, it is a likelihood on the bridge's IM."
+}

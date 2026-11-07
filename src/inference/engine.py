@@ -1,12 +1,12 @@
 """Answer a probabilistic query on a compiled BN.
 
     query (query.schema.json) --> interventions applied to a copy of the
-    assembly and network --> compile --> tbnpy variables and probabilities for
-    the bindings the targets depend on --> tbnpy forward sampling (PyTorch) -->
-    per-node summaries and event probabilities
+    assembly and network --> compile --> tbnpy variables and probabilities -->
+    the clique-tree sampler (src/inference/cliques.py), which draws every node
+    given the evidence under do --> per-node summaries and event probabilities
 
-Discrete evidence is handled by rejection conditioning, with acceptance diagnostics.
-Every result carries ``statement``,
+Evidence is conditioned on by the clique tree itself: discrete states, and a
+station's reading (SAObs) through its measurement likelihood. Every result carries ``statement``,
 the query written as a probability expression, so the question that was
 actually computed can be read back against the one that was asked.
 """
@@ -39,7 +39,9 @@ _OPS = {"<": np.less, "<=": np.less_equal, ">": np.greater, ">=": np.greater_equ
 _OP_TEXT = {"<": "<", "<=": "≤", ">": ">", ">=": "≥", "==": "=", "!=": "≠"}
 _VALIDATOR = Draft202012Validator(json.loads(Path(__file__).with_name("query.schema.json").read_text(encoding="utf-8")))
 
-MIN_ACCEPTED = 30
+CHAINS = 100                       # the clique-tree sampler's chains: samples = CHAINS x kept sweeps
+BURN = 200                         # sweeps each chain runs before its rows are kept
+N_GROUP = 20                       # groups of chains, for the probabilities' intervals
 _SAMPLING_LOCK = threading.RLock()  # torch's CPU RNG is process-global; protect seeded concurrent requests.
 
 
@@ -101,22 +103,47 @@ def expression_text(expr):
     return "(" + (" and " if key == "all" else " or ").join(map(expression_text, expr[key])) + ")"
 
 
+def state_position(quantity, value) -> int | None:
+    """The index of a discrete quantity's state named by ``value``: its label (e.g. "Fail"), or
+    else its index (e.g. 0), so a query may give either. None when it names no state."""
+    states = quantity["states"]
+    for i, state in enumerate(states):
+        if state == value or str(state) == str(value):
+            return i
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and float(value).is_integer() \
+            and 0 <= int(value) < len(states):
+        return int(value)
+    return None
+
+
 def state_index(quantity, value):
     if quantity["kind"] != "discrete":
         raise QueryError("do/evidence currently require discrete nodes; continuous observations need a likelihood model")
-    for i, state in enumerate(quantity["states"]):
-        if state == value or str(state) == str(value):
-            return i
-    raise QueryError(f"{value!r} is not a state of {quantity['id']}; states: {quantity['states']}")
+    index = state_position(quantity, value)
+    if index is None:
+        raise QueryError(f"{value!r} is not a state of {quantity['id']}; states: {quantity['states']}")
+    return index
 
 
 def assignments(query, compiled, key):
+    """{node: state index} for do or evidence; a continuous node in the evidence keeps its number (a
+    station's reading, whose measurement likelihood the clique tree conditions on)."""
     nodes = {n["id"]: n for n in compiled.nodes()}
     out = {}
     for name, value in query.get(key, {}).items():
         if name not in nodes:
             raise QueryError(f"no node {name!r}; do/evidence require exact node names")
-        out[name] = state_index(compiled.library.quantities[nodes[name]["quantity"]], value)
+        quantity = compiled.library.quantities[nodes[name]["quantity"]]
+        if quantity["kind"] == "continuous":
+            if key != "evidence" or nodes[name]["function"].split(".")[0] != "observation":
+                raise QueryError(f"{name} cannot be {'forced' if key == 'do' else 'observed directly'}: continuous "
+                                 "observations enter only as a station's reading (SAObs), through its measurement likelihood")
+            try:
+                out[name] = float(value)
+            except (TypeError, ValueError):
+                raise QueryError(f"{name} is continuous; observe it as a number, not {value!r}") from None
+            continue
+        out[name] = state_index(quantity, value)
     return out
 
 
@@ -197,48 +224,43 @@ def sample_nodes(compiled: Compiled, n: int, seed: int | None = None, bindings: 
                  notes: list[str] | None = None, nodes: set[str] | None = None,
                  rules: dict[str, Any] | None = None,
                  on_missing_rules: Callable[[float, list[str]], None] | None = None,
-                 do: Mapping[str, int] | None = None) -> dict[str, np.ndarray]:
-    """{node id: (n,) samples} by tbnpy. Discrete nodes hold the index into their quantity's states.
+                 do: Mapping[str, int] | None = None,
+                 evidence: Mapping[str, Any] | None = None) -> dict[str, np.ndarray]:
+    """{node id: (n,) samples} from P(every node | evidence) under do, by the clique-tree sampler
+    (src/inference/cliques.py): CHAINS chains, each BURN sweeps and then ceil(n / CHAINS) kept, the
+    rows cut to n; row r comes from chain r % CHAINS. Discrete nodes hold the index into their
+    quantity's states.
 
-    ``bindings`` restricts the model to those bindings, which must be closed under
-    ``upstream`` (``Compiled.ancestors`` gives such a set): a query about an edge
-    need not pay for travel times. ``notes``, if given, collects what the
-    probability objects report, such as which ShakeMap version supplied the shaking.
-    ``nodes``, if given, samples only the objects owning them and their ancestors.
-    ``rules``, if given, receives how the system states' stored rsr rules served (``rules_report``).
-    ``on_missing_rules(threshold, origins)``, if given, is called before sampling with the origins that
-    have no rules of their own at the system event's threshold, so their extraction can start at once.
+    The clique tree draws the whole BN, so ``bindings`` and ``nodes`` (a query's scope) do not narrow it.
+    ``notes``, if given, collects what the probability objects report, such as which ShakeMap version
+    supplied the shaking. ``rules``, if given, receives how the system states' stored rsr rules served
+    (``rules_report``). ``on_missing_rules(threshold, origins)``, if given, is called before sampling with
+    the origins that have no rules of their own at the system event's threshold.
     """
-    import torch
-    from tbnpy import inference
+    from . import cliques
 
     if n < 1:
         raise ValueError("n must be at least 1")
-    _, probs = build_tbn(compiled, bindings)
-    if do:
-        from .interventions import apply
-        apply(probs, do)
-    keys = [k for k, p in probs.items() if nodes is None or any(v.name in nodes for v in p.childs)]
+    _, probs = build_tbn(compiled)
+    systems = [p for p in probs.values() if p.spec_metadata["role"] == "system"
+               and not any(v.name in (do or {}) for v in p.childs)]            # a forced system is not evaluated
     if on_missing_rules is not None:
-        missing, threshold = missing_rules([probs[k] for k in keys if probs[k].spec_metadata["role"] == "system"])
+        missing, threshold = missing_rules(systems)
         if missing:
             on_missing_rules(threshold, missing)
-    with _SAMPLING_LOCK, torch.random.fork_rng(devices=[]):
-        if seed is not None:
-            torch.manual_seed(seed)
-        sampled = inference.sample(probs, keys, n_sample=n, batch_size=BATCH_SIZE)
+    with _SAMPLING_LOCK:
+        rows, _ = cliques.sample(cliques.tree(probs), dict(evidence or {}), n_chain=CHAINS, n_burn=BURN,
+                                 n_keep=-(-n // CHAINS), seed=DEFAULT_SEED if seed is None else int(seed), do=do)
     if notes is not None:
         for prob in probs.values():
             notes.extend(w for w in prob.notes if w not in notes)
-    systems = [probs[k] for k in keys if probs[k].spec_metadata["role"] == "system"]
     if systems:
         report = rules_report(systems)
         if rules is not None:
             rules.update(report)
         if notes is not None:
             notes.append(report["note"])
-    return {v.name: sampled[key].Cs[:, j].cpu().numpy()
-            for key, prob in sampled.items() for j, v in enumerate(prob.childs)}
+    return {k: v[:n].cpu().numpy() for k, v in rows.items()}
 
 
 def object_scope(specs: Mapping[str, Mapping[str, Any]], keys: list[str]) -> list[str]:
@@ -393,6 +415,19 @@ def _match(pattern: str, ids: list[str], examples: list[str]) -> list[str]:
     return found
 
 
+def _interval(mask: np.ndarray) -> list[float]:
+    """A 95% interval for the probability of mask over the rows: from the spread between N_GROUP groups
+    of chains (row r from chain r % CHAINS), as the rows of one chain are correlated; never narrower
+    than the Wilson interval, so an event no row shows still gets an upper bound."""
+    n = len(mask)
+    group = (np.arange(n) % CHAINS) % N_GROUP
+    sizes = np.bincount(group, minlength=N_GROUP)
+    means = np.bincount(group, weights=mask.astype(float), minlength=N_GROUP)[sizes > 0] / sizes[sizes > 0]
+    p, half = float(mask.mean()), 1.959963984540054 * float(means.std(ddof=1)) / np.sqrt(len(means)) if len(means) > 1 else 0.0
+    low, high = _wilson(int(mask.sum()), n)
+    return [max(0.0, min(low, p - half)), min(1.0, max(high, p + half))]
+
+
 def _wilson(successes: int, n: int) -> list[float]:
     z = 1.959963984540054
     p = successes / n
@@ -405,7 +440,7 @@ def _wilson(successes: int, n: int) -> list[float]:
 def _event_mask(quantity: dict[str, Any], x: np.ndarray, op: str, value: Any) -> np.ndarray:
     if quantity["kind"] == "discrete":
         states = quantity["states"]
-        index = next((i for i, s in enumerate(states) if s == value or str(s) == str(value)), None)
+        index = state_position(quantity, value)
         if index is None:
             raise QueryError(f"{value!r} is not a state of {quantity['id']}; states: {states}")
         return _OPS[op](np.asarray(x, int), index)
@@ -471,6 +506,8 @@ def answer(query: Mapping[str, Any],
             whole = tbn_data(compiled)
             if do:
                 whole = {**whole, "node_interventions": do}
+            if evidence:                   # the clique tree's samples are of the posterior: keyed by the evidence too
+                whole = {**whole, "evidence": evidence}
             kinds = {v["name"]: v["kind"] for v in whole["variables"]}
             bank["bytes"] = query["samples"] * sum(1 if k == "discrete" else 4 for k in kinds.values())
             path = records.bank_path(_tbn_fingerprint(whole), query["samples"], query["seed"])
@@ -481,7 +518,8 @@ def answer(query: Mapping[str, Any],
                 bank.update(path=path, reused=True)
             elif bank["bytes"] <= records.SAMPLE_LIMIT_BYTES:
                 samples = records.as_stored(sample_nodes(compiled, query["samples"], query["seed"], None,
-                                                         kernel_warnings, None, rules, on_missing_rules, do), kinds)
+                                                         kernel_warnings, None, rules, on_missing_rules, do,
+                                                         evidence), kinds)
                 if policy == "bank":
                     records.save_bank(path, samples, kinds, {"notes": kernel_warnings,
                                                              "rules": {k: v for k, v in rules.items() if k != "note"}})
@@ -491,20 +529,11 @@ def answer(query: Mapping[str, Any],
                                   f"{records.SAMPLE_LIMIT_BYTES / 2**20:.0f} MB limit: sampled the query's scope only")
         if samples is None:
             samples = sample_nodes(compiled, query["samples"], query["seed"], bindings, kernel_warnings, needed, rules,
-                                   on_missing_rules, do)
+                                   on_missing_rules, do, evidence)
     except ValueError as exc:            # a kernel refusing its inputs, e.g. a site outside a ShakeMap
         raise QueryError(f"the scenario could not be computed: {exc}") from exc
 
-    accepted = query["samples"]
-    if evidence:
-        keep = np.logical_and.reduce([samples[n] == v for n, v in evidence.items()])
-        accepted = int(keep.sum())
-        if accepted < MIN_ACCEPTED:
-            raise QueryError(f"Evidence matched only {accepted} of {query['samples']} draws; need at least "
-                             f"{MIN_ACCEPTED}. Increase samples or use a more efficient evidence method. "
-                             "Zero matches do not prove the observation is impossible.")
-        samples = {k: x[keep] for k, x in samples.items()}
-        kernel_warnings.append(f"Discrete evidence: rejection conditioning retained {accepted}/{query['samples']} draws.")
+    accepted = len(next(iter(samples.values())))
     out_targets = [{"node": i, "quantity": nodes[i]["quantity"], "row": nodes[i]["row"],
                     "summary": summarise(lib.quantities[nodes[i]["quantity"]], samples[i])} for i in targets]
     out_events = []
@@ -513,11 +542,12 @@ def answer(query: Mapping[str, Any],
             mask = _event_mask(lib.quantities[nodes[i]["quantity"]], samples[i], event["op"], event["value"])
             hits = int(mask.sum())
             out_events.append({"node": i, "op": event["op"], "value": event["value"],
-                               "p": hits / accepted, "ci95": _wilson(hits, accepted)})
+                               "p": hits / accepted, "ci95": _interval(mask)})
     for event in query.get("joint_events", []):
-        hits = int(joint_mask(event["expression"], samples, compiled).sum())
+        mask = joint_mask(event["expression"], samples, compiled)
+        hits = int(mask.sum())
         out_events.append({"node": event["name"], "op": "joint", "value": True,
-                           "expression": event["expression"], "p": hits / accepted, "ci95": _wilson(hits, accepted)})
+                           "expression": event["expression"], "p": hits / accepted, "ci95": _interval(mask)})
 
     computed = [compiled.bindings[i] for i in compiled.order if i in bindings]
     warnings = kernel_warnings
@@ -527,8 +557,8 @@ def answer(query: Mapping[str, Any],
         "statement": statement(query),
         "query": query,
         "samples": query["samples"],
-        "inference": {"method": "rejection" if evidence else "forward", "drawn": query["samples"],
-                      "accepted": accepted, "effective_samples": accepted, "acceptance_rate": accepted / query["samples"]},
+        "inference": {"method": "clique tree (src/inference/cliques.py)", "chains": CHAINS, "burn_in": BURN,
+                      "drawn": accepted, "accepted": accepted},
         "seed": query["seed"],
         "targets": out_targets,
         "events": out_events,

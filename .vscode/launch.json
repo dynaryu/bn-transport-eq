@@ -1,0 +1,39 @@
+{
+    // Debug configurations. The interpreter is the one in settings.json (the quakenet env).
+    // PYTHONPATH puts the rsr working tree (for rsr.mcmc) and this repository first.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Clique sampling: compare on toy-ca (200 km)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/clique-sampling/compare.py",
+            "args": ["--example", "toy-ca"],
+            "cwd": "${workspaceFolder}",
+            "env": {"PYTHONPATH": "${workspaceFolder}/../rsr;${workspaceFolder}", "PYTHONDONTWRITEBYTECODE": "1"},
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Clique sampling: compare on ema-highway (25.7 km)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/clique-sampling/compare.py",
+            "args": ["--example", "ema-highway"],
+            "cwd": "${workspaceFolder}",
+            "env": {"PYTHONPATH": "${workspaceFolder}/../rsr;${workspaceFolder}", "PYTHONDONTWRITEBYTECODE": "1"},
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Current file, with rsr",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "cwd": "${workspaceFolder}",
+            "env": {"PYTHONPATH": "${workspaceFolder}/../rsr;${workspaceFolder}", "PYTHONDONTWRITEBYTECODE": "1"},
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

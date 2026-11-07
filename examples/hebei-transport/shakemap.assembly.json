@@ -20,6 +20,10 @@
       }
     },
     {
+      "function": "observation.intensity",
+      "parameter_set": "relative-sd-10pct.sa1p0"
+    },
+    {
       "function": "fragility.bridge",
       "parameter_set": "hazus61.{hazus_class}"
     },

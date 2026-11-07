@@ -16,7 +16,7 @@ CASE_SCHEMA = {
         "assembly": {"type": "string"}, "context": {"type": "object"},
         "questions": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "expected": {"type": "object", "required": ["outcome", "tool_arguments"], "properties": {
-            "outcome": {"enum": ["compute", "clarify", "propose_instance", "unsupported"]},
+            "outcome": {"enum": ["compute", "clarify", "unsupported"]},
             "tool_arguments": {"type": "array", "minItems": 1, "items": {"type": "object"}}}},
         "must_not": {"type": "array", "items": {"type": "string"}},
     },
@@ -51,7 +51,7 @@ def canonical(arguments, assembly, defaults):
     if "analysis" in arguments:
         value = arguments["analysis"]
         arguments = {"analysis": {**value, "query": merge(defaults, {"assembly": assembly, **value["query"]})}}
-    elif not any(k in arguments for k in ("proposal", "clarification")):
+    elif "clarification" not in arguments:
         arguments = coerce_arguments(arguments, assembly, defaults)
     def tidy(value):
         if isinstance(value, dict):
@@ -61,12 +61,41 @@ def canonical(arguments, assembly, defaults):
                     out[key] = sorted(out[key], key=lambda v: json.dumps(v, sort_keys=True))
             return out
         return [tidy(v) for v in value] if isinstance(value, list) else value
-    return tidy(arguments)
+    return tidy(_labelled(arguments, assembly))
+
+
+def _labelled(arguments, assembly):
+    """Each discrete node's value as its state label, so "value": 0 and "value": "Fail" are one plan."""
+    from src.inference import engine
+
+    try:
+        quantities = {q["id"]: q for q in engine.describe(assembly)["quantities"] if q["kind"] == "discrete"}
+    except Exception:                       # an unknown assembly is reported elsewhere
+        return arguments
+
+    def label(node, value):
+        q = quantities.get(str(node).split("::")[0])
+        index = engine.state_position(q, value) if q else None
+        return value if index is None else q["states"][index]
+
+    def walk(value):
+        if isinstance(value, list):
+            return [walk(v) for v in value]
+        if not isinstance(value, dict):
+            return value
+        out = {k: walk(v) for k, v in value.items()}
+        if "node" in out and "value" in out:
+            out["value"] = label(out["node"], out["value"])
+        for key in ("do", "evidence"):
+            if isinstance(out.get(key), dict):
+                out[key] = {node: label(node, v) for node, v in out[key].items()}
+        return out
+
+    return walk(arguments)
 
 
 def check_contracts():
     from src.inference.comparisons import execute
-    from src import proposals
     cases = load_cases()
     def validate_query(query):
         engine.scope(query)
@@ -78,10 +107,6 @@ def check_contracts():
             if "analysis" in args:
                 # Expand generated queries and validate names/types without drawing samples.
                 execute(canonical(args, case["assembly"], case["context"].get("defaults", {}))["analysis"], validate_query)
-            elif "proposal" in args:
-                errors = proposals.validate(args["proposal"])
-                if errors:
-                    raise engine.QueryError("; ".join(errors))
             elif "clarification" in args:
                 from .chat import CLARIFICATION_SCHEMA
                 errors = list(Draft202012Validator(CLARIFICATION_SCHEMA).iter_errors(args["clarification"]))
@@ -94,7 +119,7 @@ def check_contracts():
 
 
 def evaluate(client=None, model=None):
-    """Translation only: no numerical runs or proposal writes. Uses held-out cases only.
+    """Translation only: no numerical runs. Uses held-out cases only.
 
     Clarifications compare required missing-input labels, not exact prose. Computations
     compare canonical query plans; this deliberately does not claim general equivalence.

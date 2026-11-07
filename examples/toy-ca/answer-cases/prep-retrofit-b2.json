@@ -4,7 +4,7 @@
   "assembly": "toy-ca/demo",
   "context": {
     "defaults": {},
-    "system_failure": "SystemState::n4 == 0",
+    "system_failure": "SystemState::n4 == Fail",
     "scenario": "demo.assembly.json and network.json; checked against the current model"
   },
   "questions": [
@@ -19,7 +19,7 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ]
       },
@@ -29,7 +29,7 @@
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "rows": {

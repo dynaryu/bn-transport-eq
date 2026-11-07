@@ -11,7 +11,7 @@
   --wire: #a3a3ae; --hi: #0e9f6e; --hi-soft: rgba(14,159,110,.12); --warn: #b45309; --warn-soft: #fef3c7;
   --bad: #b91c1c; --bad-soft: #fee2e2;
   --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.05);
-  --r-scenario: #7c5cd6; --r-hazard: #e8752a; --r-fragility: #d9463b;
+  --r-scenario: #7c5cd6; --r-hazard: #e8752a; --r-observation: #b8860b; --r-fragility: #d9463b;
   --r-edge: #129a8b; --r-system: #2f6fdb;
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -204,7 +204,7 @@ textarea.json { width: 100%; min-height: 130px; font: 11.5px/1.45 var(--mono); r
 <script>
 let DATA = window.BN_DATA || null;
 const STATIC = !!window.BN_DATA;           // a snapshot from python -m src export: no server behind it
-const ROLES = ["scenario", "hazard", "fragility", "edge", "system"];
+const ROLES = ["scenario", "hazard", "observation", "fragility", "edge", "system"];
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const store = {
@@ -494,7 +494,15 @@ function render() {
   const fkeys = withFunctions ? v.cards.map(c => c.key) : [];
   const role = Object.fromEntries(v.cards.map(c => [c.key, ROLES.indexOf(c.role) * 1000 + (c.binding ?? 0)]));
   const frank = (a, b) => role[a] - role[b] || a.localeCompare(b);
-  const flayer = () => layers(fkeys, v.links.map(x => [x.from, x.to]));
+  // A measurement hangs off what it measures: it sits in its parent's column, beneath it (by role order).
+  const flayer = () => {
+    const layer = layers(fkeys, v.links.map(x => [x.from, x.to]));
+    for (const c of v.cards) if (c.role === "observation") {
+      const parents = v.links.filter(x => x.to === c.key).map(x => layer.get(x.from));
+      if (parents.length) layer.set(c.key, Math.min(...parents));
+    }
+    return layer;
+  };
   const saved = store.get(posKey()), keys = [...fkeys, ...ekeys];
   if (saved && keys.every(k => saved[k])) state.pos = saved;
   else if (state.tab === "functions") state.pos = autoLayout(fkeys, flayer(), frank);
@@ -906,7 +914,8 @@ async function start() {
     // Drawings and details only: queries and questions need the engine (or, embedded, are quakenet's).
     document.querySelectorAll('#sidetabs button[data-pane="query"], #sidetabs button[data-pane="ask"]').forEach(b => b.remove());
   }
-  if (EMBED) for (const sel of [".brand", "#view", "#theme"]) { const el = $(sel); if (el) el.style.display = "none"; }
+  // Embedded, the drawing has the whole frame: no inspector panel, nor what quakenet's own header already has.
+  if (EMBED) for (const sel of [".brand", "#view", "#theme", "#inspector-toggle", "#inspector-panel"]) { const el = $(sel); if (el) el.style.display = "none"; }
   if (STATIC) {
     $("#pane-details").innerHTML = `<p>Select a card to see its signature, parameter sets and an example node.</p>` +
       `<p class="note">Written by <code>${esc(DATA.generated_by || "python -m src export")}</code>${DATA.exported ? " on " + esc(DATA.exported) : ""}. ` +

@@ -1,6 +1,6 @@
 {
-  "format": "quakenet.tbnpy.v4",
-  "spec_version": 2,
+  "format": "quakenet.tbnpy.v5",
+  "spec_version": 3,
   "name": "toy-ca/demo",
   "description": "Toy California network: an approximate M7.8 scenario, for communication",
   "assembly": {
@@ -15,6 +15,10 @@
         "parameter_set_by_location": [
           "demo.campbell-2003-in-california"
         ]
+      },
+      {
+        "function": "observation.intensity",
+        "parameter_set": "relative-sd-10pct.sa1p0"
       },
       {
         "function": "fragility.bridge",
@@ -51,6 +55,13 @@
       "source": {
         "purpose": "DEMO ONLY, for communicating the workflow on toy-ca. Not a ground-motion model for California.",
         "basis": "The Campbell (2003) eastern North America numbers from campbell-2003.json, reused unchanged."
+      }
+    },
+    "relative-sd-10pct.sa1p0": {
+      "file": "instances/observation/intensity.json",
+      "source": {
+        "basis": "A modelling assumption for every example: each bridge's SA(1.0) is measured with a 10% relative standard deviation.",
+        "verification": "Not calibrated to any instrument or station network."
       }
     },
     "hazus61.HWB11": {
@@ -185,6 +196,56 @@
       "unit": "g"
     },
     {
+      "name": "SAObs(1.0)::b1",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b2",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b3",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b4",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b5",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b6",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b7",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b8",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b9",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
+      "name": "SAObs(1.0)::b10",
+      "kind": "continuous",
+      "unit": "g"
+    },
+    {
       "name": "DamageState.HazusBridge::b1",
       "kind": "discrete",
       "states": [
@@ -298,131 +359,191 @@
       "name": "EdgeOpen::e1",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e2",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e3",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e4",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e5",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e6",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e7",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e8",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e9",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "EdgeOpen::e10",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ]
     },
     {
       "name": "SystemState::n3",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "Fail",
+        "Survival"
       ]
     },
     {
       "name": "SystemState::n4",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "Fail",
+        "Survival"
       ]
     },
     {
       "name": "SystemState::n5",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "Fail",
+        "Survival"
       ]
     },
     {
       "name": "SystemState::n6",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "Fail",
+        "Survival"
       ]
     },
     {
       "name": "SystemState::n7",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "Fail",
+        "Survival"
       ]
     },
     {
       "name": "SystemState::n8",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "Fail",
+        "Survival"
       ]
     }
   ],
+  "parameter_sets": {
+    "demo.campbell-2003-in-california": {
+      "gmm": {
+        "form": "campbell-2003",
+        "imt": "SA(1.0)",
+        "coefficients": {
+          "c1": -0.6104,
+          "c2": 0.451,
+          "c3": -0.209,
+          "c4": -1.158,
+          "c5": -0.00255,
+          "c6": 0.000141,
+          "c7": 0.299,
+          "c8": 0.503
+        },
+        "sigma": {
+          "a": 1.11,
+          "b": -0.0793,
+          "m_break": 7.16,
+          "sigma_above": 0.543
+        },
+        "sigma_epistemic": 0.3,
+        "distance_metric": "hypocentral",
+        "magnitude_range": [
+          4.0,
+          9.5
+        ]
+      }
+    },
+    "relative-sd-10pct.sa1p0": {
+      "relative_sd": 0.1
+    },
+    "hazus61.HWB11": {
+      "medians": [
+        0.9,
+        0.9,
+        1.1,
+        1.5
+      ],
+      "betas": 0.6,
+      "curve": "lognormal"
+    },
+    "hazus61.HWB5": {
+      "medians": [
+        0.25,
+        0.35,
+        0.45,
+        0.7
+      ],
+      "betas": 0.6,
+      "curve": "lognormal"
+    },
+    "policy.closed-at-extensive": {
+      "usable_states": [
+        "none",
+        "slight",
+        "moderate"
+      ]
+    }
+  },
   "nodes": [
     {
       "name": "hazard.gmm",
@@ -442,6 +563,7 @@
         "SA(1.0)::b10"
       ],
       "parents": [],
+      "parameter_set": "demo.campbell-2003-in-california",
       "kwargs": {
         "event": {
           "id": "demo-san-andreas",
@@ -449,32 +571,6 @@
           "lat": 36.5,
           "lon": -121.04,
           "depth_km": 10.0
-        },
-        "gmm": {
-          "form": "campbell-2003",
-          "imt": "SA(1.0)",
-          "coefficients": {
-            "c1": -0.6104,
-            "c2": 0.451,
-            "c3": -0.209,
-            "c4": -1.158,
-            "c5": -0.00255,
-            "c6": 0.000141,
-            "c7": 0.299,
-            "c8": 0.503
-          },
-          "sigma": {
-            "a": 1.11,
-            "b": -0.0793,
-            "m_break": 7.16,
-            "sigma_above": 0.543
-          },
-          "sigma_epistemic": 0.3,
-          "distance_metric": "hypocentral",
-          "magnitude_range": [
-            4.0,
-            9.5
-          ]
         },
         "sites": [
           {
@@ -532,8 +628,187 @@
       "metadata": {
         "function": "hazard.gmm",
         "role": "hazard",
-        "binding": 0,
-        "parameter_set": "demo.campbell-2003-in-california"
+        "binding": 0
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b1",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b1"
+      ],
+      "parents": [
+        "SA(1.0)::b1"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b2",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b2"
+      ],
+      "parents": [
+        "SA(1.0)::b2"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b3",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b3"
+      ],
+      "parents": [
+        "SA(1.0)::b3"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b4",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b4"
+      ],
+      "parents": [
+        "SA(1.0)::b4"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b5",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b5"
+      ],
+      "parents": [
+        "SA(1.0)::b5"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b6",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b6"
+      ],
+      "parents": [
+        "SA(1.0)::b6"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b7",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b7"
+      ],
+      "parents": [
+        "SA(1.0)::b7"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b8",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b8"
+      ],
+      "parents": [
+        "SA(1.0)::b8"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b9",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b9"
+      ],
+      "parents": [
+        "SA(1.0)::b9"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
+      }
+    },
+    {
+      "name": "SAObs(1.0)::b10",
+      "type": "custom",
+      "module": "src.builder.kernels.observation",
+      "cls": "ObservedIntensity",
+      "childs": [
+        "SAObs(1.0)::b10"
+      ],
+      "parents": [
+        "SA(1.0)::b10"
+      ],
+      "parameter_set": "relative-sd-10pct.sa1p0",
+      "metadata": {
+        "function": "observation.intensity",
+        "role": "observation",
+        "binding": 1
       }
     },
     {
@@ -547,21 +822,11 @@
       "parents": [
         "SA(1.0)::b1"
       ],
-      "kwargs": {
-        "medians": [
-          0.9,
-          0.9,
-          1.1,
-          1.5
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB11",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB11"
+        "binding": 2
       }
     },
     {
@@ -575,21 +840,11 @@
       "parents": [
         "SA(1.0)::b2"
       ],
-      "kwargs": {
-        "medians": [
-          0.25,
-          0.35,
-          0.45,
-          0.7
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB5",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB5"
+        "binding": 2
       }
     },
     {
@@ -603,21 +858,11 @@
       "parents": [
         "SA(1.0)::b3"
       ],
-      "kwargs": {
-        "medians": [
-          0.9,
-          0.9,
-          1.1,
-          1.5
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB11",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB11"
+        "binding": 2
       }
     },
     {
@@ -631,21 +876,11 @@
       "parents": [
         "SA(1.0)::b4"
       ],
-      "kwargs": {
-        "medians": [
-          0.25,
-          0.35,
-          0.45,
-          0.7
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB5",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB5"
+        "binding": 2
       }
     },
     {
@@ -659,21 +894,11 @@
       "parents": [
         "SA(1.0)::b5"
       ],
-      "kwargs": {
-        "medians": [
-          0.9,
-          0.9,
-          1.1,
-          1.5
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB11",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB11"
+        "binding": 2
       }
     },
     {
@@ -687,21 +912,11 @@
       "parents": [
         "SA(1.0)::b6"
       ],
-      "kwargs": {
-        "medians": [
-          0.25,
-          0.35,
-          0.45,
-          0.7
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB5",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB5"
+        "binding": 2
       }
     },
     {
@@ -715,21 +930,11 @@
       "parents": [
         "SA(1.0)::b7"
       ],
-      "kwargs": {
-        "medians": [
-          0.9,
-          0.9,
-          1.1,
-          1.5
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB11",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB11"
+        "binding": 2
       }
     },
     {
@@ -743,21 +948,11 @@
       "parents": [
         "SA(1.0)::b8"
       ],
-      "kwargs": {
-        "medians": [
-          0.9,
-          0.9,
-          1.1,
-          1.5
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB11",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB11"
+        "binding": 2
       }
     },
     {
@@ -771,21 +966,11 @@
       "parents": [
         "SA(1.0)::b9"
       ],
-      "kwargs": {
-        "medians": [
-          0.9,
-          0.9,
-          1.1,
-          1.5
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB11",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB11"
+        "binding": 2
       }
     },
     {
@@ -799,21 +984,11 @@
       "parents": [
         "SA(1.0)::b10"
       ],
-      "kwargs": {
-        "medians": [
-          0.9,
-          0.9,
-          1.1,
-          1.5
-        ],
-        "betas": 0.6,
-        "curve": "lognormal"
-      },
+      "parameter_set": "hazus61.HWB11",
       "metadata": {
         "function": "fragility.bridge",
         "role": "fragility",
-        "binding": 1,
-        "parameter_set": "hazus61.HWB11"
+        "binding": 2
       }
     },
     {
@@ -827,18 +1002,11 @@
       "parents": [
         "DamageState.HazusBridge::b1"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -852,18 +1020,11 @@
       "parents": [
         "DamageState.HazusBridge::b2"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -877,18 +1038,11 @@
       "parents": [
         "DamageState.HazusBridge::b3"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -902,18 +1056,11 @@
       "parents": [
         "DamageState.HazusBridge::b4"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -927,18 +1074,11 @@
       "parents": [
         "DamageState.HazusBridge::b5"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -952,18 +1092,11 @@
       "parents": [
         "DamageState.HazusBridge::b6"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -977,18 +1110,11 @@
       "parents": [
         "DamageState.HazusBridge::b7"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -1002,18 +1128,11 @@
       "parents": [
         "DamageState.HazusBridge::b8"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -1027,18 +1146,11 @@
       "parents": [
         "DamageState.HazusBridge::b9"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -1052,18 +1164,11 @@
       "parents": [
         "DamageState.HazusBridge::b10"
       ],
-      "kwargs": {
-        "usable_states": [
-          "none",
-          "slight",
-          "moderate"
-        ]
-      },
+      "parameter_set": "policy.closed-at-extensive",
       "metadata": {
         "function": "edge.open",
         "role": "edge",
-        "binding": 2,
-        "parameter_set": "policy.closed-at-extensive"
+        "binding": 3
       }
     },
     {
@@ -1112,8 +1217,7 @@
       "metadata": {
         "function": "system.travel-time-to-nearest",
         "role": "system",
-        "binding": 3,
-        "parameter_set": null,
+        "binding": 4,
         "analysis": "system.travel-time-to-nearest"
       }
     },
@@ -1163,8 +1267,7 @@
       "metadata": {
         "function": "system.travel-time-to-nearest",
         "role": "system",
-        "binding": 3,
-        "parameter_set": null,
+        "binding": 4,
         "analysis": "system.travel-time-to-nearest"
       }
     },
@@ -1214,8 +1317,7 @@
       "metadata": {
         "function": "system.travel-time-to-nearest",
         "role": "system",
-        "binding": 3,
-        "parameter_set": null,
+        "binding": 4,
         "analysis": "system.travel-time-to-nearest"
       }
     },
@@ -1265,8 +1367,7 @@
       "metadata": {
         "function": "system.travel-time-to-nearest",
         "role": "system",
-        "binding": 3,
-        "parameter_set": null,
+        "binding": 4,
         "analysis": "system.travel-time-to-nearest"
       }
     },
@@ -1316,8 +1417,7 @@
       "metadata": {
         "function": "system.travel-time-to-nearest",
         "role": "system",
-        "binding": 3,
-        "parameter_set": null,
+        "binding": 4,
         "analysis": "system.travel-time-to-nearest"
       }
     },
@@ -1367,15 +1467,14 @@
       "metadata": {
         "function": "system.travel-time-to-nearest",
         "role": "system",
-        "binding": 3,
-        "parameter_set": null,
+        "binding": 4,
         "analysis": "system.travel-time-to-nearest"
       }
     }
   ],
-  "source_sha256": "be63a665e3130c202521a10da3d3dc42f786d655eb525ccfef5050969ef1b0c1",
+  "source_sha256": "46a43a90892746f2140d52f7eb6f52646a085c95105477fa4f8b98c4780d590c",
   "versions": {
-    "tbnpy": "0.3.3",
+    "tbnpy": "0.3.4",
     "torch": "2.14.1",
     "ndtools-duco": "0.1.10",
     "rsr-duco": "0.2.0"

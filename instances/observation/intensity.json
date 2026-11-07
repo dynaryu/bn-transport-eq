@@ -1,0 +1,19 @@
+{
+  "$schema": "../../schema/meta/parameter-sets.schema.json",
+  "function": "observation.intensity",
+  "source": {
+    "basis": "A modelling assumption for every example: each bridge's SA(1.0) is measured with a 10% relative standard deviation.",
+    "verification": "Not calibrated to any instrument or station network."
+  },
+  "sets": [
+    {
+      "id": "relative-sd-10pct.sa1p0",
+      "label": "SA(1.0) measured with a 10% relative standard deviation",
+      "values": {
+        "imt": "SA(1.0)",
+        "observed": "SAObs(1.0)",
+        "relative_sd": 0.1
+      }
+    }
+  ]
+}

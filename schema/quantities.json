@@ -57,6 +57,17 @@
       "description": "An intensity measure at one bridge. A hazard function producing it on the Bridge plate feeds any fragility function consuming the same IM; a GMM or ShakeMap declared with \"{imt}\" produces whichever IM its parameters name."
     },
     {
+      "id": "SAObs(1.0)",
+      "label": "Observed spectral acceleration, T = 1.0 s, 5% damping",
+      "kind": "continuous",
+      "unit": "g",
+      "range": [
+        null,
+        null
+      ],
+      "description": "A measurement of SA(1.0) at one bridge, with error. Observing it conditions the bridge's SA(1.0) softly, where observing SA(1.0) itself would fix it."
+    },
+    {
       "id": "GMResidual",
       "label": "Normalised ground-motion residual at one bridge",
       "kind": "continuous",
@@ -84,20 +95,20 @@
       "label": "Edge open to traffic",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "False",
+        "True"
       ],
-      "description": "0 closed, 1 open. The edge state the system functions read."
+      "description": "False closed, True open (state indices 0 and 1). The edge state the system functions read."
     },
     {
       "id": "SystemState",
       "label": "System event survives",
       "kind": "discrete",
       "states": [
-        0,
-        1
+        "Fail",
+        "Survival"
       ],
-      "description": "0 failed, 1 survived, by the event's own definition: a travel time within its tolerance of the intact network's, or a max flow at or above its threshold. The binary node a system-reliability analysis is about."
+      "description": "Fail or Survival (state indices 0 and 1), by the event's own definition: a travel time within its tolerance of the intact network's, or a max flow at or above its threshold. The binary node a system-reliability analysis is about."
     }
   ]
 }

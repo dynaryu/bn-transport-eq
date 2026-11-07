@@ -53,25 +53,17 @@ select, input[type=number], textarea { background: var(--raised); border: 1px so
 button { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 button:disabled { opacity: 0.6; cursor: progress; }
-main { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: clamp(240px, 22vw, 290px) minmax(0, 1fr); }
-body:not(.scenario-open) main { grid-template-columns: minmax(0, 1fr); }
-#scenario-panel { min-width: 0; min-height: 0; border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; }
-body:not(.scenario-open) #scenario-panel { display: none; }
-.scenario-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-.scenario-heading h2 { margin: 0; }
-#controls { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 12px; }
-.scenario-actions { flex: none; max-height: 30%; overflow: auto; padding: 10px 12px; border-top: 1px solid var(--border); }
-#scenario-backdrop { display: none; }
-aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 18px 0 8px; }
-aside h2:first-child { margin-top: 4px; }
+main { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); }
+header .samples { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; }
+header .samples input { width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
+#controls { max-width: 420px; margin-bottom: 24px; }
+#controls h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 18px 0 8px; }
 .field { display: grid; grid-template-columns: minmax(0, 1fr) 96px; align-items: center; gap: 8px; margin: 6px 0; }
 .field label { color: var(--ink-2); overflow-wrap: anywhere; }
 .field select { grid-column: 1 / -1; width: 100%; min-width: 0; text-overflow: ellipsis; }
 .field input { width: 100%; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .fixed { color: var(--ink-2); font-size: 13px; margin: 4px 0; }
 .fixed code { font-size: 12px; overflow-wrap: anywhere; }
-#run { width: 100%; padding: 8px; }
-#status { color: var(--ink-2); font-size: 13px; margin-top: 8px; min-height: 1.4em; }
 #status.err { color: var(--err); }
 .work { container-type: inline-size; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 nav { flex: none; display: flex; gap: 2px; overflow-x: auto; padding: 6px 12px 0; border-bottom: 1px solid var(--border); }
@@ -80,6 +72,7 @@ nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weig
 .pane { flex: 1; min-height: 0; overflow: auto; display: none; }
 .pane.on { display: block; }
 #pane-map.on { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: minmax(0, 1fr); }
+#pane-map.on:has(#results[hidden]) { grid-template-columns: minmax(0, 1fr); }      /* no panel until a run */
 #map-wrap { min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 #map { flex: 1 0 260px; min-height: 240px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: block; }
 #legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; font-size: 12px; color: var(--ink-2); padding: 0 4px; }
@@ -97,8 +90,8 @@ svg text { fill: var(--ink-2); font-size: 11px; }
 .tip { position: fixed; pointer-events: none; background: var(--raised); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 10; display: none; max-width: 320px; }
 .tip b { font-weight: 600; }
 .tip .v { font-variant-numeric: tabular-nums; }
-#pane-schema.on, #pane-bn.on { display: flex; flex-direction: column; }
-#schema-info, #bn-info { flex: none; max-height: min(84px, 15dvh); overflow: auto; padding: 8px 12px; color: var(--ink-2); font-size: 13px; border-bottom: 1px solid var(--border); }
+#pane-schema.on, #pane-bn.on, #pane-cliques.on { display: flex; flex-direction: column; }
+#schema-info, #cliques-info { flex: none; max-height: min(84px, 15dvh); overflow: auto; padding: 8px 12px; color: var(--ink-2); font-size: 13px; border-bottom: 1px solid var(--border); }
 #schema-frame { display: block; flex: 1; min-height: 0; width: 100%; border: 0; background: var(--surface); }
 #bn-viewport {
   position: relative; flex: 1; min-height: 0; overflow: hidden;
@@ -111,64 +104,111 @@ svg text { fill: var(--ink-2); font-size: 11px; }
   --link: rgba(195,194,183,0.30); --link-hot: #f0efec; --plane: rgba(255,255,255,0.04);
   background: #000000; color: var(--ink);
 }
+#cliques { display: block; flex: none; max-width: 100%; height: auto; margin: 12px; }
+#cliques rect.root { fill: none; stroke: var(--accent); stroke-width: 2; }
+#cliques text.root { fill: var(--accent); font-size: 12px; font-weight: 600; }
+#cliques line.msg { stroke: var(--accent); stroke-width: 1.4; }
+#cliques .msg-head { fill: var(--accent); }
+#cliques text.msg-to { font-size: 11px; font-weight: 600; fill: var(--ink); }
+#cliques text[data-msg] { cursor: pointer; text-decoration: underline dotted;
+                          paint-order: stroke; stroke: var(--page); stroke-width: 4px; stroke-linejoin: round; }   /* legible over links */
+#msg-pop { position: fixed; z-index: 20; max-width: min(640px, calc(100vw - 24px)); padding: 10px 12px; font-size: 13px; color: var(--ink-2);
+           background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px #0003; }
+#msg-pop b { display: block; color: var(--ink); margin-bottom: 4px; }
+#msg-pop b .tk { font-weight: normal; color: var(--muted); }
+/* The roadmap: the session's timeline, newest at the bottom; each entry with every decision query against the step before. */
+#pane-roadmap { padding: 16px; overflow: auto; }
+#pane-roadmap.on { display: block; }
+#road { position: relative; margin: 8px 0 24px 8px; padding-left: 26px; border-left: 2px solid var(--grid); max-width: 1100px; }
+.road-entry { position: relative; margin: 0 0 22px; }
+.road-entry::before { content: ""; position: absolute; left: -34px; top: 3px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent); }
+.road-entry.evidence::before { border-color: var(--cat-2); }
+.road-entry.start::before { border-color: var(--muted); }
+.road-head { font-size: 13px; color: var(--ink-2); }
+.road-head time { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; margin-right: 8px; }
+.road-head .what { font-weight: 600; color: var(--ink); }
+.road-head .how { margin-left: 8px; font-size: 12px; color: var(--muted); }
+.bubble { margin-top: 6px; padding: 10px 12px; background: var(--raised); border: 1px solid var(--border); border-radius: 8px;
+  display: flex; gap: 22px; overflow-x: auto; max-height: 360px; overflow-y: auto; }
+.qchart { flex: none; min-width: 300px; font-size: 12px; }
+.qchart h4 { margin: 0 0 2px; font-size: 13px; color: var(--ink); }
+.qchart .unit { color: var(--muted); margin-bottom: 6px; }
+.qchart .opt { display: grid; grid-template-columns: 120px 1fr 92px; gap: 6px; align-items: center; margin: 3px 0; }
+.qchart .opt .lab { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qchart .bars { display: flex; flex-direction: column; gap: 2px; }
+.qchart .bar { height: 7px; border-radius: 2px; min-width: 1px; }
+.qchart .bar.prev { background: var(--idle); }
+.qchart .bar.now { background: var(--accent); }
+.qchart .num { font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; white-space: nowrap; }
+.qchart .num .was { color: var(--muted); }
+.qchart.new h4::after { content: " · new"; color: var(--accent); font-weight: normal; }
+.road-key { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+.road-key i { display: inline-block; width: 14px; height: 7px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+/* The two panels under the map that add to the session: a decision query, an observation. Each is a short
+   exchange with the agent, which drafts the fields; the questioner checks them and adds. */
+#results ul.given { margin: 4px 0 12px; padding-left: 18px; font-size: 13px; }
+#results ul.given li { margin: 2px 0; }
+#results .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+#map-side { flex: none; border-top: 1px solid var(--border); padding-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+#map-side > .meta { grid-column: 1 / -1; margin: 0; }
+.side-panel { min-width: 0; font-size: 13px; }
+.side-panel h2 { font-size: 14px; margin: 0 0 6px; }
+.side-panel label { display: block; font-size: 12px; color: var(--ink-2); margin: 8px 0 2px; }
+.side-panel input, .side-panel select, .side-panel textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 4px 7px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--raised); color: var(--ink); }
+.side-panel textarea { min-height: 46px; resize: vertical; }
+.side-panel .row { display: flex; gap: 6px; align-items: center; }
+.side-panel .row > * { flex: 1; min-width: 0; }
+.side-panel .row > button { flex: none; }
+.side-panel .say { display: flex; gap: 6px; margin-top: 6px; }
+.side-panel .say textarea { flex: 1; }
+.side-panel .actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 8px; }
+.side-panel .err { color: var(--err); font-size: 12px; margin-right: auto; }
+.talk { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.talk:empty { display: none; }
+.demo-next:empty { display: none; }
+.demo-next button { width: 100%; text-align: left; white-space: normal; margin-top: 6px; border-color: var(--accent); }
+.demo-next button span { display: block; font-size: 11px; color: var(--muted); }
+.talk .said { padding: 6px 9px; border-radius: 8px; line-height: 1.45; white-space: pre-wrap; }
+.talk .said.user { align-self: flex-end; max-width: 88%; background: var(--accent); color: #fff; }
+.talk .said.agent { align-self: flex-start; background: var(--raised); border: 1px solid var(--border); }
+.talk .said.agent.err { border-color: var(--err); color: var(--err); }
+.talk .said.typing::after { content: ""; display: inline-block; height: 1em; margin-left: 2px;
+  border-right: 2px solid currentColor; vertical-align: -0.12em; animation: chat-caret 0.8s steps(1) infinite; }
+.talk .typing-dots { display: inline-flex; gap: 4px; align-items: center; min-height: 1.45em; padding: 0 2px; }
+.talk .typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted);
+  animation: chat-dot 1s ease-in-out infinite; }
+.talk .typing-dots i:nth-child(2) { animation-delay: 0.15s; }
+.talk .typing-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-caret { 50% { opacity: 0; } }
+@keyframes chat-dot { 0%, 60%, 100% { opacity: 0.4; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .talk .said.typing::after, .talk .typing-dots i { animation: none; }
+}
+.talk .choices { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.talk .choices button { text-align: left; white-space: normal; font-size: 12px; }
+.talk .choices button span { display: block; color: var(--ink-2); }
+/* A BN node's distribution given the session's evidence, on click. */
+#node-pop { position: fixed; z-index: 20; width: min(380px, calc(100vw - 24px)); padding: 10px 12px; font-size: 13px; color: var(--ink-2);
+  background: var(--raised); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.15); }
+#node-pop b { color: var(--ink); }
+#node-pop svg { display: block; width: 100%; margin-top: 6px; }
+#cliques tspan.sub, #cliques tspan.sup { font-size: 75%; }
+#msg-pop .ms { display: inline-flex; flex-direction: column; vertical-align: 0.45em; font-size: 70%; line-height: 1; margin-bottom: -0.6em; }
+#msg-pop .ms sup, #msg-pop .ms sub { vertical-align: baseline; font-size: inherit; }
+#msg-pop hr { border: none; border-top: 1px solid var(--border); margin: 6px 0; }
+#msg-pop .case { display: flex; justify-content: space-between; gap: 20px; }
+#msg-pop .case span:last-child { color: var(--muted); white-space: nowrap; }
 #bn { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 0 0; display: block; }
-#bn .link { stroke: var(--link); fill: none; }
-#bn .link.hot { stroke: var(--link-hot); stroke-opacity: 1; stroke-width: 1.6; }
+#bn .link { stroke: var(--link); fill: none; marker-end: url(#bn-arrow); }
+#bn .link.hot { stroke: var(--link-hot); stroke-opacity: 1; stroke-width: 1.6; marker-end: url(#bn-arrow-hot); }
 #bn.focus .link:not(.hot) { stroke-opacity: 0.25; }
 #legend label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
 #legend .credit { margin-left: auto; color: var(--muted); font-size: 11px; }
 #legend .credit a { color: inherit; }
-#map-ask { flex: none; border-top: 1px solid var(--border); padding-top: 12px; }
-#map-ask h2 { font-size: 14px; margin: 0 0 8px; }
-#chat-log { display: flex; flex-direction: column; gap: 12px; max-height: 440px; overflow: auto; overflow-wrap: anywhere; padding: 2px; }
-#chat-log:empty { display: none; }
-.bubble { padding: 9px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; max-width: 88%; }
-.bubble.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
-.bubble.assistant { align-self: flex-start; width: 100%; max-width: 100%; min-width: 0; background: var(--raised); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
-.bubble.assistant.error { border-color: var(--err); color: var(--err); }
-.bubble .stage { color: var(--muted); font-style: italic; }
-.bubble .answer { white-space: pre-wrap; }
-.bubble .answer:empty { display: none; }
-/* The query sits above the answer, not under it: it is stated before the engine runs, and it is how a
-   reader checks that the question was translated into the query they expected. */
-.pq { margin: 0 0 9px; padding: 7px 10px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 5px; }
-.pq.running { border-left-color: var(--muted); }
-.pq.refused { border-left-color: var(--err); }
-.pq-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; color: var(--ink-2); margin: 0 0 4px; }
-.pq-state { font-weight: 400; color: var(--muted); }
-.pq code { font-size: 12px; }
-.pq ul { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
-.pq li { font-variant-numeric: tabular-nums; }
-.pq .reason { color: var(--err); font-size: 12px; margin: 4px 0 0; }
-.pq .from { color: var(--muted); font-size: 11px; margin: 4px 0 0; }
-.pq p { margin: 5px 0; }
-.pq .table-wrap { overflow-x: auto; margin: 8px 0; }
-.pq table caption { text-align: left; color: var(--ink-2); margin-bottom: 4px; }
-.pq th { font-weight: 600; }
-.pq th[scope=row] { font-weight: 400; }
-.pq .result-number { white-space: nowrap; }
-.pq.reviewing { border-left-color: var(--accent); }
-.pq .review-actions, .clarification-options { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.pq .review-error { color: var(--err); }
-.pq .choice { display: block; width: 100%; text-align: left; white-space: normal; }
-.pq .choice span { display: block; color: var(--ink-2); margin-top: 3px; font-weight: 400; }
-.pq .choice:disabled { cursor: default; }
-.pq .validation { margin: 6px 0; }
-.pq .proposal-id { color: var(--muted); font-size: 11px; }
-#proposal-status { white-space: pre-wrap; }
-.proposal-card input { max-width: 100%; background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
-#chat-examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.chip { padding: 4px 10px; border-radius: 14px; font-size: 12px; color: var(--ink-2); background: var(--raised); }
-.chip:hover { border-color: var(--accent); color: var(--ink); }
-#chat-download { margin-top: 8px; font-size: 12px; }
-#chat-log pre, #pane-proposals pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
-#pane-proposals { padding: 16px; }
-#proposal-json { width: 100%; min-height: 180px; font-family: monospace; }
-.proposal { border-bottom: 1px solid var(--border); padding: 12px 0; }
-#scenario-preset { max-width: 250px; }
-#chat-form { display: flex; gap: 8px; margin-top: 12px; }
-#chat-form textarea { flex: 1; min-width: 0; min-height: 60px; }
-#pane-assume { padding: 16px; max-width: 900px; }
+#pane-assume, #pane-compute { padding: 16px; max-width: 900px; }
+#pane-compute h3 { font-size: 13px; margin: 0 0 6px; }
 #pane-assume dt { font-weight: 600; margin-top: 10px; }
 #pane-assume dd { margin: 2px 0 0; color: var(--ink-2); }
 table.data { border-collapse: collapse; font-size: 12px; width: 100%; }
@@ -179,22 +219,15 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
   #pane-map.on { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
   #map-wrap { overflow: visible; }
   #map { flex: none; height: clamp(200px, 42dvh, 420px); }
-  #chat-log { max-height: 65vh; }
   #results { border-left: none; border-top: 1px solid var(--border); overflow: visible; }
 }
 @media (max-width: 900px) {
-  main, body:not(.scenario-open) main { grid-template-columns: minmax(0, 1fr); }
-  #scenario-panel { position: absolute; inset: 0 auto 0 0; width: min(320px, calc(100% - 40px)); z-index: 7; box-shadow: 4px 0 20px #0003; }
-  body.scenario-open #scenario-backdrop { display: block; position: absolute; inset: 0; z-index: 6; border: 0; border-radius: 0; background: #0005; }
   header .sub { display: none; }
 }
 @media (max-width: 640px) {
-  header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; padding: 6px 10px; }
+  header { flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
   header h1 { font-size: 16px; }
-  #scenario-toggle { justify-self: start; }
-  #example { grid-column: 1; grid-row: 2; }
-  #scenario-preset { grid-column: 2 / 4; grid-row: 2; }
-  header select, #scenario-preset { width: 100%; max-width: none; }
+  header select { flex: 1 1 40%; max-width: none; }
   nav { padding-left: 6px; }
 }
 </style>
@@ -202,72 +235,75 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
 <body>
 <header>
   <h1>quakenet</h1>
-  <button id="scenario-toggle" aria-controls="scenario-panel" aria-expanded="false">Scenario</button>
   <select id="example" aria-label="Example network"></select>
-  <select id="scenario-preset" aria-label="Saved scenario"><option value="">Current scenario</option></select>
-  <span class="sub" id="subtitle"></span>
+  <label class="samples">samples <input type="number" id="samples" min="100" max="1000000" step="10000" value="100000"></label>
+  <button class="primary" id="run">Run</button>
+  <span class="sub" id="status"></span>
+  <button id="new-session" title="Start a new session with new memory; the current one is kept in records/sessions/archive/">New session</button>
   <button id="theme" title="Toggle light and dark">Theme</button>
 </header>
 <main>
-  <button id="scenario-backdrop" aria-label="Close scenario settings" tabindex="-1"></button>
-  <aside id="scenario-panel" aria-label="Scenario and sampling settings">
-    <div class="scenario-heading"><h2>Scenario settings</h2><button id="scenario-close" aria-label="Hide scenario settings">Hide</button></div>
-    <div id="controls"></div>
-    <div class="scenario-actions"><button class="primary" id="run">Run</button><div id="status"></div></div>
-  </aside>
   <section class="work">
     <nav>
       <button data-pane="map" class="on">Map</button>
       <button data-pane="bn">BN</button>
+      <button data-pane="cliques">Clique tree</button>
       <button data-pane="schema">Schema</button>
       <button data-pane="assume">Assumptions</button>
-      <button data-pane="proposals">Proposals</button>
+      <button data-pane="compute">RSR Outcome</button>
+      <button data-pane="roadmap">Roadmap</button>
     </nav>
     <div class="pane on" id="pane-map">
       <div id="map-wrap">
         <svg id="map" role="img" aria-label="Network map"></svg>
         <div id="legend"></div>
-        <section id="map-ask" aria-labelledby="ask-heading">
-          <h2 id="ask-heading">Ask</h2>
-          <p class="meta" id="chat-status"></p>
-          <label class="meta"><input type="checkbox" id="review-queries"> Review each query before computing</label>
-          <div id="chat-log" role="log" aria-label="Ask conversation" aria-live="polite" aria-relevant="additions"></div>
-          <form id="chat-form">
-            <textarea id="chat-q" aria-label="Ask a question" placeholder="e.g. How likely is n4 to be cut off from n1 and n2 if the earthquake were M7?"></textarea>
-            <button class="primary" type="submit" id="chat-send">Ask</button>
-          </form>
-          <div id="chat-examples"></div>
-          <button type="button" id="chat-download" disabled title="The questions, each query as stated with its values, and the answers, as Markdown">Download conversation</button>
+        <section id="map-side" aria-label="Decision queries and evidence">
+          <div class="side-panel" id="panel-query">
+            <h2>Decision query</h2>
+            <div class="talk" id="q-talk" role="log" aria-live="polite"></div>
+            <div class="demo-next" id="q-demo"></div>
+            <form class="say" data-kind="query"><textarea id="q-words" aria-label="The decision query, in words"
+              placeholder="e.g. Which bridge should we reopen first to get people to the airports?"></textarea>
+              <button type="submit">Draft</button></form>
+          </div>
+          <div class="side-panel" id="panel-evidence">
+            <h2>Evidence</h2>
+            <div class="talk" id="e-talk" role="log" aria-live="polite"></div>
+            <div class="demo-next" id="e-demo"></div>
+            <form class="say" data-kind="evidence"><textarea id="e-words" aria-label="The observation, in words"
+              placeholder="e.g. The station at b6 reads 0.8 g"></textarea>
+              <button type="submit">Draft</button></form>
+          </div>
+          <p class="meta" id="agent-status"></p>
         </section>
       </div>
-      <div id="results"><p class="empty">Set the scenario on the left and press Run.</p></div>
+      <div id="results" hidden></div>
     </div>
     <div class="pane" id="pane-bn">
-      <div id="bn-info"></div>
       <div id="bn-viewport" role="region" aria-label="Interactive Bayesian network diagram">
         <svg id="bn" role="img" aria-label="The Bayesian network, layer by layer"></svg>
       </div>
+      <div id="node-pop" role="dialog" aria-label="This node's distribution given the evidence so far" hidden></div>
+    </div>
+    <div class="pane" id="pane-cliques">
+      <div id="cliques-info"></div>
+      <svg id="cliques" role="img" aria-label="The clique tree of the Bayesian network"></svg>
+      <div id="msg-pop" role="dialog" aria-label="What this message delivers" hidden></div>
     </div>
     <div class="pane" id="pane-schema">
       <div id="schema-info"></div>
       <iframe id="schema-frame" title="The schema drawing"></iframe>
     </div>
-    <div class="pane" id="pane-assume"></div>
-    <div class="pane" id="pane-proposals">
-      <p class="meta">Ask can draft new model inputs or saved scenarios. Review the source and values before activation.</p>
-      <div id="proposal-list"></div>
-      <details><summary>Draft from JSON</summary>
-        <p class="meta">Provide kind (parameter_set or scenario), title, reason, source, and payload.</p>
-        <textarea id="proposal-json" aria-label="Proposal JSON"></textarea>
-        <button id="proposal-draft">Validate and save draft</button>
-      </details>
-      <p class="meta" id="proposal-status"></p>
+    <div class="pane" id="pane-assume"><h2>Scenario settings</h2><div id="controls"></div><div id="assume-text"></div></div>
+    <div class="pane" id="pane-compute"></div>
+    <div class="pane" id="pane-roadmap">
+      <div id="road-start"></div>
+      <div id="road"></div>
     </div>
   </section>
 </main>
 <div class="tip" id="tip"></div>
 
-<script src="/ask.js"></script>
 <script src="/diagram-navigation.js"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -278,12 +314,12 @@ const fmtP = p => p == null ? "–" : p < 0.001 && p > 0 ? p.toExponential(1) : 
 
 // The families the map colours: which quantity means "failed" for each table, if this BN has it.
 const FAMILIES = [
-  { quantity: "SystemState", table: "Node", label: "origin fails", value: 0 },
-  { quantity: "EdgeOpen", table: "Edge", label: "edge closed", value: 0 },
+  { quantity: "SystemState", table: "Node", label: "origin fails", value: "Fail", index: 0 },
+  { quantity: "EdgeOpen", table: "Edge", label: "edge closed", value: "False", index: 0 },
 ];
 // A bridge has no state of its own: it closes the edge it carries, so it takes that edge's colour.
 
-const state = { examples: [], ex: null, result: null, chat: [], scenarios: [], preset: {}, basemap: store.get("basemap") !== "off" };
+const state = { examples: [], ex: null, result: null, session: null, preset: {}, basemap: store.get("basemap") !== "off" };
 
 // ---- loading an example ---------------------------------------------------------------
 
@@ -300,32 +336,33 @@ async function init() {
   const params = new URLSearchParams(location.hash.slice(1));
   state.examples = (await getJSON("/api/examples")).examples;
   const wanted = params.get("example") || store.get("example") || "toy-ca/demo";
+  // Each example is named by its network ("ema-highway" for ema-highway/gmm), unless two share one.
+  const network = id => id.split("/")[0];
+  const shared = id => state.examples.filter(e => network(e.id) === network(id)).length > 1;
   $("#example").innerHTML = state.examples.map(e =>
-    `<option value="${esc(e.id)}"${e.id === wanted ? " selected" : ""}>${esc(e.id)}</option>`).join("");
+    `<option value="${esc(e.id)}"${e.id === wanted ? " selected" : ""}>${esc(shared(e.id) ? e.id : network(e.id))}</option>`).join("");
+  // The clique tree's message passing, as the inference code declares it, for the Clique tree tab's Inference toggle.
+  try { state.inference = await getJSON("/api/inference"); } catch { state.inference = null; }
   await load($("#example").value);
-  chatStatus();
-  renderProposals();
+  agentStatus();
   if (params.get("tab")) document.querySelector(`nav button[data-pane="${CSS.escape(params.get("tab"))}"]`)?.click();
   if (params.get("run") === "1") run();
 }
 
-async function load(id, {preserveChat = false} = {}) {
+async function load(id) {
   setStatus("Loading…");
   state.result = null;
-  state.preset = preserveChat ? structuredClone(currentScenario()) : {};
-  if (!preserveChat) { state.chat = []; $("#chat-log").innerHTML = ""; }
+  state.preset = {};
   try {
     state.ex = await getJSON(`/api/example?assembly=${encodeURIComponent(id)}`);
   } catch (err) { setStatus(err.message, true); return; }
   store.set("example", id);
   history.replaceState(null, "", `#example=${encodeURIComponent(id)}`);
-  $("#subtitle").textContent = state.ex.assembly.label;
-  renderControls(); applyScenarioControls(); renderMap(); renderResults(); renderBN(); renderSchema(); renderAssumptions(); renderExamples();
-  state.scenarios = (await getJSON(`/api/scenarios?assembly=${encodeURIComponent(id)}`)).scenarios;
-  $("#scenario-preset").innerHTML = `<option value="">Current scenario</option>` + state.scenarios.map((s, i) =>
-    `<option value="${i}">${esc(s.title)}</option>`).join("");
-  const r = state.ex.rules;
-  setStatus(r.origins ? `${r.stored} of ${r.origins} origins have stored rsr rules.` : "");
+  Object.assign(cliquePick, { obs: 0, local: 0, systems: 0 });
+  renderControls(); applyScenarioControls(); renderMap(); renderResults(); renderBN(); renderCliques(); renderSchema(); renderAssumptions();
+  $("#node-pop").hidden = true;
+  await loadSession();
+  setStatus("");
 }
 
 // ---- controls: the scenario and the choices the assembly leaves open ---------------------
@@ -367,8 +404,6 @@ function renderControls() {
   }
   const templated = state.ex.assembly.bindings.filter(b => (b.parameter_set || "").includes("{"));
   for (const b of templated) h += `<p class="fixed"><b>${esc(b.function)}</b>: <code>${esc(b.parameter_set)}</code> per row</p>`;
-  h += `<h2>Sampling</h2><div class="field"><label for="samples">samples</label>` +
-       `<input type="number" id="samples" min="100" max="1000000" step="10000" value="100000"></div>`;
   $("#controls").innerHTML = h;
   for (const el of $("#controls").querySelectorAll("input[data-attr]")) {
     el.addEventListener("input", renderMap);
@@ -407,24 +442,6 @@ function eventRow() {
 
 // ---- run ----------------------------------------------------------------------------------
 
-async function run() {
-  const families = FAMILIES.filter(f => state.ex.menu.quantities.some(q => q.id === f.quantity));
-  const samples = Math.round(Number($("#samples").value) || 100000);
-  const query = { assembly: state.ex.assembly.id, ...currentScenario(), samples,
-                  events: families.map(f => ({ node: `${f.quantity}::*`, op: "==", value: f.value })) };
-  $("#run").disabled = true;
-  setStatus(`Sampling ${samples.toLocaleString()} scenarios…`);
-  try {
-    state.result = await getJSON("/api/query", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(query) });
-    const extracting = state.result.warnings.find(w => w.includes("in the background"));
-    setStatus(`${state.result.samples.toLocaleString()} samples in ${state.result.elapsed_s} s.` +
-              (extracting ? ` ${extracting.split(";")[0]}; run again in a moment to use them.` : ""));
-  } catch (err) {
-    state.result = null; setStatus(err.message, true);
-  } finally { $("#run").disabled = false; }
-  renderMap(); renderResults();
-}
-
 function setStatus(text, err = false) { const s = $("#status"); s.textContent = text; s.classList.toggle("err", err); }
 
 // Probability by row id, from the last run: {rowId: {p, ci95, family}}.
@@ -435,7 +452,8 @@ function probabilities() {
     const [quantity, row] = e.node.split("::");
     const fam = FAMILIES.find(f => f.quantity === quantity);
     // Map labels describe failure; a requested success probability must not be labelled as failure.
-    if (fam && e.op === "==" && Number(e.value) === fam.value) out[row] = { p: e.p, ci95: e.ci95, family: fam };
+    // A query may name the state by its label or its index ("Fail" or 0).
+    if (fam && e.op === "==" && (String(e.value) === fam.value || e.value === fam.index)) out[row] = { p: e.p, ci95: e.ci95, family: fam };
   }
   return out;
 }
@@ -610,7 +628,9 @@ function bars(rows, label) {
 
 function renderResults() {
   const res = state.result, el = $("#results");
-  if (!res) { el.innerHTML = `<p class="empty">Set the scenario on the left and press Run.</p>`; return; }
+  const notRun = `<p class="empty">Run a scenario to see how its system states were computed.</p>`;
+  el.hidden = !res;
+  if (!res) { el.innerHTML = ""; $("#pane-compute").innerHTML = notRun; return; }
   const probs = probabilities(), groups = {};
   for (const [id, v] of Object.entries(probs)) (groups[v.family.quantity] ??= []).push({ id, ...v });
   let h = "";
@@ -623,30 +643,44 @@ function renderResults() {
          [...rows].sort((a, b) => b.p - a.p).map(r => `<tr><td>${esc(r.id)}</td><td class="num">${fmtP(r.p)}</td><td class="num">${fmtP(r.ci95[0])}–${fmtP(r.ci95[1])}</td></tr>`).join("") +
          `</table></details>`;
   }
+  // How the system states were computed goes to the Computation tab, not beside the results.
+  let c = notRun;
   if (res.rules) {
     const extract = new Set(res.rules.extract);
-    h += `<h3>rsr rules at target_add_h = ${res.rules.target_add_h} h</h3>` +
-         `<table class="data"><tr><th>origin</th><th>rules used</th><th class="num">left to ndtools</th></tr>` +
-         res.rules.origins.map(o => `<tr><td>${esc(o.origin)}</td><td>${esc(o.rules)}${extract.has(o.origin) ? " · extracting" : ""}</td>` +
-                                    `<td class="num">${(100 * o.unclassified).toFixed(1)}%</td></tr>`).join("") +
-         `</table><p class="meta">Each threshold gets its own rules, in rsr/&lt;origin&gt;/target_add_h=&lt;h&gt;/. ` +
-         `Until they are extracted, rules that still hold from other thresholds classify what they can and ndtools ` +
-         `decides the rest, so the probabilities are the same, only slower.</p>`;
+    c = `<h3>rsr rules at target_add_h = ${res.rules.target_add_h} h</h3>` +
+        `<table class="data"><tr><th>origin</th><th>rules used</th><th class="num">left to ndtools</th></tr>` +
+        res.rules.origins.map(o => `<tr><td>${esc(o.origin)}</td><td>${esc(o.rules)}${extract.has(o.origin) ? " · extracting" : ""}</td>` +
+                                   `<td class="num">${(100 * o.unclassified).toFixed(1)}%</td></tr>`).join("") +
+        `</table><p class="meta">Each threshold gets its own rules, in rsr/&lt;origin&gt;/target_add_h=&lt;h&gt;/. ` +
+        `Until they are extracted, rules that still hold from other thresholds classify what they can and ndtools ` +
+        `decides the rest, so the probabilities are the same, only slower.</p>`;
   }
+  $("#pane-compute").innerHTML = c;
   const rec = res.record;
-  h += `<h3>This run</h3><p class="meta">${esc(res.statement)}</p>` +
-       (rec ? `<p class="meta">Samples from ${esc(res.samples_from)}` +
-              (rec.samples_file.bank ? ` (${(rec.samples_file.bytes / 2 ** 20).toFixed(1)} MB)` : "") +
-              `; scope ${res.scope.relevant} of ${res.scope.of} variables. Recorded as <code>${esc(rec.id)}</code>; ` +
-              `reproduce with <code>python -m src replay ${esc(rec.id)}</code>.</p>` : "") +
-       `<p class="meta">${res.samples.toLocaleString()} samples, ${res.elapsed_s} s. Computed: ${res.computed.map(esc).join(" → ")}.</p>` +
-       (res.warnings.length ? `<ul class="notes">${res.warnings.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : "");
+  // What the numbers are conditioned on: the decision queries being computed, and the evidence so far, each marked
+  // as an assumption (a scenario setting), an observation, or a do.
+  const s = state.session;
+  if (s) {
+    const assumed = [];
+    for (const [row, attrs] of Object.entries(s.scenario?.rows || {}))
+      for (const [a, v] of Object.entries(attrs)) assumed.push(`${row} ${a} = ${v}`);
+    for (const [fn, values] of Object.entries(s.scenario?.parameters || {}))
+      for (const [n, v] of Object.entries(values)) assumed.push(`${fn} ${n} = ${JSON.stringify(v)}`);
+    for (const [fn, set] of Object.entries(s.scenario?.parameter_sets || {})) assumed.push(`${fn}: ${set}`);
+    const item = (kind, text) => `<li><span class="tag">${kind}</span> ${esc(text)}</li>`;
+    const evidence = [...assumed.map(t => item("assumption", t)),
+      ...s.timeline.filter(e => e.kind === "evidence").map(e => item(e.evidence.do ? "do" : "observation", evidenceText(e.evidence, s)))];
+    h += `<h3>Decision queries</h3>` + (s.queries.length
+      ? `<ul class="given">${s.queries.map(q => `<li>${esc(q.name)}: ${esc(formulation("query", q).split("\n").slice(1).join(" "))}</li>`).join("")}</ul>`
+      : `<p class="meta">None yet.</p>`) +
+      `<h3>Evidence</h3>` + (evidence.length ? `<ul class="given">${evidence.join("")}</ul>` : `<p class="meta">None yet.</p>`);
+  }
   el.innerHTML = h;
 }
 
 // ---- the BN: every variable, layer by layer, at its row's location ----------------------------------------
 
-const LAYER_NAMES = { hazard: "intensity", fragility: "damage", edge: "edge state", system: "system state" };
+const LAYER_NAMES = { hazard: "intensity", observation: "observed intensity", fragility: "damage", edge: "edge state", system: "system state" };
 let bnView = { k: 1, tx: 0, ty: 0 };
 const applyBNView = value => {
   bnView = value;
@@ -654,6 +688,8 @@ const applyBNView = value => {
 };
 const bnNavigation = diagramNavigation($("#bn-viewport"), {
   get: () => bnView, set: applyBNView, fit: () => applyBNView({ k: 1, tx: 0, ty: 0 }),
+  // The viewport captures the pointer to pan, so a click on a node reaches the page only through here.
+  onClick: target => showNodeDistribution(target),
 });
 
 function bnLayout() {
@@ -678,43 +714,59 @@ function bnLayout() {
   return { where, norm, layers };
 }
 
+// The intensity and what else bears on it (residuals, measurements), the causes, stand in the left column; the
+// planes of damage, edge state and system state, the stream to the system, in the right.
+const STREAM_ROLES = ["fragility", "edge", "system"];
+
 function renderBN() {
   const ex = state.ex, { where, norm, layers } = bnLayout();
-  const L = 230, PW = 700, PH = 120, SK = 170, GAP = 150, TOP = 30;
-  const W = L + PW + SK + 40, H = TOP + (layers.length - 1) * GAP + PH + 30;
-  const at = (i, uv) => [L + uv[0] * PW + (1 - uv[1]) * SK, TOP + i * GAP + uv[1] * PH];
-  const pos = {}, layerOf = {};
-  layers.forEach((l, i) => l.nodes.forEach(n => {
+  const L = 190, PW = 360, PH = 120, SK = 90, GAP = 150, TOP = 30, CG = 20, R = 190;
+  // Rows: the stream from 0 down; on the left, the plane feeding the stream (the intensity) level with its first
+  // plane, the planes sampled before it above, those after it (the measurements) below.
+  const roleOf = l => l.function.split(".")[0];
+  const stream = layers.filter(l => STREAM_ROLES.includes(roleOf(l))), causes = layers.filter(l => !stream.includes(l));
+  const streamParents = new Set(stream.flatMap(l => l.nodes.flatMap(n => n.parents)));
+  const anchor = Math.max(0, causes.findIndex(l => l.nodes.some(n => streamParents.has(n.id))));
+  causes.forEach((l, j) => Object.assign(l, { col: 0, row: j - anchor }));
+  stream.forEach((l, i) => Object.assign(l, { col: 1, row: i }));
+  const row0 = Math.min(0, ...causes.map(l => l.row)), rows = Math.max(...layers.map(l => l.row)) - row0 + 1;
+  const W = L + 2 * (PW + SK) + CG + R, H = TOP + (rows - 1) * GAP + PH + 30;
+  const at = (l, uv) => [L + l.col * (PW + SK + CG) + uv[0] * PW + (1 - uv[1]) * SK, TOP + (l.row - row0) * GAP + uv[1] * PH];
+  const pos = {};
+  layers.forEach(l => l.nodes.forEach(n => {
     const p = where[`${n.entity}:${n.row}`];
-    pos[n.id] = at(i, p ? norm(p) : [0.5, 0.5]); layerOf[n.id] = i;
+    pos[n.id] = at(l, p ? norm(p) : [0.5, 0.5]);
   }));
-  const links = ex.nodes.reduce((k, n) => k + n.parents.length, 0), dense = ex.nodes.length > 120;
-  let h = "";
-  // Planes, each with the network drawn faintly on it for orientation.
+  const dense = ex.nodes.length > 120, r = dense ? 3 : 6;
+  // Arrowheads, one for a link at rest and one for a highlighted link.
+  const arrow = (id, colour) => `<marker id="${id}" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="${dense ? 5 : 8}" ` +
+    `markerHeight="${dense ? 5 : 8}" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${colour}"/></marker>`;
+  let h = `<defs>${arrow("bn-arrow", "var(--link)")}${arrow("bn-arrow-hot", "var(--link-hot)")}</defs>`;
+  // Planes, each with the network drawn faintly on it for orientation; the labels outside each column.
   const t = ex.network.tables, byNode = Object.fromEntries((t.Node || []).map(n => [n.id, n]));
-  layers.forEach((l, i) => {
-    const c = [[0, 0], [1, 0], [1, 1], [0, 1]].map(uv => at(i, uv).join(",")).join(" ");
+  layers.forEach(l => {
+    const c = [[0, 0], [1, 0], [1, 1], [0, 1]].map(uv => at(l, uv).join(",")).join(" ");
     h += `<polygon points="${c}" fill="var(--plane)" stroke="var(--grid)"/>`;
     for (const e of t.Edge || []) {
       const a = byNode[e.source], b = byNode[e.target];
       if (!a || !b) continue;
-      const [ax, ay] = at(i, norm(a)), [bx, by] = at(i, norm(b));
+      const [ax, ay] = at(l, norm(a)), [bx, by] = at(l, norm(b));
       h += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="var(--grid)" stroke-width="1"/>`;
     }
     const joint = ex.joint.includes(l.function);
-    const role = LAYER_NAMES[l.function.split(".")[0]] || l.function;
-    const [lx, ly] = at(i, [0, 0.5]);
-    h += `<text x="${lx - 14}" y="${ly - 6}" text-anchor="end" font-size="13" font-weight="600" style="fill:var(--ink)">${esc(l.quantity)}</text>` +
-         `<text x="${lx - 14}" y="${ly + 10}" text-anchor="end" font-size="11">${esc(role)} · ${l.nodes.length} node${l.nodes.length === 1 ? "" : "s"}</text>` +
-         `<text x="${lx - 14}" y="${ly + 24}" text-anchor="end" font-size="11">${joint ? "one joint object" : "one object per node"}</text>`;
+    const role = LAYER_NAMES[roleOf(l)] || l.function;
+    const [lx, ly] = l.col ? at(l, [1, 0.5]) : at(l, [0, 0.5]), tx = l.col ? lx + 14 : lx - 14, anchor = l.col ? "start" : "end";
+    h += `<text x="${tx}" y="${ly - 8}" text-anchor="${anchor}" font-size="15" font-weight="600" style="fill:var(--ink)">${esc(l.quantity)}</text>` +
+         `<text x="${tx}" y="${ly + 10}" text-anchor="${anchor}" font-size="13">${esc(role)} · ${l.nodes.length} node${l.nodes.length === 1 ? "" : "s"}</text>` +
+         `<text x="${tx}" y="${ly + 26}" text-anchor="${anchor}" font-size="13">${joint ? "one joint object" : "one object per node"}</text>`;
   });
-  // Parent -> child links, then the nodes on top.
+  // Parent -> child arrows, as the model's nodes name their parents, each stopping at the child's circle; then the nodes.
   for (const n of ex.nodes) for (const pid of n.parents) {
     if (!pos[pid]) continue;
-    const [ax, ay] = pos[pid], [bx, by] = pos[n.id];
-    h += `<line class="link" data-from="${esc(pid)}" data-to="${esc(n.id)}" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke-width="${dense ? 0.5 : 1}"${dense ? ' stroke-opacity="0.35"' : ""}/>`;
+    const [ax, ay] = pos[pid], [bx, by] = pos[n.id], d = Math.hypot(bx - ax, by - ay) || 1, cut = r + 2;
+    h += `<line class="link" data-from="${esc(pid)}" data-to="${esc(n.id)}" x1="${ax}" y1="${ay}" ` +
+         `x2="${bx - (bx - ax) * cut / d}" y2="${by - (by - ay) * cut / d}" stroke-width="${dense ? 0.5 : 1}"${dense ? ' stroke-opacity="0.35"' : ""}/>`;
   }
-  const r = dense ? 3 : 6;
   layers.forEach((l, i) => {
     const fill = i < 7 ? `var(--cat-${i + 1})` : "var(--idle)";
     for (const n of l.nodes) {
@@ -727,10 +779,279 @@ function renderBN() {
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = h;
   bnNavigation.fit();
-  $("#bn-info").textContent = `${ex.nodes.length} nodes and ${links.toLocaleString()} parent links, one plane per variable, in sampling order. ` +
-    `Each node sits at its row's location: bridges at their coordinates, edges at their midpoints, origins at their nodes. ` +
-    `Hover a node to trace its parents and children. Drawn to show the whole structure, not to be read link by link.`;
 }
+
+// ---- the clique tree ------------------------------------------------------------------------------------
+
+function cliqueTree() {
+  // One clique per measurement (a bridge's intensity and its observed value), hanging off the edge clique that
+  // holds the intensity; one clique per edge (the edge, its bridges' damage and their intensities), a hub of
+  // every edge and every intensity, a clique of every edge alone between the hub and the systems, and one clique
+  // per system (the system and the edges it reads).
+  const nodes = state.ex.nodes, byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const role = id => byId[id].function.split(".")[0];
+  const ids = r => nodes.filter(n => role(n.id) === r).map(n => n.id);
+  // Each clique also holds the factors assigned to it: P(child | parents), or f( ) for a system's function.
+  const local = ids("edge").map(e => {
+    const damage = byId[e].parents.filter(p => role(p) === "fragility");
+    const intensity = damage.flatMap(d => byId[d].parents);
+    const members = [...intensity, ...damage, e];
+    const factors = [...damage.map(d => `P(${names([d], members)} | ${names(byId[d].parents, members)})`),
+                     `P(${names([e], members)} | ${names(damage, members)})`];
+    return { label: byId[e].row, members, separator: [...intensity, e], factors };
+  });
+  const obs = ids("observation").map(o => {
+    const im = byId[o].parents[0], members = [im, o];
+    return { label: byId[o].row, members, separator: [im], edge: local.findIndex(c => c.members.includes(im)),
+             factors: [`P(${names([o], members)} | ${names([im], members)})`] };
+  });
+  const hub = { members: [...ids("edge"), ...ids("hazard")] };
+  hub.factors = [`P(${names(ids("hazard"), hub.members)})`];
+  const edges = { members: ids("edge"), separator: ids("edge"), factors: ["no factor"] };
+  const systems = ids("system").map(s => {
+    const members = [...byId[s].parents, s];
+    return { label: byId[s].row, members, separator: byId[s].parents,
+             factors: [`f(${names([s], members)} | ${names(byId[s].parents, members)})`] };
+  });
+  return { obs, local, hub, edges, systems };
+}
+
+// Variables by quantity, with the quantity's short name; a long run of rows is shortened to its first and last.
+function byQuantity(ids) {
+  const rows = {};
+  for (const id of ids) { const [q, row] = id.split("::"); (rows[q] ??= []).push(row); }
+  return Object.entries(rows).map(([q, r]) => [q, q.replace(/\.[A-Za-z].*$/, ""), r.length > 3 ? `${r[0]} … ${r.at(-1)}` : r.join(", ")]);
+}
+
+// One line per quantity.
+const cliqueLines = members => byQuantity(members).map(([, name, rows]) => `${name} ${rows}`);
+
+// Variables as a factor names them: a quantity the clique holds only one of goes without its row.
+const names = (ids, members) => byQuantity(ids).map(([q, name, rows]) =>
+  members.filter(m => m.split("::")[0] === q).length === 1 ? name : `${name} ${rows}`).join(", ");
+
+// Which measurement, edge and system clique are in front of their stacks.
+const cliquePick = { obs: 0, local: 0, systems: 0 };
+let cliqueInference = true;                    // the Inference toggle: the root and the messages across each link
+
+// Put clique i of stack k in front. The measurement stack follows the edge stack, and the other way round:
+// the measurement in front is one on the edge in front.
+function pickClique(k, i) {
+  const { obs } = cliqueTree();
+  cliquePick[k] = i;
+  if (k === "obs" && obs[i]) cliquePick.local = obs[i].edge;
+  if (k === "local" && obs.some(o => o.edge === i)) cliquePick.obs = obs.findIndex(o => o.edge === i);
+  renderCliques();
+}
+
+// A message's subscript on the tree sits under its superscript: back by the superscript's width, and forward again
+// after it by whatever the subscript is shorter. Widths are known only while the tab is shown; hidden, it waits.
+function stackScripts() {
+  if (!paneOn("cliques")) return;
+  $("#cliques").querySelectorAll("tspan.sup").forEach(sup => {
+    const sb = sup.nextElementSibling, ws = sup.getComputedTextLength(), wb = sb.getComputedTextLength();
+    sb.setAttribute("dx", -ws);
+    sb.nextElementSibling.setAttribute("dx", Math.max(0, ws - wb));
+  });
+}
+
+function renderCliques() {
+  $("#msg-pop").hidden = true;                    // its message may not be drawn any more
+  const tree = cliqueTree(), { obs, local, systems } = tree;
+  for (const k of ["obs", "local", "systems"]) cliquePick[k] = Math.min(cliquePick[k], Math.max(tree[k].length - 1, 0));
+  // A deck shows up to 10 cards: the clique in front and the 9 after it.
+  const BW = 210, LINE = 15, PAD = 10, RULE = 7, HW = 280, DEPTH = 9, DX = 6, DY = 14, TOP = 28;
+  // The gaps between cliques: wider when the messages across them are written out.
+  const DROP = cliqueInference ? 120 : 64, GAP = cliqueInference ? 260 : 100;
+  // The decks sit left of the hub, so that every card's link, leaning right, stays clear of the cards in front.
+  // The measurement deck, the causes, stands left of the edge deck, front cards level, clear of its fanned cards.
+  const MC = BW / 2 + 50, DC = obs.length ? MC + BW + DEPTH * DX + GAP : MC, HC = DC + 150, W = HC + HW / 2 + 20;
+  const height = c => PAD * 2 + (cliqueLines(c.members).length + c.factors.length) * LINE + RULE;
+  const at = (c, y, w, cx) => c && { ...c, x: cx - w / 2, y, w, h: height(c) };
+  const edge = at(local[cliquePick.local], TOP + DEPTH * DY, BW, DC);
+  const meas = edge && at(obs[cliquePick.obs], edge.y, BW, MC);
+  const hubY = (edge ? edge.y + edge.h : TOP) + DROP;
+  const hubBox = at(tree.hub, hubY, HW, HC);
+  const edgesBox = at(tree.edges, hubY + hubBox.h + DROP, HW, HC);
+  const system = at(systems[cliquePick.systems], edgesBox.y + edgesBox.h + DROP, BW, DC);
+  const H = (system ? system.y + system.h + DEPTH * DY : edgesBox.y + edgesBox.h) + 28;
+  const card = (b, x, y) => `<rect x="${x}" y="${y}" width="${b.w}" height="${b.h}" rx="6" fill="var(--raised)" stroke="var(--axis)"/>`;
+  // Three dots from (x, y) along (dx, dy): more cliques before the front card, or after the last one shown.
+  const dots = (x, y, dx, dy) => [1, 2, 3].map(j => `<circle cx="${x + j * dx}" cy="${y + j * dy}" r="1.6" fill="var(--ink-2)"/>`).join("");
+  // A link between two cliques, through the points [x, y], ...; hovering it shows what they share.
+  const link = (points, separator) => {
+    const tip = `<b>Shared</b><div>${separator.map(esc).join(", ")}</div>`, p = points.map(q => q.join(",")).join(" ");
+    return `<g data-tip="bar" data-html="${esc(tip)}"><polyline points="${p}" fill="none" stroke="var(--axis)" stroke-width="1.2"/>` +
+      `<polyline points="${p}" fill="none" stroke="transparent" stroke-width="5"/></g>`;
+  };
+  // A clique's card: its variables, a rule, then the factors it holds.
+  const front = (b, title) => {
+    const lines = cliqueLines(b.members), ruleY = b.y + PAD + lines.length * LINE + RULE / 2;
+    const text = (l, y, style = "") => `<text x="${b.x + b.w / 2}" y="${y}" text-anchor="middle"${style}>${esc(l)}</text>`;
+    return `<g data-tip="bar" data-html="${esc(`<b>${esc(title)}</b><div>${b.members.map(esc).join(", ")}</div>`)}">${card(b, b.x, b.y)}` +
+      lines.map((l, i) => text(l, b.y + PAD + 11 + i * LINE)).join("") +
+      `<line x1="${b.x + 12}" y1="${ruleY}" x2="${b.x + b.w - 12}" y2="${ruleY}" stroke="var(--grid)"/>` +
+      b.factors.map((f, i) => text(f, ruleY + RULE / 2 + 11 + i * LINE, ` style="fill:var(--ink)"`)).join("") + `</g>`;
+  };
+  // A box of what a link's two cliques share (its separator), centred at (mx, my): the line passes through the
+  // box's right side, the names sit left of it.
+  const sepBox = (mx, my, separator) => {
+    const shared = cliqueLines(separator), tw = Math.max(...shared.map(l => l.length)) * 5.5, sh = shared.length * 12 + 8;
+    return `<g data-tip="bar" data-html="${esc(`<b>Shared</b><div>${separator.map(esc).join(", ")}</div>`)}">` +
+      `<rect x="${mx - 17 - tw}" y="${my - sh / 2}" width="${tw + 25}" height="${sh}" rx="3" fill="var(--page)" stroke="var(--axis)" stroke-dasharray="3 2"/>` +
+      shared.map((l, i) => `<text x="${mx - 10}" y="${my + 4 + (i - (shared.length - 1) / 2) * 12}" text-anchor="end" font-size="10">${esc(l)}</text>`).join("") + `</g>`;
+  };
+  // A deck fans away from the clique it joins (dir -1 above it, +1 below): the clique in front, the next ones
+  // behind it with their names showing, a link from every card shown, and where in the deck the front card is.
+  // ends(d) gives card d's link, [from, to], or null for none. The deck wraps round: behind the last clique
+  // come the first ones again. Returns its links, the front link's separator box and its cards, to be drawn in
+  // that order, or apart.
+  const deck = (b, list, k, title, dir, ends) => {
+    const n = list.length, i0 = cliquePick[k], shown = Math.min(n - 1, DEPTH), after = n - 1 - i0;
+    const behind = d => list[(i0 + d) % n];
+    // The front card's link runs through its separator box.
+    let links = "", box = "", s = "";
+    if (ends(0)) {
+      const [[x0, y0], [x1, y1]] = ends(0);
+      links = link(ends(0), b.separator);
+      box = sepBox((x0 + x1) / 2, (y0 + y1) / 2, b.separator);
+    }
+    for (let d = 1; d <= shown; d++) if (ends(d)) links += link(ends(d), behind(d).separator);
+    for (let d = shown; d >= 1; d--) {
+      const x = b.x + d * DX, y = b.y + dir * d * DY;
+      s += card(b, x, y) + `<text x="${x + b.w - 8}" y="${dir < 0 ? y + 11 : y + b.h - 4}" text-anchor="end" font-size="10">${esc(behind(d).label)}</text>`;
+    }
+    // Dots for cliques not shown: after the front one (at the back), or before it and not wrapped round (at the front).
+    const last = { x: b.x + shown * DX + b.w, y: b.y + dir * shown * DY + (dir < 0 ? 0 : b.h) };
+    if (after > shown) s += dots(last.x, last.y, DX / 2 + 1, dir * (DY / 2 - 1));
+    if (i0 > shown - Math.min(after, shown)) s += dots(b.x, dir < 0 ? b.y + b.h : b.y, -(DX / 2 + 1), -dir * (DY / 2 - 1));
+    const where = n > 1 ? `<text x="${b.x - 12}" y="${b.y + b.h / 2 + 4}" text-anchor="end" font-size="13" style="fill:var(--ink)">${i0 + 1} / ${n}</text>` : "";
+    return { links, box, cards: `<g data-stack="${k}" data-count="${n}" style="cursor:pointer;user-select:none">${s}${front(b, `${title} ${b.label}`)}${where}</g>` };
+  };
+  const whole = p => p.links + p.box + p.cards;
+  // An edge or system card's link runs straight from its uncovered right edge to the middle of the near side of
+  // the clique it joins (at height toY), each at its own angle.
+  const toClique = (b, dir, toY) => d =>
+    [[b.x + d * DX + b.w - DX / 2, b.y + dir * d * DY + (dir < 0 ? b.h : 0)], [HC + 8 * (d - DEPTH / 2), toY]];
+  // A measurement card's link runs right from its right edge, at its label strip, to the left end of the label
+  // strip of the edge card holding its intensity, if that card is shown: the part the cards in front leave uncovered.
+  const toEdge = d => {
+    const m = obs[(cliquePick.obs + d) % obs.length], de = (m.edge - cliquePick.local + local.length) % local.length;
+    return de > Math.min(local.length - 1, DEPTH) ? null :
+      [[meas.x + d * DX + meas.w, meas.y - d * DY + DY / 2], [edge.x + de * DX, edge.y - de * DY + DY / 2]];
+  };
+  // The measurement links run under the cards; their separator box sits on top of both decks.
+  const measDeck = meas && deck(meas, obs, "obs", "Measurement clique", -1, toEdge);
+  let h = measDeck ? measDeck.links : "";
+  if (edge) h += whole(deck(edge, local, "local", "Edge clique", -1, toClique(edge, -1, hubY)));
+  if (system) h += whole(deck(system, systems, "systems", "System clique", 1, toClique(system, 1, edgesBox.y + edgesBox.h)));
+  if (measDeck) h += measDeck.cards + measDeck.box;
+  const between = [[HC, hubY + hubBox.h], [HC, edgesBox.y]];
+  h += link(between, edgesBox.separator) + sepBox(HC, (between[0][1] + between[1][1]) / 2, edgesBox.separator);
+  h += front(hubBox, "Hub clique") + front(edgesBox, "Edge-state clique");
+  // The inference, when shown, as src/inference/cliques.py declares it (/api/inference): its root, and across each
+  // link of the cliques in front an arrow each way, with what that message delivers.
+  if (cliqueInference && state.inference) h += inferenceMarks(state.inference);
+  const width = W + (cliqueInference ? 150 : 0), svg = $("#cliques");
+  svg.setAttribute("viewBox", `0 0 ${width} ${H}`);
+  svg.setAttribute("width", width); svg.setAttribute("height", H);
+  svg.innerHTML = h;
+  stackScripts();
+
+  function inferenceMarks(inf) {
+    // A message's toolkit: one key of inf.toolkits or a list of them, each a link unless it has none.
+    const tool = tk => [].concat(tk || []).map(k => {
+      const [name, href] = inf.toolkits[k];
+      return href ? ` · <a href="${href}" target="_blank" rel="noopener">${esc(name)}</a>` : ` · ${esc(name)}`;
+    }).join("");
+    // A message on the tree is its heading; a click on it opens its details, its title followed by its method.
+    // A line "---" is a rule: in a down message, between what is sent and what the receiving clique draws. Three
+    // or more spaces split a line into a formula and the condition it holds under, set apart on the right.
+    // m_up^X and m_down^X, the messages towards and away from the root from the clique named X, are written with
+    // up or down as a subscript and X as a superscript above it. On the tree the subscript is moved back under the
+    // superscript once both are drawn (see below), as their widths are known only then.
+    const MSG = /m_(up|down)(?:\^(\w+))?/g;
+    const sub = s => esc(s).replace(MSG, (_, d, x) => `m<span class="ms"><sup>${x || ""}</sup><sub>${d}</sub></span>`);
+    const subSvg = s => esc(s).replace(MSG, (_, d, x) => x
+      ? `m<tspan class="sup" dy="-4">${x}</tspan><tspan class="sub" dy="7">${d}</tspan><tspan dy="-3">​</tspan>`
+      : `m<tspan class="sub" dy="3">${d}</tspan><tspan dy="-3">​</tspan>`);
+    const line = l => {
+      const [f, cond] = l.split(/ {3,}/);
+      return l === "---" ? "<hr>" : cond ? `<div class="case"><span>${sub(f)}</span><span>${sub(cond)}</span></div>`
+                                         : `<div>${sub(l)}</div>`;
+    };
+    // head is drawn on the tree; title, head unless given, opens the details.
+    const heading = (x, y, anchor, head, lines, tk, cls = "msg-to", title = sub(head)) =>
+      `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}" data-msg="${esc(
+        `<b>${title}<span class="tk">${tool(tk)}</span></b>` + lines.map(line).join(""))}">${subSvg(head)}</text>`;
+    // The message from one kind of clique to another, as its sender declares it: what it carries, m_up or m_down(separator) as a
+    // probability; then, in its details, how it is computed or delivered.
+    const said = (from, to) => {
+      const m = inf.messages.find(x => x.from === from && x.to === to);
+      return m && { head: m.carries, lines: m.delivers, tk: m.toolkit };
+    };
+    const arrow = (x1, y1, x2, y2) => `<line class="msg" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-end="url(#msg-head)"/>`;
+    const tw = sep => Math.max(...cliqueLines(sep).map(l => l.length)) * 5.5;
+    // A near-vertical link from its upper clique to its lower one: two arrows left of its separator box, the
+    // downward one on the left with its heading to its left, in the upper half; the upward one on the right with
+    // its heading to its right, in the lower half, below the separator box.
+    const across = ([xt, yt], [xb, yb], sep, upper, lower) => {
+      const xl = (xt + xb) / 2 - 17 - tw(sep) - 12, down = said(upper, lower), up = said(lower, upper);
+      return (down ? arrow(xl - 14, yt + 6, xl - 14, yb - 6) + heading(xl - 24, yt + (yb - yt) * 0.3, "end", down.head, down.lines, down.tk) : "") +
+        (up ? arrow(xl, yb - 6, xl, yt + 6) + heading(xl + 8, yt + (yb - yt) * 0.78, "start", up.head, up.lines, up.tk) : "");
+    };
+    let s = `<defs><marker id="msg-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">` +
+            `<path class="msg-head" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
+    // (SA, SAObs) and (SA, D, E): two arrows across the gap below the link, each with its heading beneath.
+    const right = said("sa_obs", "sa_d_e"), left = said("sa_d_e", "sa_obs");
+    if (meas && toEdge(0) && right && left) {
+      const x0 = meas.x + meas.w + DEPTH * DX + 12, x1 = edge.x - 56, xm = (x0 + x1) / 2, y = meas.y + 22;   // clear of "1 / n"
+      s += arrow(x0, y, x1, y) + heading(xm, y + 15, "middle", right.head, right.lines, right.tk) +
+           arrow(x1, y + 34, x0, y + 34) + heading(xm, y + 49, "middle", left.head, left.lines, left.tk);
+    }
+    if (edge) s += across(...toClique(edge, -1, hubY)(0), edge.separator, "sa_d_e", "sa_e");
+    s += across(between[0], between[1], edgesBox.separator, "sa_e", "e");
+    if (system) {
+      const [[xs, ys], [xe, ye]] = toClique(system, 1, edgesBox.y + edgesBox.h)(0);
+      s += across([xe, ye], [xs, ys], system.separator, "e", "e_s");
+    }
+    // The root, outlined, with its belief and its own step in the details of its heading.
+    const r = { sa_e: hubBox, e: edgesBox }[inf.root.clique];
+    return s + (r ? `<rect class="root" x="${r.x - 4}" y="${r.y - 4}" width="${r.w + 8}" height="${r.h + 8}" rx="9"/>` +
+      heading(r.x + r.w + 14, r.y + r.h / 2 + 4, "start", "root", inf.root.does,
+              inf.root.toolkit, "root", `root: ${sub(inf.root.belief)}`) : "");
+  }
+  const pick = (k, list, name) => list.length ? ` <label>${name} <select data-clique="${k}">` +
+    list.map((c, i) => `<option value="${i}"${i === cliquePick[k] ? " selected" : ""}>${esc(c.label)}</option>`).join("") + `</select></label>` : "";
+  $("#cliques-info").innerHTML = `Click a stack for the next clique (shift-click for the previous), or choose one:` +
+    `${pick("obs", obs, "measurement")}${pick("local", local, "edge")}${pick("systems", systems, "system")}` +
+    ` <label><input type="checkbox" id="clique-inference"${cliqueInference ? " checked" : ""}> Inference</label>`;
+}
+$("#cliques-info").addEventListener("change", e => {
+  if (e.target.id === "clique-inference") { cliqueInference = e.target.checked; renderCliques(); return; }
+  if (!e.target.dataset.clique) return;
+  pickClique(e.target.dataset.clique, +e.target.value);
+});
+// A message's details, in a small window by its heading; a click elsewhere or Escape closes it.
+function showMessage(el, e) {
+  const pop = $("#msg-pop");
+  pop.innerHTML = el.dataset.msg;
+  pop.hidden = false;
+  pop.style.left = `${Math.min(e.clientX + 12, innerWidth - pop.offsetWidth - 8)}px`;
+  pop.style.top = `${Math.min(e.clientY + 12, innerHeight - pop.offsetHeight - 8)}px`;
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest("#msg-pop, [data-msg]")) $("#msg-pop").hidden = true;
+});
+addEventListener("keydown", e => { if (e.key === "Escape") $("#msg-pop").hidden = true; });
+$("#cliques").addEventListener("click", e => {
+  const m = e.target.closest("[data-msg]");
+  if (m) return showMessage(m, e);
+  const g = e.target.closest("[data-stack]");
+  if (!g) return;
+  const n = +g.dataset.count;
+  pickClique(g.dataset.stack, (cliquePick[g.dataset.stack] + (e.shiftKey ? n - 1 : 1)) % n);
+});
 
 function renderSchema() {
   const ex = state.ex;
@@ -762,38 +1083,9 @@ $("#bn").addEventListener("mouseover", e => {
 
 function renderAssumptions() {
   const net = state.ex.network;
-  $("#pane-assume").innerHTML = `<h2>${esc(net.title)}</h2>` +
+  $("#assume-text").innerHTML = `<h2>${esc(net.title)}</h2>` +
     `<p class="meta">${esc(state.ex.assembly.description || "")}</p>` +
     `<dl>${Object.entries(net.assumptions).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
-}
-
-// ---- ask in words -------------------------------------------------------------------------------------
-
-async function chatStatus() {
-  try {
-    const s = await getJSON("/api/chat-status");
-    $("#chat-status").dataset.model = `${s.provider} · ${s.model}`;
-    $("#chat-status").textContent = s.available
-      ? `${s.provider} · ${s.model}. The model chooses the query; the engine computes every number. The scenario on the left applies.`
-      : `No language model is ready: ${s.reason} The Run button works without one.`;
-  } catch (err) { $("#chat-status").textContent = err.message; }
-}
-
-// Questions from the answer sheet (examples/toy-ca/answer-sheet.md); any other example gets general ones.
-const EXAMPLES = {
-  "toy-ca/demo": [
-    "How likely is each origin to be cut off from n1 and n2?",
-    "What would retrofitting b2 to HWB11 do to n4's chance of being cut off?",
-    "How likely is edge e6 to close if the earthquake were M7?",
-    "Which edges are most likely to close?",
-  ],
-};
-const GENERAL = ["Which edges are most likely to close?", "How likely is each origin to fail?"];
-
-function renderExamples() {
-  const list = EXAMPLES[state.ex?.assembly.id] || GENERAL;
-  $("#chat-examples").innerHTML = list.map(q => `<button type="button" class="chip">${esc(q)}</button>`).join("");
-  for (const b of $("#chat-examples").querySelectorAll(".chip")) b.addEventListener("click", () => ask(b.textContent));
 }
 
 function currentScenario() {
@@ -805,48 +1097,6 @@ function currentScenario() {
   };
   return deepMerge(state.preset, interventions());
 }
-
-async function renderProposals() {
-  try {
-    const data = await getJSON("/api/proposals");
-    $("#proposal-list").innerHTML = data.proposals.map(p => proposalCard(p, {activate: true})).join("") || `<p class="meta">No proposals yet.</p>`;
-    if (state.asking) $("#proposal-list").querySelectorAll("button[data-activate]").forEach(b => { b.disabled = true; });
-  } catch (err) { $("#proposal-status").textContent = err.message; }
-}
-
-document.addEventListener("click", async e => {
-  const button = e.target.closest("button[data-activate]");
-  if (!button || button.disabled || state.asking) return;
-  const card = button.closest(".proposal-card");
-  const reviewer = card.querySelector("[data-reviewer]").value.trim();
-  if (!reviewer) { card.querySelector(".review-error").textContent = "Enter the reviewer's name before activating."; return; }
-  button.disabled = true;
-  try {
-      const active = await getJSON("/api/proposals/activate", {method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({id: button.dataset.activate, sha256: button.dataset.sha, reviewer})});
-      for (const turn of conversation) turn.proposals = turn.proposals.map(p => p.id === active.id ? active : p);
-      for (const el of $("#chat-log").querySelectorAll("[data-proposal-id]")) {
-        if (el.dataset.proposalId === active.id) el.outerHTML = proposalCard(active);
-      }
-      await renderProposals(); await load(state.ex.assembly.id, {preserveChat: true});
-      $("#proposal-status").textContent = "Activated. The model inputs have been refreshed.";
-  } catch (err) { button.disabled = false; card.querySelector(".review-error").textContent = err.message; }
-});
-$("#proposal-draft").onclick = async () => {
-  try {
-    await getJSON("/api/proposals", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(JSON.parse($("#proposal-json").value))});
-    await renderProposals();
-  } catch (err) { $("#proposal-status").textContent = err.message; }
-};
-$("#scenario-preset").onchange = () => {
-  const value = $("#scenario-preset").value;
-  const query = value === "" ? {} : state.scenarios[Number(value)].query;
-  state.preset = Object.fromEntries(Object.entries(query).filter(([k]) => ["rows", "parameters", "parameter_sets", "do", "evidence"].includes(k)));
-  renderControls();
-  applyScenarioControls();
-  state.chat = []; $("#chat-log").innerHTML = ""; state.result = null; renderMap(); renderResults();
-};
 
 function applyScenarioControls() {
   for (const input of document.querySelectorAll("#controls input[data-row]")) {
@@ -863,41 +1113,409 @@ function applyScenarioControls() {
   }
 }
 
+// ---- the session: decision queries and evidence, and the roadmap of the discussion --------------------------
+// The server keeps one posterior session per example (src/inference/session.py): samples of the whole BN given the
+// evidence so far. A decision query (a target, and a kind of decision) and an observation are added
+// from the header's two windows; each addition is an entry on the roadmap, with every query against the step before.
+
+const post = (url, body) => getJSON(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+const short = v => v.split("::")[1];
+const share = x => `${(100 * x).toFixed(x < 0.1 ? 1 : 0)}%`;
+
+async function loadSession() {
+  let session = null;
+  try { session = (await getJSON(`/api/session?assembly=${encodeURIComponent(state.ex.assembly.id)}`)).session; } catch {}
+  showSession(session);
+}
+
+function evidenceText(ev, s) {
+  const kind = s.variables[ev.variable]?.kind, at = short(ev.variable);
+  const text = { reading: `the station at ${at} reads ${ev.label}`, edge: `${at} is ${ev.label}`,
+                 system: `${at} ${ev.label === "Fail" ? "is cut off" : "has access"}`, damage: `${at}: ${ev.label} damage` }[kind]
+    || `${ev.variable} = ${ev.label}`;
+  return text + (ev.source ? ` (${ev.source})` : "");
+}
+
+function targetText(target, s) {
+  return { cut_off: `expected ${s.unit} cut off from a key destination`,
+           cut_off_at_least: `probability that at least ${target.at_least} ${s.unit} are cut off`,
+           fail: `probability that ${target.origin} is cut off`, closed: `probability that ${target.edge} is closed` }[target.kind];
+}
+
+function queryChart(q, now, prev, s, added) {
+  // A tracked target: one row. Inspection priority: one row per bridge not yet observed, what inspecting it (and
+  // repairing it if damaged) gives back, largest first. Each row: the step before (grey) over this step (blue), on one
+  // scale per query; a new query, or a bridge just observed, has no step before.
+  const counts = q.target.kind === "cut_off", fmt = x => counts ? x.toFixed(2) : x.toFixed(3);
+  const keys = Object.keys(now).sort((a, b) => q.decision === "inspect" ? now[b][0] - now[a][0] : 0);
+  const top = Math.max(1e-9, ...keys.flatMap(k => [now[k][0], prev?.[k]?.[0] ?? 0]));
+  const rows = keys.map(k => {
+    const n = now[k], p = prev?.[k], w = x => Math.max(0, 100 * x / top);
+    return `<div class="opt"><span class="lab" title="${esc(k)}">${esc(q.decision === "inspect" ? k : "now")}</span><span class="bars">` +
+      (p ? `<span class="bar prev" style="width:${w(p[0])}%"></span>` : "") +
+      `<span class="bar now" style="width:${w(n[0])}%"></span></span>` +
+      `<span class="num" title="± ${fmt(n[1])} (1 SE)">${p ? `<span class="was">${fmt(p[0])} →</span> ` : ""}${fmt(n[0])}</span></div>`;
+  }).join("") || `<p class="meta">Every bridge has been observed.</p>`;
+  const unit = q.decision === "inspect"
+    ? `${counts ? `${s.unit} given back` : "reduction in the " + targetText(q.target, s)} by inspecting each bridge (and repairing it if damaged)`
+    : targetText(q.target, s);
+  return `<div class="qchart${added ? " new" : ""}"><h4>${esc(q.name)}</h4><div class="unit">${esc(unit)}</div>${rows}</div>`;
+}
+
+function roadEntry(e, prev, s) {
+  const what = { start: "Session started", query: "Decision query added", evidence: "Evidence added" }[e.kind];
+  const text = e.kind === "evidence" ? evidenceText({...e.evidence}, s) : e.kind === "query" ? e.query.name : "no evidence yet";
+  const how = e.kind === "evidence" ? `${e.update}: ${share(e.ess)} of the weight was left` : e.kind === "start" ? `${s.n.toLocaleString()} samples` : "";
+  const queries = s.queries.filter(q => e.values[q.id]);
+  const bubble = queries.length ? `<div class="bubble">${queries.map(q =>
+    queryChart(q, e.values[q.id], prev?.values?.[q.id], s, e.kind === "query" && e.query.id === q.id)).join("")}</div>` : "";
+  return `<div class="road-entry ${e.kind}"><div class="road-head"><time>${esc(e.at)}</time><span class="what">${what}:</span> ` +
+    `${esc(text)}${how ? `<span class="how">${esc(how)}</span>` : ""}</div>${bubble}</div>`;
+}
+
+function renderRoadmap() {
+  const s = state.session;
+  if (!s) {
+    $("#road-start").innerHTML = `<p class="meta">Press Run to start: the clique tree samples the whole BN under the ` +
+      `scenario settings, with no evidence yet. Decision queries and evidence are then added in the two panels under the ` +
+      `map; each addition appears here, with every decision query against the step before.</p>`;
+    $("#road").innerHTML = "";
+    return;
+  }
+  $("#road-start").innerHTML = `<div class="road-key"><span><i style="background:var(--idle)"></i>the step before</span>` +
+    `<span><i style="background:var(--accent)"></i>this step</span><span>${Object.keys(s.evidence).length} observation(s), ` +
+    `${s.queries.length} decision quer${s.queries.length === 1 ? "y" : "ies"}; ${share(s.ess)} of the samples' weight effective</span></div>`;
+  $("#road").innerHTML = s.timeline.map((e, i) => roadEntry(e, s.timeline[i - 1], s)).join("");
+  if (paneOn("roadmap")) $("#pane-roadmap").scrollTop = $("#pane-roadmap").scrollHeight;
+}
+
+// The session's numbers are the map's: after Run and after every addition, the map and results show them.
+function showSession(s) {
+  state.session = s;
+  state.result = s ? s.result : null;
+  renderRoadmap(); preparePanels(); renderMap(); renderResults(); renderDemo();
+}
+
+async function sessionCall(url, body, busy) {
+  setStatus(busy);
+  try {
+    showSession(await post(url, {assembly: state.ex.assembly.id, ...body}));
+    setStatus(`${state.session.n.toLocaleString()} samples, ${share(state.session.ess)} of their weight effective, ${state.result.elapsed_s.toFixed(1)} s.`);
+  } catch (err) { setStatus(err.message, true); throw err; }
+}
+
+// Run: a new session under the scenario settings (Assumptions), sampled with no evidence.
+async function run() {
+  const samples = Math.round(Number($("#samples").value) || 200000);
+  $("#run").disabled = true;
+  try {
+    await sessionCall("/api/session", {scenario: currentScenario(), samples},
+                      `Sampling ${samples.toLocaleString()}…`);
+    talk.query = []; talk.evidence = []; $("#q-talk").innerHTML = $("#e-talk").innerHTML = "";
+  } catch {} finally { $("#run").disabled = false; }
+}
+
+// ---- the two panels: a decision query and an observation, each drafted by the agent from what the questioner
+// writes. The latest draft is shown as a summary in the conversation; Add sends it as it stands. A correction is
+// asked for in words, and the agent drafts again from the conversation so far.
+const pending = { query: null, evidence: null };
+let demoPlaying = false;
+
+function setDemoPlaying(active) {
+  demoPlaying = active;
+  for (const el of document.querySelectorAll("#map-side .say button, #map-side .say textarea, .demo-next button"))
+    el.disabled = active || !state.session;
+}
+
+// The draft written out exactly, by the page from the draft itself (not by the model).
+function formulation(kind, d) {
+  const s = state.session;
+  if (kind === "evidence") {
+    const value = typeof d.value === "number" ? `${d.value} g` : d.value;
+    return `Evidence: ${d.variable} = ${value}${d.source ? ` (source: ${d.source})` : ""}`;
+  }
+  const t = d.target || {}, w = Object.keys(s.population || {}).length ? "pop_k · " : "";
+  const of = given => ({
+    cut_off: `Σ_k ${w}P(S_k = Fail | ${given})`,
+    cut_off_at_least: `P(Σ_k ${w}1[S_k = Fail] ≥ ${t.at_least} | ${given})`,
+    fail: `P(S_${t.origin} = Fail | ${given})`,
+    closed: `P(E_${t.edge} = closed | ${given})`,
+  })[t.kind];
+  const head = `Decision query "${d.name || "decision"}":`;
+  if (d.decision !== "inspect") return `${head}\n${of("ev")}`;
+  const after = t.kind === "cut_off"
+    ? `Σ_k Σ_x P(D_i = x | ev) · ${w}P(S_k = Fail | do(E_i = open), ev, D_i = x)`
+    : `Σ_x P(D_i = x | ev) · ${of("do(E_i = open), ev, D_i = x")}`;
+  return `${head} for each bridge i not yet observed,\nVOI_i = ${of("ev")} − ${after}`;
+}
+
+function preparePanels() {
+  const s = state.session;
+  asked.query = asked.evidence = null;
+  if (DEMO[state.ex.assembly.id]) $("#agent-status").textContent = "Demo script: replies in a fixed order, no language model";
+  for (const el of document.querySelectorAll("#map-side .say button, #map-side .say textarea")) el.disabled = !s || demoPlaying;
+  pending.query = pending.evidence = null;
+  if (!s) for (const kind of ["query", "evidence"]) if (!(kind === "query" ? $("#q-talk") : $("#e-talk")).children.length)
+    say(kind, "agent", "Press Run first.");
+}
+
+async function addPending(kind, animate = false) {
+  const d = pending[kind];
+  try {
+    if (kind === "query") await sessionCall("/api/session/query", {query: d}, "Adding the decision query…");
+    else await sessionCall("/api/session/evidence", {variable: d.variable, value: d.value, source: d.source || undefined,
+                           at: new Date().toTimeString().slice(0, 8)},
+                           "Taking the observation in: reweighting, or sampling again if too little weight is left…");
+    await say(kind, "agent", kind === "query" ? "Added to the decision queries and the roadmap."
+                                              : `Added (${state.session.timeline.at(-1).update}).`, undefined, animate);
+    talk[kind] = [];
+  } catch (e) { say(kind, "error", e.message); }
+}
+
+// The agent: each panel is a short conversation. The questioner writes; the agent drafts, shown as its exact
+// formulation, or asks what the sentence leaves open, with choices. Nothing is added until the questioner says yes.
+const talk = { query: [], evidence: [] };
+async function say(kind, who, text, choices, animate = false) {
+  const box = kind === "query" ? $("#q-talk") : $("#e-talk"), el = document.createElement("div");
+  el.className = `said ${who === "user" ? "user" : "agent"}${who === "error" ? " err" : ""}`;
+  box.append(el);
+  const scroll = () => { box.scrollTop = box.scrollHeight; };
+  if (animate) {
+    el.setAttribute("aria-busy", "true");
+    if (who === "agent") {
+      el.setAttribute("aria-label", "Agent is typing");
+      el.innerHTML = '<span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+      scroll();
+      await pause(500);
+      el.removeAttribute("aria-label");
+    }
+    el.textContent = "";
+    el.classList.add("typing");
+    // Reveal exactly one character per tick, even for long replies. Reduced motion disables the CSS
+    // dots/caret animation, while preserving the demo's requested character-by-character typing.
+    for (const character of Array.from(text)) {
+      if (!el.isConnected) break;
+      el.textContent += character;
+      scroll();
+      await pause(35);
+    }
+    el.classList.remove("typing");
+    el.removeAttribute("aria-busy");
+  }
+  el.textContent = text;
+  if (choices?.length) {
+    const list = document.createElement("div");
+    list.className = "choices";
+    for (const c of choices) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.disabled = animate;  // The walkthrough supplies its scripted choice after the reply finishes.
+      b.innerHTML = esc(c.label) + (c.definition ? `<span>${esc(c.definition)}</span>` : "");
+      b.onclick = () => { for (const x of list.querySelectorAll("button")) x.disabled = true;
+                          draft(kind, c.definition ? `${c.label}: ${c.definition}` : c.label); };
+      list.append(b);
+    }
+    el.append(list);
+  }
+  scroll();
+}
+
+const CONFIRM = "Say yes if this is correct; otherwise explain more.";
+const YES = /^\s*(yes|y|yep|correct|that's right|right|ok|okay)\b[\s.!]*$/i;
+
+// The demo's stand-in for the language model, for the pilot: on these examples each panel follows a fixed script,
+// in order, whatever is typed. A step either asks (with choices to click) or drafts. A trained model replaces it.
+const DEMO = {
+  "toy-ca/demo": [   // the steps of examples/toy-ca/walkthrough.md, in order
+    {kind: "query", label: "Decision", say: "I would like to priortise inspection to maximise the number of towns with access to the key destinations",
+     ask: {question: "Your query does not say what follows an inspection. What action will be done if an inspected bridge is found closed?",
+           choices: [{label: "repair", definition: "repair the bridge whatever its damage"},
+                     {label: "repair only when damage ≠ collapse", definition: "repair unless the bridge has collapsed (complete damage)"}]},
+     choice: "repair",
+     draft: {name: "Inspection priority for towns' access", target: {kind: "cut_off"}, decision: "inspect"}},
+    {kind: "evidence", label: "T1", say: "The station at bridge b6 reads 0.8 g",
+     draft: {variable: "SAObs(1.0)::b6", value: 0.8, source: "station"}},
+    {kind: "evidence", label: "T2", say: "Police report that e9 is closed",
+     draft: {variable: "EdgeOpen::e9", value: "closed", source: "police"}},
+    {kind: "evidence", label: "T3", say: "n4 can't get through to the destinations, says the police",
+     draft: {variable: "SystemState::n4", value: "Fail", source: "police"}},
+    {kind: "evidence", label: "T4", say: "The bridge near n4 has collapsed",
+     ask: {question: "Which bridge near n4 has collapsed?",
+           choices: [{label: "b4", definition: ""}, {label: "b6", definition: ""}, {label: "b7", definition: ""}]}, choice: "b4",
+     draft: {variable: "DamageState.HazusBridge::b4", value: "complete", source: "crew"}},
+  ],
+  "ema-highway/gmm": [   // the same storyline on EMA: people's access to the airports (n22 Boston, n66 CT)
+    {kind: "query", label: "Decision", say: "I would like to prioritise inspection to maximise the number of people with access to the airports",
+     ask: {question: "Your query does not say what follows an inspection. What action will be done if an inspected bridge is found closed?",
+           choices: [{label: "repair", definition: "repair the bridge whatever its damage"},
+                     {label: "repair only when damage ≠ collapse", definition: "repair unless the bridge has collapsed (complete damage)"}]},
+     choice: "repair",
+     draft: {name: "Inspection priority for people's access", target: {kind: "cut_off"}, decision: "inspect"}},
+    {kind: "evidence", label: "T1", say: "The station at bridge e0125 reads 0.6 g",
+     draft: {variable: "SAObs(1.0)::bridge-e0125", value: 0.6, source: "station"}},
+    {kind: "evidence", label: "T2", say: "Police report that e0124 is closed",
+     draft: {variable: "EdgeOpen::e0124", value: "closed", source: "police"}},
+    {kind: "evidence", label: "T3", say: "People in n62 can't get through to the airports",
+     draft: {variable: "SystemState::n62", value: "Fail", source: "police"}},
+    {kind: "evidence", label: "T4", say: "A crew found moderate damage on a bridge on n62's route",
+     ask: {question: "Which bridge did the crew inspect?",
+           choices: [{label: "bridge-e0122", definition: ""}, {label: "bridge-e0123", definition: ""}, {label: "bridge-e0125", definition: ""}]},
+     choice: "bridge-e0125",
+     draft: {variable: "DamageState.HazusBridge::bridge-e0125", value: "moderate", source: "crew"}},
+  ],
+};
+const asked = { query: null, evidence: null };   // the step whose question is waiting for its choice
+
+// The script's next step: the first one the session does not hold yet.
+function demoNext(kind) {
+  const s = state.session, held = st => st.kind === "query" ? s.queries.some(q => q.name === st.draft.name)
+                                                            : st.draft.variable in s.evidence;
+  return (DEMO[state.ex.assembly.id] || []).find(st => !held(st) && (!kind || st.kind === kind));
+}
+
+// The demo's stand-in for the language model: the panel's next step asks, if it does and has not yet, else drafts.
+function demoReply(kind) {
+  const st = demoNext(kind);
+  if (!st) return {note: "That is the end of the demo script."};
+  if (st.ask && asked[kind] !== st) { asked[kind] = st; return {clarification: st.ask}; }
+  asked[kind] = null;
+  return {draft: st.draft};
+}
+
+// The next step as a button in its panel; clicked, it plays the step: the sentence, the reply, the choice if it asks,
+// the formulation, yes, and the session's update.
+const pause = ms => new Promise(r => setTimeout(r, ms));
+function renderDemo() {
+  for (const kind of ["query", "evidence"]) (kind === "query" ? $("#q-demo") : $("#e-demo")).innerHTML = "";
+  const st = state.session && demoNext();
+  if (!st) return;
+  const box = st.kind === "query" ? $("#q-demo") : $("#e-demo"), b = document.createElement("button");
+  b.type = "button";
+  b.disabled = demoPlaying;
+  b.innerHTML = `▶ ${esc(st.label)}: ${esc(st.say)}<span>the next step of the walkthrough</span>`;
+  b.onclick = async () => {
+    if (demoPlaying) return;
+    setDemoPlaying(true);
+    try {
+      await draft(st.kind, st.say, true);
+      if (!b.isConnected) return;
+      if (st.ask) { await pause(900); if (!b.isConnected) return; await draft(st.kind, st.choice, true); }
+      await pause(900);
+      if (b.isConnected) await draft(st.kind, "yes", true);
+    } finally { setDemoPlaying(false); }
+  };
+  box.append(b);
+}
+
+// What the questioner writes: "yes" to a draft adds it; anything else goes to the agent, with the conversation so far.
+async function draft(kind, text, animate = false) {
+  if (demoPlaying && !animate) return;
+  const words = kind === "query" ? $("#q-words") : $("#e-words"), button = words.closest("form").querySelector("button");
+  words.value = ""; button.disabled = true;
+  const session = state.session;
+  await say(kind, "user", text, undefined, animate);
+  if (session !== state.session) return;
+  if (pending[kind] && YES.test(text)) {
+    await addPending(kind, animate);
+    pending[kind] = null; button.disabled = demoPlaying || !state.session;
+    return;
+  }
+  pending[kind] = null;
+  try {
+    const d = DEMO[state.ex.assembly.id] ? demoReply(kind)
+      : await post("/api/session/draft", {assembly: state.ex.assembly.id, kind, text, history: talk[kind]});
+    talk[kind].push({role: "user", content: text});
+    const reply = d.clarification ? d.clarification.question
+      : d.draft ? `${formulation(kind, d.draft)}\n\n${CONFIRM}` : (d.note || "No draft was produced; try saying it another way.");
+    talk[kind].push({role: "assistant", content: reply + (d.draft ? ` (draft: ${JSON.stringify(d.draft)})` : "")});
+    if (d.draft) pending[kind] = d.draft;
+    await say(kind, "agent", reply, d.clarification?.choices, animate);
+  } catch (err) { say(kind, "error", err.message); }
+  button.disabled = demoPlaying || !state.session;
+}
+
+for (const form of document.querySelectorAll("#map-side .say")) form.onsubmit = e => {
+  e.preventDefault();
+  const text = form.querySelector("textarea").value.trim();
+  if (text) draft(form.dataset.kind, text);
+};
+for (const t of document.querySelectorAll("#map-side .say textarea")) t.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); t.closest("form").requestSubmit(); }
+});
+
+async function agentStatus() {
+  if (DEMO[state.ex?.assembly.id]) return;          // the demo script stands in: preparePanels says so
+  try {
+    const s = await getJSON("/api/chat-status");
+    $("#agent-status").textContent = s.available
+      ? `Drafting: ${s.provider} · ${s.model}`
+      : `No language model is ready (${s.reason})`;
+  } catch (err) { $("#agent-status").textContent = err.message; }
+}
+
+// A BN node, clicked: its distribution given the session's evidence so far.
+function nodeChart(d) {
+  const W = 340;
+  if (d.kind === "discrete") {
+    const rowH = 20, H = d.states.length * rowH + 4, x0 = 90, bw = 170;
+    return `<svg viewBox="0 0 ${W} ${H}" aria-label="Probability of each state">` + d.states.map((s, i) => {
+      const y = i * rowH + 2, p = d.p[i];
+      return `<text x="${x0 - 6}" y="${y + 13}" text-anchor="end" font-size="12" style="fill:var(--ink-2)">${esc(s)}</text>` +
+        `<rect x="${x0}" y="${y + 3}" width="${Math.max(1, bw * p)}" height="12" rx="2" style="fill:var(--accent)"/>` +
+        `<text x="${x0 + bw + 6}" y="${y + 13}" font-size="12" style="fill:var(--ink)">${p.toFixed(3)} ± ${(2 * d.se[i]).toFixed(3)}</text>`;
+    }).join("") + `</svg>`;
+  }
+  const H = 130, pad = 18, e = d.ln_edges, lo = e[0], hi = e.at(-1), top = Math.max(...d.density) || 1;
+  const X = l => pad + (W - 2 * pad) * (l - lo) / (hi - lo), Y = v => H - 22 - (H - 34) * v / top;
+  let path = `M${X(lo)},${Y(0)}`;
+  d.density.forEach((v, i) => { path += ` L${X(e[i])},${Y(v)} L${X(e[i + 1])},${Y(v)}`; });
+  path += ` L${X(hi)},${Y(0)} Z`;
+  const ticks = [0.01, 0.02, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 1, 1.5, 2, 3, 5]
+    .filter(g => Math.log(g) >= lo && Math.log(g) <= hi);
+  const m = Math.log(d.median_g);
+  return `<svg viewBox="0 0 ${W} ${H}" aria-label="Density of the logarithm">` +
+    `<path d="${path}" style="fill:var(--accent);fill-opacity:0.35;stroke:var(--accent)"/>` +
+    `<line x1="${pad}" x2="${W - pad}" y1="${Y(0)}" y2="${Y(0)}" style="stroke:var(--axis)"/>` +
+    ticks.map(g => `<text x="${X(Math.log(g))}" y="${H - 6}" text-anchor="middle" font-size="11" style="fill:var(--muted)">${g}</text>`).join("") +
+    `<line x1="${X(m)}" x2="${X(m)}" y1="${Y(0)}" y2="8" style="stroke:var(--ink);stroke-dasharray:3 2"/>` +
+    `<text x="${X(m) + 4}" y="14" font-size="11" style="fill:var(--ink)">median ${d.median_g.toFixed(3)} g</text></svg>`;
+}
+
+async function showNodeDistribution(target) {
+  // A click on the BN: a node opens its distribution beside it; anywhere else closes it.
+  const g = target?.closest?.("[data-tip=bnnode]"), pop = $("#node-pop");
+  if (!g) { pop.hidden = true; return; }
+  const id = g.dataset.id, s = state.session, r = g.getBoundingClientRect();
+  pop.style.left = Math.min(r.right + 12, innerWidth - 400) + "px";
+  pop.style.top = Math.max(8, Math.min(r.top - 10, innerHeight - 240)) + "px";
+  pop.hidden = false;
+  if (!s) { pop.innerHTML = `<b>${esc(id)}</b><p>Start the session in the Roadmap tab to see this node's distribution given the evidence.</p>`; return; }
+  pop.innerHTML = `<b>${esc(id)}</b><p>Reading the samples…</p>`;
+  try {
+    const d = await getJSON(`/api/session/node?assembly=${encodeURIComponent(state.ex.assembly.id)}&node=${encodeURIComponent(id)}`);
+    pop.innerHTML = `<b>${esc(id)}</b>${d.observed ? " · observed" : ""}<div>as of discussion at ${esc(d.at)}</div>` +
+      nodeChart(d) + (d.kind === "continuous" ? `<div class="meta">x: ${esc(d.unit)}, on a log scale</div>` : `<div class="meta">± 2 SE</div>`);
+  } catch (err) { pop.innerHTML = `<b>${esc(id)}</b><p>${esc(err.message)}</p>`; }
+}
+document.addEventListener("click", e => {          // the BN viewport's own clicks come through showNodeDistribution
+  if (!e.target.closest("#node-pop, #bn-viewport")) $("#node-pop").hidden = true;
+});
+addEventListener("keydown", e => { if (e.key === "Escape") $("#node-pop").hidden = true; });
+
 // ---- wiring ---------------------------------------------------------------------------------------------
 
 const paneOn = name => $(`#pane-${name}`).classList.contains("on");
-const compactScenario = matchMedia("(max-width: 900px)");
-const scenarioVisibility = { wide: true, compact: false };
-function showScenario(open, focus = false) {
-  scenarioVisibility[compactScenario.matches ? "compact" : "wide"] = open;
-  document.body.classList.toggle("scenario-open", open);
-  $("#scenario-toggle").setAttribute("aria-expanded", String(open));
-  $("#scenario-panel").inert = !open;
-  $(".work").inert = compactScenario.matches && open;
-  if (focus) $(open ? "#scenario-close" : "#scenario-toggle").focus();
-}
-$("#scenario-toggle").onclick = () => showScenario(!document.body.classList.contains("scenario-open"), true);
-$("#scenario-close").onclick = $("#scenario-backdrop").onclick = () => showScenario(false, true);
-compactScenario.addEventListener("change", () => {
-  const focusWasInside = $("#scenario-panel").contains(document.activeElement);
-  showScenario(scenarioVisibility[compactScenario.matches ? "compact" : "wide"]);
-  if (focusWasInside && !document.body.classList.contains("scenario-open")) $("#scenario-toggle").focus();
-});
-addEventListener("keydown", e => {
-  if (e.key === "Escape" && document.body.classList.contains("scenario-open")) showScenario(false, true);
-});
-showScenario(!compactScenario.matches);
 for (const b of document.querySelectorAll("nav button")) b.addEventListener("click", () => {
   for (const x of document.querySelectorAll("nav button")) x.classList.toggle("on", x === b);
   for (const p of document.querySelectorAll(".pane")) p.classList.toggle("on", p.id === `pane-${b.dataset.pane}`);
   const frame = $("#schema-frame");
   if (b.dataset.pane === "schema" && frame.dataset.src) { frame.src = frame.dataset.src; delete frame.dataset.src; }
+  if (b.dataset.pane === "cliques") stackScripts();      // drawn while hidden, its scripts could not be measured
 });
 $("#example").addEventListener("change", e => load(e.target.value));
-$("#run").addEventListener("click", () => {
-  if (compactScenario.matches) showScenario(false, true);
-  run();
-});
+$("#run").addEventListener("click", () => run());
+// A new session, and new memory: the current one is kept in records/sessions/archive/ by the server.
+$("#new-session").addEventListener("click", () => run());
 $("#theme").addEventListener("click", () => {
   const dark = document.documentElement.dataset.theme
     ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -911,7 +1529,6 @@ document.addEventListener("change", e => {
   store.set("basemap", state.basemap ? "on" : "off");
   renderMap();
 });
-mountAsk();
 init().catch(err => setStatus(err.message, true));
 </script>
 </body>

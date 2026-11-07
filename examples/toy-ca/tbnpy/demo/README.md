@@ -1,9 +1,12 @@
 # Toy California tbnpy model
 
-`model.json` contains resolved variables, parent/child column orders, instance
-parameters, network assumptions and source provenance. `model.py` constructs
-tbnpy variables and probability objects from this snapshot, using the PyTorch
-probability class each function's `implementation` names (`src/builder/kernels/`).
+`model.json` is a tbnpy spec: resolved variables, parent/child column orders,
+instance parameters, network assumptions and source provenance. Each probability
+object is a `custom` node naming the PyTorch class its function's `implementation`
+names (`src/builder/kernels/`). A library parameter set (the GMM, each Hazus curve,
+the closure policy) is written once under `parameter_sets`, and every node built
+from it names it in `parameter_set`; a node's `kwargs` hold only its own arguments.
+`model.py` compiles the spec with `tbnpy.compile`.
 
 From the repository root, with the quakenet environment active:
 
@@ -20,15 +23,14 @@ are listed in each object's `childs`. Forward results' `Cs` columns follow that
 child order. All samples and likelihood evaluations use PyTorch tensors, with
 ndtools evaluating graph performance on the CPU.
 
-There are 46 variables and five probability objects:
+There are 36 variables in 27 probability objects, of four kinds:
 
 | Probability object | Child variables |
 |---|---|
-| Ground motion | All ten bridge SA(1.0) variables together; a root, with the Event row (Mw, epicentre, depth) as fixed data |
-| Fragility | Ten five-state damage variables |
-| Usability | Ten binary bridge variables |
-| Edge open | Ten binary edge variables |
-| System state | Six binary events: the nearest key destination reached within 0.5 hours of the intact time |
+| Ground motion | One object for all ten bridge SA(1.0) variables together; a root, with the Event row (Mw, epicentre, depth) as fixed data |
+| Fragility | One per bridge: a five-state damage variable, on its class's Hazus curve (HWB11 or HWB5) |
+| Edge open | One per edge: `False` (closed) or `True` (open), closed if any bridge on it reaches extensive damage |
+| System state | One per origin: `Fail` or `Survival`, whether the nearest key destination is reached within 0.5 hours of the intact time |
 
 Toy-ca currently specifies one IM and independent total GMM residuals; grouping
 the field in one probability object preserves that model without asserting a

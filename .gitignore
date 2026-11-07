@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 *.zip
+.env
 
 # ShakeMap grids downloaded from USGS (~30 MB each); re-fetched on demand
 .cache/
@@ -13,3 +14,4 @@ examples/**/rsr/
 
 # Query samples are kept for inspection when small, and can always be rebuilt with python -m src replay.
 records/samples/
+records/sessions/

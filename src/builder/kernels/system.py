@@ -49,17 +49,18 @@ def base_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> nx.G
 class TravelTimeToNearest(Probability):
     """Whether an origin still reaches a key destination in time, given every edge's state (deterministic).
 
-        S = 1 if t(origin -> nearest key destination | edge states) <= t(same, intact network) + target_add_h
-        S = 0 otherwise
+        S = Survival if t(origin -> nearest key destination | edge states) <= t(same, intact network) + target_add_h
+        S = Fail     otherwise
 
-    The travel time t comes from ndtools.fun_binary_graph.eval_travel_time_to_nearest.
+    The travel time t comes from ndtools.fun_binary_graph.eval_travel_time_to_nearest. As every discrete
+    variable, S holds its state index: 0 Fail, 1 Survival; an edge state is 0 False (closed), 1 True (open).
     """
 
     def __init__(self, childs, parents, origin, edge_ids, target_add_h, network, rules=None,
                  directory=None, device="cpu"):
         """
-        childs       : [Variable S], values [0, 1]
-        parents      : [Variable EdgeOpen] of every edge, values [0, 1]
+        childs       : [Variable S], values ["Fail", "Survival"]
+        parents      : [Variable EdgeOpen] of every edge, values ["False", "True"]
         origin       : the origin node id
         edge_ids     : the network's edge id of each parent, in the same order
         target_add_h : hours allowed on top of the intact network's travel time
@@ -70,7 +71,7 @@ class TravelTimeToNearest(Probability):
                        {"upper": survival rules file, "lower": failure rules file} relative to
                        directory, each a (m, n_edges, 2) tensor or null for none, with the threshold
                        each was extracted at ("upper_at", "lower_at"). An edge state matching a
-                       survival rule is S = 1, a failure rule S = 0.
+                       survival rule is S = Survival, a failure rule S = Fail.
         directory    : the folder file names are relative to (tbnpy passes the spec's folder)
         """
         super().__init__(childs, parents, device)
@@ -104,8 +105,8 @@ class TravelTimeToNearest(Probability):
 
     # ------------------------------------------------------------------
     def form(self):
-        return (f"1 if {self.origin} reaches its nearest key destination within {self.target_add_h:g} h "
-                f"of the intact network's time, else 0 (ndtools, after the stored rules)")
+        return (f"Survival if {self.origin} reaches its nearest key destination within {self.target_add_h:g} h "
+                f"of the intact network's time, else Fail (ndtools, after the stored rules)")
 
     def form_details(self):
         rules = ("none, so ndtools evaluates every sample" if self.rules is None else
@@ -128,7 +129,7 @@ class TravelTimeToNearest(Probability):
     def evaluate(self, Cs_pars):
         """
         Cs_pars : (N, n_edges) EdgeOpen of each edge, in the order of edge_ids
-        Returns (N, 1) S
+        Returns (N, 1) S index: 1 Survival, 0 Fail
         """
         if ((Cs_pars != 0) & (Cs_pars != 1)).any():
             raise ValueError("edge states must be binary")

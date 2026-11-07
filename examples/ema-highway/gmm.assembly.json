@@ -13,6 +13,10 @@
       "note": "Each bridge gets the first listed GMM whose region contains it. List others, in order of preference, as their coefficients are added."
     },
     {
+      "function": "observation.intensity",
+      "parameter_set": "relative-sd-10pct.sa1p0"
+    },
+    {
       "function": "fragility.bridge",
       "parameter_set": "hazus61.{hazus_class}",
       "note": "Three parameter sets (HWB2, HWB4, HWB11) describe all 129 bridges."

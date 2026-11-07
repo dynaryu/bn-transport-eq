@@ -24,7 +24,7 @@ from pathlib import Path
 from .load import SCHEMA, Library, load_library, port_choices, quantity_template, via_kind
 
 OUTPUT = SCHEMA / "diagram.md"
-ROLES = ["scenario", "hazard", "fragility", "edge", "system"]
+ROLES = ["scenario", "hazard", "observation", "fragility", "edge", "system"]
 
 # Crow's-foot ends, producer on the left, consumer on the right, by how the consumer reaches it.
 _ENDS = {"self": "||--||", "fk": "||--o{", "reverse": "}o--||", "all": "}o--o{"}
@@ -49,7 +49,7 @@ def _comment(text: str) -> str:
 
 def _type_of(q: dict) -> str:
     if q["kind"] == "discrete":
-        return "{0,1}" if q["states"] == [0, 1] else ", ".join(map(str, q["states"]))
+        return ", ".join(map(str, q["states"]))
     if q["kind"] == "record":
         return "record of " + ", ".join(q["fields"])
     return q["unit"]

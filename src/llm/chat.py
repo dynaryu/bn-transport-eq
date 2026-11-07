@@ -22,10 +22,11 @@ Two properties follow from routing through the engine rather than around it:
 Backends, chosen by ``BN_LLM`` (or ``serve --llm``), with ``BN_MODEL`` (or
 ``serve --model``) for another model of that backend:
 
-* ``anthropic`` (the default): Claude through the ``anthropic`` SDK and a Console
-  credential, with server-side refusal fallbacks on.
-* ``ollama``: a local model served by Ollama, over its HTTP API with the standard
-  library alone. ``OLLAMA_BASE_URL`` overrides the address.
+* ``ollama`` (the default): a local, open-weight model served by Ollama, over its HTTP API
+  with the standard library alone; gpt-oss:20b by default (Apache 2.0, native tool calling, about 14 GB:
+  it fits a 16 GB GPU). ``OLLAMA_BASE_URL`` overrides the address.
+* ``anthropic``: Claude through the ``anthropic`` SDK and a Console credential, with
+  server-side refusal fallbacks on.
 * ``gemini``: Google Gemini through its OpenAI-compatible API. Needs ``GEMINI_API_KEY``.
 
 With no backend available the rest of the app works unchanged; ``available()``
@@ -61,7 +62,7 @@ ANTHROPIC_MAX_TOKENS = 16000        # thinking is always on for this model; leav
 ANTHROPIC_EFFORT = "medium"         # this model's default, stated: choosing one query is not hard reasoning
 # On a policy decline the API re-runs the request on a fallback model in the same call.
 ANTHROPIC_BETAS = ["server-side-fallback-2026-07-01"]
-OLLAMA_MODEL = "qwen3:8b"
+OLLAMA_MODEL = "gpt-oss:20b"
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TIMEOUT = 300    # seconds per model call; a CPU-only 8B model can be slow
 OLLAMA_KEEP_ALIVE = "30m"   # how long Ollama keeps the model loaded after a request
@@ -88,8 +89,8 @@ class ChatUnavailable(RuntimeError):
 
 
 def provider() -> str:
-    """Which backend drives the chat: ``BN_LLM``, Claude by default."""
-    return (os.environ.get("BN_LLM") or "anthropic").strip().lower()
+    """Which backend drives the chat: ``BN_LLM``, the local Ollama model by default."""
+    return (os.environ.get("BN_LLM") or "ollama").strip().lower()
 
 
 DEFAULT_MODELS = {"ollama": OLLAMA_MODEL, "gemini": GEMINI_MODEL, "anthropic": ANTHROPIC_MODEL}
@@ -103,17 +104,31 @@ def model_name() -> str:
             or DEFAULT_MODELS.get(chosen, ANTHROPIC_MODEL))
 
 
+OLLAMA_NUM_CTX = 16384     # tokens of context; Ollama's own default (4096) cuts a large network's background off
+
+
+def _ollama_num_ctx() -> int:
+    return int(os.environ.get("OLLAMA_NUM_CTX") or OLLAMA_NUM_CTX)
+
+
 def _ollama_keep_alive() -> str:
     return os.environ.get("OLLAMA_KEEP_ALIVE") or OLLAMA_KEEP_ALIVE
 
 
-def _ollama_think() -> bool:
-    """Thinking is off unless ``OLLAMA_THINK`` turns it on.
+def _ollama_think() -> bool | str:
+    """How much the model thinks: off unless ``OLLAMA_THINK`` turns it on, as true or a level.
 
     Choosing a handful of tool parameters gains little from a written-out chain
     of reasoning, and a thinking model spends most of each round trip on it.
+    gpt-oss cannot turn thinking off, only set its level (low, medium, high): low
+    unless ``OLLAMA_THINK`` names another.
     """
-    return (os.environ.get("OLLAMA_THINK") or "").strip().lower() in {"1", "true", "yes", "on"}
+    value = (os.environ.get("OLLAMA_THINK") or "").strip().lower()
+    if model_name().startswith("gpt-oss"):
+        return value if value in {"low", "medium", "high"} else "low"
+    if value in {"low", "medium", "high"}:
+        return value
+    return value in {"1", "true", "yes", "on"}
 
 
 def preload_ollama() -> str:
@@ -362,10 +377,10 @@ def _examples(menu: Mapping[str, Any]) -> list[str]:
     by_id = {q["id"]: q for q in menu["quantities"]}
     out = []
     if "SystemState" in by_id:
-        out.append('{"events": [{"node": "SystemState::*", "op": "==", "value": 0}]}  '
+        out.append('{"events": [{"node": "SystemState::*", "op": "==", "value": "Fail"}]}  '
                    '= P(each system event fails, by its own definition)')
     if "EdgeOpen" in by_id:
-        out.append('{"events": [{"node": "EdgeOpen::*", "op": "==", "value": 0}]}  = P(each edge closed)')
+        out.append('{"events": [{"node": "EdgeOpen::*", "op": "==", "value": "False"}]}  = P(each edge closed)')
     return out
 
 
@@ -378,10 +393,10 @@ def system_prompt(menu: Mapping[str, Any], defaults: Mapping[str, Any] | None = 
         "Rules:",
         f"- Every number you state comes from a {TOOL_NAME} result. Never estimate, extrapolate or invent one.",
         "- Say in words which query you ran before giving its numbers.",
-        "- Use do for forced discrete node states, evidence for observed discrete states, and "
-        "joint_events for AND/OR probabilities on the same draws. Evidence uses rejection conditioning; "
-        "too few accepted draws are refused. Continuous evidence and interventions on jointly owned "
-        "nodes are unsupported. Do not replace observation with intervention.",
+        "- Use do for forced discrete node states, evidence for observed states (a discrete state, or a "
+        "station's SAObs reading in g), and joint_events for AND/OR probabilities on the same draws. The "
+        "clique-tree sampler conditions on the evidence itself. SA itself cannot be observed or forced, "
+        "only through SAObs. Do not replace observation with intervention.",
         "- Results are Monte Carlo estimates: give probabilities to two significant figures, with the "
         "95% interval when it matters.",
         "- Use probabilities, expectations or explicitly interpreted comparisons, not arbitrary "
@@ -418,11 +433,6 @@ def system_prompt(menu: Mapping[str, Any], defaults: Mapping[str, Any] | None = 
         "- If required meaning or inputs are missing, call clarification with a concise question "
         "and a missing list, then ask the user. Do not run a substitute query. In particular, identify "
         "the origin, system requirement and hazard. A 1,000-year return period alone defines no shaking field.",
-        "- New inputs can be drafted with proposal: kind parameter_set or scenario, title, reason, "
-        "source object, payload. Parameter-set payload uses the library's function/source/sets file shape; "
-        "scenario payload is {id: '<network>/<name>', query: <complete query>}. Ask for missing source "
-        "values, never invent model coefficients. Drafts are validated and need a named user's activation. "
-        "New mathematical forms need code and tests. You cannot activate proposals yourself.",
         "- Keep answers short.",
         "",
         f"The Bayesian network is {menu['assembly']}: {menu['label']}. {menu['description']}".strip(),
@@ -450,17 +460,6 @@ def system_prompt(menu: Mapping[str, Any], defaults: Mapping[str, Any] | None = 
     lines += ["", "Examples of tool arguments:", *_examples(menu)]
     from .cases import few_shots
     lines += few_shots(menu["assembly"])
-    proposal_functions = {q["function"] for q in menu["quantities"]}
-    lines += ["Instance value schemas (for proposals only): " + json.dumps({
-        fn: engine.library().functions[fn]["instance_schema"] for fn in sorted(proposal_functions)
-        if "instance_schema" in engine.library().functions[fn]})]
-    lines += ["Active parameter sets (activation adds availability, not automatic binding): " + json.dumps([
-        {"id": sid, "function": item["function"], "label": item["label"]}
-        for sid, item in engine.library().parameter_sets.items() if item["function"] in proposal_functions])]
-    from src import proposals
-    saved = proposals.scenarios(menu["assembly"])
-    if saved:
-        lines += ["Reviewed saved scenarios: " + json.dumps(saved)]
     if defaults:
         lines += ["", "The page currently sets " + json.dumps(defaults)
                   + ". These apply to every query unless the question changes them."]
@@ -492,7 +491,6 @@ def tool_spec(menu: Mapping[str, Any]) -> dict[str, Any]:
             "parameter_sets": {**obj, "description": 'Swap parameter sets: {"<function id>": "<set id>"}.'},
             "evidence": {**obj, "description": "Observed discrete node states. Rejection conditioning."},
             "analysis": {**SCHEMA, "description": "Deterministic comparisons, bridge importance, paths or VOI."},
-            "proposal": {**obj, "description": "Draft a reviewed addition: kind, title, reason, source, payload."},
             "clarification": {**CLARIFICATION_SCHEMA, "description": "Ask for missing meaning/inputs; choices can explain mathematical definitions. Wait for the user's reply."},
             "samples": {"type": "integer",
                         "description": f"Monte Carlo samples, 100 to 1000000. Default {DEFAULT_SAMPLES}."},
@@ -574,10 +572,10 @@ def run_tool(arguments: Any, *, assembly: str, defaults: Mapping[str, Any] | Non
         arguments = json.loads(arguments) if isinstance(arguments, str) else arguments
     except ValueError as exc:
         return json.dumps({"error": f"bad arguments: {exc}"})
-    special = [k for k in ("analysis", "proposal", "clarification") if isinstance(arguments, dict) and k in arguments]
+    special = [k for k in ("analysis", "clarification") if isinstance(arguments, dict) and k in arguments]
     if special:
         if len(special) != 1 or len(arguments) != 1:
-            return json.dumps({"error": "Send exactly one analysis, proposal, clarification or probability query"})
+            return json.dumps({"error": "Send exactly one analysis, clarification or probability query"})
         kind = special[0]
         value = arguments[kind]
         emit({"type": "plan", "arguments": arguments})
@@ -590,11 +588,6 @@ def run_tool(arguments: Any, *, assembly: str, defaults: Mapping[str, Any] | Non
                 if errors:
                     raise ValueError("Invalid clarification: " + errors[0].message)
                 return json.dumps({"clarification": value})
-            if kind == "proposal":
-                from src import proposals
-                draft = proposals.draft(value)
-                emit({"type": "proposal", "proposal": draft})
-                return json.dumps(draft)
             from src.inference import comparisons
             task_query = {"assembly": assembly, **value.get("query", {})}
             value = {**value, "query": comparisons.merge(defaults or {} if task_query["assembly"] == assembly else {}, task_query)}
@@ -637,10 +630,18 @@ def run_tool(arguments: Any, *, assembly: str, defaults: Mapping[str, Any] | Non
     return json.dumps(compact(result))
 
 
-def _dispatch(name: Any, arguments: Any, call: Callable[[Any], str]) -> str:
-    if name != TOOL_NAME:
-        return json.dumps({"error": f"no tool named {name!r}; the only tool is {TOOL_NAME}"})
-    return call(arguments)
+def _specs(spec: Mapping[str, Any] | list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """The tools a loop offers: one spec (Ask's run_query), or several."""
+    return list(spec) if isinstance(spec, (list, tuple)) else [spec]
+
+
+def _dispatch(name: Any, arguments: Any, call: Callable[..., str], spec: Any = None) -> str:
+    """Run the tool the model named. With one tool, call(arguments); with several, call(name, arguments)."""
+    specs = _specs(spec) if spec is not None else [{"name": TOOL_NAME}]
+    names = [s["name"] for s in specs]
+    if name not in names:
+        return json.dumps({"error": f"no tool named {name!r}; the tools are {', '.join(names)}"})
+    return call(arguments) if len(specs) == 1 else call(name, arguments)
 
 
 def _strip_thinking(text: str) -> str:
@@ -751,10 +752,12 @@ def _ask_ollama(post: Callable[[str, Mapping[str, Any]], dict[str, Any]], model:
                 messages: list[dict[str, Any]], spec: dict[str, Any], call: Callable[[Any], str]) -> str:
     """The tool loop over Ollama's /api/chat: call, run any tools, repeat."""
     conversation: list[dict[str, Any]] = [{"role": "system", "content": system}, *messages]
-    think: bool | None = _ollama_think()
+    think: bool | str | None = _ollama_think()
     for _ in range(MAX_TOOL_ROUNDS):
-        payload = {"model": model, "messages": conversation, "tools": [{"type": "function", "function": spec}],
-                   "stream": False, "keep_alive": _ollama_keep_alive(), "options": {"num_predict": MAX_TOKENS}}
+        payload = {"model": model, "messages": conversation,
+                   "tools": [{"type": "function", "function": s} for s in _specs(spec)],
+                   "stream": False, "keep_alive": _ollama_keep_alive(),
+                   "options": {"num_predict": MAX_TOKENS, "num_ctx": _ollama_num_ctx()}}
         if think is not None:
             payload["think"] = think
         try:
@@ -774,7 +777,7 @@ def _ask_ollama(post: Callable[[str, Mapping[str, Any]], dict[str, Any]], model:
             return _strip_thinking(message.get("content") or "")
         for tool_call in sorted(calls, key=lambda c: not _has_clarification((c.get("function") or {}).get("arguments"))):
             function = tool_call.get("function") or {}
-            result = _dispatch(function.get("name"), function.get("arguments"), call)
+            result = _dispatch(function.get("name"), function.get("arguments"), call, spec)
             conversation.append({"role": "tool", "tool_name": function.get("name"), "content": result})
     return _stopped()
 
@@ -785,7 +788,7 @@ def _ask_openai_compatible(post: Callable[[str, Mapping[str, Any]], dict[str, An
     conversation: list[dict[str, Any]] = [{"role": "system", "content": system}, *messages]
     for _ in range(MAX_TOOL_ROUNDS):
         reply = post("/chat/completions", {"model": model, "messages": conversation,
-                                           "tools": [{"type": "function", "function": spec}],
+                                           "tools": [{"type": "function", "function": s} for s in _specs(spec)],
                                            "tool_choice": "auto", "reasoning_effort": "low"})
         message = (reply.get("choices") or [{}])[0].get("message") or {}
         calls = message.get("tool_calls") or []
@@ -795,7 +798,7 @@ def _ask_openai_compatible(post: Callable[[str, Mapping[str, Any]], dict[str, An
             return _strip_thinking(message.get("content") or "")
         for tool_call in sorted(calls, key=lambda c: not _has_clarification((c.get("function") or {}).get("arguments"))):
             function = tool_call.get("function") or {}
-            result = _dispatch(function.get("name"), function.get("arguments"), call)
+            result = _dispatch(function.get("name"), function.get("arguments"), call, spec)
             conversation.append({"role": "tool", "tool_call_id": tool_call.get("id"), "content": result})
     return _stopped()
 
@@ -807,7 +810,7 @@ def _ask_anthropic(client: Any, model: str, system: str, messages: list[dict[str
         import anthropic
 
         client = anthropic.Anthropic()
-    tools = [{"name": spec["name"], "description": spec["description"], "input_schema": spec["parameters"]}]
+    tools = [{"name": s["name"], "description": s["description"], "input_schema": s["parameters"]} for s in _specs(spec)]
     conversation = list(messages)
     for _ in range(MAX_TOOL_ROUNDS):
         reply = client.beta.messages.create(
@@ -824,6 +827,6 @@ def _ask_anthropic(client: Any, model: str, system: str, messages: list[dict[str
             return "\n\n".join(block.text for block in reply.content
                                if getattr(block, "type", None) == "text").strip()
         conversation.append({"role": "user", "content": [
-            {"type": "tool_result", "tool_use_id": block.id, "content": _dispatch(block.name, block.input, call)}
+            {"type": "tool_result", "tool_use_id": block.id, "content": _dispatch(block.name, block.input, call, spec)}
             for block in sorted(uses, key=lambda b: not _has_clarification(b.input))]})
     return _stopped()

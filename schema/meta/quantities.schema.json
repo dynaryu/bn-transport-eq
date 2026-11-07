@@ -31,7 +31,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^([A-Z][A-Za-z0-9]*(\\.[A-Z][A-Za-z0-9]*)?|SA\\(\\d+(\\.\\d+)?\\))$",
+          "pattern": "^([A-Z][A-Za-z0-9]*(\\.[A-Z][A-Za-z0-9]*)?|SA(Obs)?\\(\\d+(\\.\\d+)?\\))$",
           "description": "A name, or for spectral acceleration the OpenQuake form SA(T) with T in seconds, e.g. SA(1.0)."
         },
         "label": {

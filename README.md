@@ -44,8 +44,8 @@ python -m src check                          # 1-3: validate everything, compile
 python -m src compile ema-highway/gmm        # 3: what one assembly expands to, binding by binding
 python -m src build toy-ca/demo              # 3: generate runnable tbnpy data, model.py and RSR rules
 python examples/toy-ca/tbnpy/demo/model.py --samples 2000  # sample with tbnpy/PyTorch
-python -m src query ema-highway/gmm --event "EdgeOpen::*==0" --set ema-reference.mw=7
-python -m src scope toy-ca/demo --event "SystemState::n4==0"     # 4: what that query depends on and samples
+python -m src query ema-highway/gmm --event "EdgeOpen::*==False" --set ema-reference.mw=7
+python -m src scope toy-ca/demo --event "SystemState::n4==Fail"     # 4: what that query depends on and samples
 python -m src replay <record id>             # 4: re-run a recorded query (records/queries.jsonl) exactly
 python -m src ask ema-highway/gmm "Would n1 still reach n66 after an M7?"             # 5: needs a model
 python -m src serve --open                   # 6: quakenet, at http://127.0.0.1:8765
@@ -67,9 +67,10 @@ python -m pytest -q                          # the tests
   Which GMM is chosen by where the network is, and the IM itself is left open:
   `PGA`, `SA(0.3)`, `SA(1.0)`... wire only to curves on the same IM.
 - **System functions run on [ndtools](https://pypi.org/project/ndtools-duco/).**
-  `system.travel-time-to-nearest` gives each non-key node a binary `SystemState`: 1 if
-  it reaches its nearest `key_destination` within `target_add_h` hours of the intact
-  network's time. The network supplies each edge's `length_km` and `avg_speed_kph`, and
+  `system.travel-time-to-nearest` gives each non-key node a binary `SystemState`: `Survival`
+  if it reaches its nearest `key_destination` within `target_add_h` hours of the intact
+  network's time, else `Fail` (an edge is `True` open or `False` closed). A query may name a
+  state by its label or by its index (`Fail` is 0). The network supplies each edge's `length_km` and `avg_speed_kph`, and
   its `SystemEvent` row names the analysis and `target_add_h` (defaults: this function, 0.5 h).
   Rules extracted by [rsr](https://jieunbyun.github.io/rsr/) are stored with the example per
   threshold, so ndtools runs only where no rule applies. A threshold without its own rules
@@ -96,27 +97,27 @@ The schema's design and how to add to it: [`schema/README.md`](schema/README.md)
 ```json
 {
   "assembly": "ema-highway/gmm",
-  "events": [{"node": "EdgeOpen::*", "op": "==", "value": 0}],
+  "events": [{"node": "EdgeOpen::*", "op": "==", "value": "False"}],
   "rows": {"ema-reference": {"mw": 7.0}},
   "parameter_sets": {"edge.open": "policy.closed-at-moderate"},
   "samples": 2000
 }
 ```
 
-reads back as `P(EdgeOpen[*] = 0) | do(ema-reference.mw = 7.0,
+reads back as `P(EdgeOpen[*] = False) | do(ema-reference.mw = 7.0,
 edge.open with policy.closed-at-moderate)`: the chance that each
 edge is closed. The answer gives one probability per matching node, with a 95%
 interval, and runs only the bindings those nodes depend on.
 
 ## Language models
 
-The page's chat panel and `python -m src ask` need one backend. Choose it with
+The map's Decision query and Evidence panels (their Draft) and `python -m src ask` need one backend. Choose it with
 `--llm` (or `BN_LLM`), and another model of it with `--model` (or `BN_MODEL`).
 
 | Backend | Costs | Setup |
 |---|---|---|
-| `anthropic` (default) | API credit, hosted | `ant auth login`, or `ANTHROPIC_API_KEY`; with uv, `uv sync --extra anthropic`. Claude Opus 5.5, with refusal fallbacks on |
-| `ollama` | free, local | install [Ollama](https://ollama.com), then `ollama pull qwen3:8b` (any model with tool support) |
+| `ollama` (default) | free, local | install [Ollama](https://ollama.com), then `ollama pull gpt-oss:20b` (about 14 GB; fits a 16 GB GPU). Another model with tool support via `--model` |
+| `anthropic` | API credit, hosted | `ant auth login`, or `ANTHROPIC_API_KEY`; with uv, `uv sync --extra anthropic`. Claude Opus 5.5, with refusal fallbacks on |
 | `gemini` | free tier, hosted | a key from aistudio.google.com/apikey in `GEMINI_API_KEY` |
 
 On startup the server prints the backend and whether it is ready;

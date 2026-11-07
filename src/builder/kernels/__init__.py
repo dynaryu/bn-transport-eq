@@ -12,10 +12,12 @@ variable holds the index into its ``Variable.values``. Everything is PyTorch.
 
 The generated model.json is a tbnpy spec: each probability object is a
 ``custom`` node naming its class here, its childs and parents, and its
-constructor's arguments (``kwargs``), all plain JSON. ``tbnpy.compile`` builds
-the objects from it, so a kernel's constructor is the whole interface: what the
-spec records is exactly what the constructor takes. The node's ``metadata``
-(function, role, parameter sets) reaches the object as ``spec_metadata``.
+constructor's arguments, all plain JSON: those of a library parameter set (a
+fragility curve, a closure policy) once, in the spec's ``parameter_sets``, which
+the node names, and the node's own in ``kwargs``. ``tbnpy.compile`` builds the
+objects from it, so a kernel's constructor is the whole interface: what the
+spec records is exactly what the constructor takes. The node reaches the object
+as ``spec``, and its ``metadata`` (function, role, binding) as ``spec_metadata``.
 
 Every kernel inherits ``tbnpy.Probability``, so it prints as the distribution it
 defines, and ``print`` adds each variable's domain and the kernel's notes.
@@ -70,7 +72,7 @@ class Probability(TbnpyProbability):
 
     def parameter_sets(self) -> str:
         """`` [set]`` naming the parameter set the object was built from, for the end of a form; else empty."""
-        name = self.spec_metadata.get("parameter_set")
+        name = getattr(getattr(self, "spec", None), "parameter_set", "")    # tbnpy.compile sets spec
         return f" [{name}]" if name else ""
 
     # ------------------------------------------------------------------

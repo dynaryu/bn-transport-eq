@@ -4,7 +4,7 @@
   "assembly": "toy-ca/demo",
   "context": {
     "defaults": {},
-    "system_failure": "SystemState::n4 == 0",
+    "system_failure": "SystemState::n4 == Fail",
     "scenario": "demo.assembly.json and network.json; observed b4 unusable"
   },
   "questions": [
@@ -16,30 +16,30 @@
       {
         "assembly": "toy-ca/demo",
         "evidence": {
-          "EdgeOpen::e4": 0
+          "EdgeOpen::e4": "False"
         },
         "events": [
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ]
       },
       {
         "assembly": "toy-ca/demo",
         "evidence": {
-          "EdgeOpen::e4": 0
+          "EdgeOpen::e4": "False"
         },
         "events": [
           {
             "node": "SystemState::n4",
             "op": "==",
-            "value": 0
+            "value": "Fail"
           }
         ],
         "do": {
-          "EdgeOpen::e2": 1
+          "EdgeOpen::e2": "True"
         }
       }
     ]

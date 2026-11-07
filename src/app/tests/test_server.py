@@ -29,8 +29,8 @@ def get(url):
 
 
 @pytest.fixture(autouse=True)
-def no_real_rule_extraction(monkeypatch):
-    """HTTP tests must not start workers that write model artifacts into the repository."""
+def isolated_server_state(tmp_path, monkeypatch):
+    """HTTP tests use private sessions and never start workers that write model artifacts."""
     from types import SimpleNamespace
     from src.app import server
     import subprocess
@@ -38,6 +38,8 @@ def no_real_rule_extraction(monkeypatch):
         Popen=lambda *a, **kw: SimpleNamespace(poll=lambda: None), STDOUT=subprocess.STDOUT,
         CREATE_NEW_PROCESS_GROUP=0))
     monkeypatch.setattr(server, "_extractions", {})
+    monkeypatch.setattr(server, "_sessions", {})
+    monkeypatch.setattr(server, "SESSIONS", tmp_path / "sessions")
 
 
 def post(url, body):
@@ -55,7 +57,7 @@ def test_view_data_has_the_schema_and_every_bn():
     links = {(x["from"], x["to"]) for x in views["library"]["links"]}
     for hazard in ("hazard.gmm", "hazard.shakemap"):
         assert (hazard, "fragility.bridge") in links          # alternatives, all type-compatible
-    assert views["ema-highway/gmm"]["n_nodes"] == 459            # 387 + a system state for each of 72 origins
+    assert views["ema-highway/gmm"]["n_nodes"] == 588            # 387 + 129 SA measurements + a system state for each of 72 origins
     assert views["ema-highway/gmm"]["menu"]["settable"]["rows"]
 
 
@@ -78,10 +80,7 @@ def test_the_schema_page_is_current():
 def test_the_page_and_its_data_are_served(base_url):
     status, body = get(base_url + "/")
     assert status == 200 and b"<title>quakenet</title>" in body and b"/api/example?assembly=" in body
-    assert b'<script src="/ask.js"></script>' in body
-    with urlopen(base_url + "/ask.js", timeout=10) as response:
-        assert response.status == 200 and response.headers.get_content_type() == "text/javascript"
-        assert b"function queryResults" in response.read()
+    assert b'id="panel-query"' in body and b'id="panel-evidence"' in body     # the two panels under the map
     with urlopen(base_url + "/diagram-navigation.js", timeout=10) as response:
         assert response.status == 200 and response.headers.get_content_type() == "text/javascript"
         assert b"function diagramNavigation(" in response.read()
@@ -100,10 +99,17 @@ def test_a_query_is_answered_and_a_bad_one_explained(base_url):
     assert status == 400 and "no node 'x'" in body["error"]
 
 
-def test_ask_without_a_model_says_why(base_url, monkeypatch):
+def test_a_session_runs_and_drafting_without_a_model_says_why(base_url, monkeypatch):
+    status, body = post(base_url + "/api/session/draft", {"assembly": "toy-ca/demo", "kind": "evidence", "text": "hi"})
+    assert status == 400 and "Run" in body["error"]                   # no session yet
+    status, body = post(base_url + "/api/session", {"assembly": "toy-ca/demo", "samples": 10000})
+    assert status == 200 and body["n"] == 10000 and body["result"]["events"]
+    status, body = post(base_url + "/api/session/evidence", {"assembly": "toy-ca/demo", "variable": "EdgeOpen::e6",
+                                                             "value": "closed"})
+    assert status == 200 and body["timeline"][-1]["kind"] == "evidence"
     monkeypatch.setenv("BN_LLM", "gemini")
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    status, body = post(base_url + "/api/ask", {"assembly": "ema-highway/gmm", "question": "hi"})
+    status, body = post(base_url + "/api/session/draft", {"assembly": "toy-ca/demo", "kind": "evidence", "text": "hi"})
     assert status == 503 and "GEMINI_API_KEY" in body["error"]
 
 
@@ -132,8 +138,8 @@ def test_an_example_carries_its_network_menu_and_rules(base_url):
     status, body = get(base_url + "/api/example?assembly=toy-ca/demo")
     ex = json.loads(body)
     assert status == 200 and set(ex["network"]["tables"]) >= {"Node", "Edge", "Bridge", "Event", "SystemEvent"}
-    assert ex["objects"] == 27 and ex["rules"] == {"stored": 6, "origins": 6}
-    assert len(ex["nodes"]) == 36 and ex["joint"] == ["hazard.gmm"]          # what the BN tab draws, layer by layer
+    assert ex["objects"] == 37 and ex["rules"] == {"stored": 6, "origins": 6}
+    assert len(ex["nodes"]) == 46 and ex["joint"] == ["hazard.gmm"]          # what the BN tab draws, layer by layer
     settable = {(r["entity"], r["attribute"]) for r in ex["menu"]["settable"]["rows"]}
     assert {("Event", "mw"), ("SystemEvent", "target_add_h")} <= settable
     with pytest.raises(HTTPError) as missing:
@@ -193,56 +199,3 @@ def test_a_negative_threshold_is_refused(base_url):
     status, body = post(base_url + "/api/query", {"assembly": "toy-ca/demo", "targets": ["SystemState::n4"],
                                                   "rows": {"reach-key-destination": {"target_add_h": -0.1}}})
     assert status == 400 and "below its minimum" in body["error"]
-
-
-def test_proposal_api_keeps_drafts_separate_and_rejects_bad_activation(base_url, tmp_path, monkeypatch):
-    monkeypatch.setenv("QUAKENET_PROPOSALS", str(tmp_path / "proposals"))
-    spec = {"kind": "scenario", "title": "N1 only", "reason": "Access requirement",
-            "source": {"basis": "user-defined"}, "payload": {"id": "toy-ca/n1-only", "query": {
-                "assembly": "toy-ca/demo", "rows": {"n2": {"key_destination": False}},
-                "events": [{"node": "SystemState::n4", "op": "==", "value": 0}]}}}
-    status, draft = post(base_url + "/api/proposals", spec)
-    assert status == 200 and draft["status"] == "draft" and not draft["validation"]
-    status, body = get(base_url + "/api/proposals")
-    assert json.loads(body)["proposals"][0]["id"] == draft["id"]
-    status, body = post(base_url + "/api/proposals/activate", {"id": draft["id"], "reviewer": "", "sha256": draft["sha256"]})
-    assert status == 400 and "reviewer" in body["error"]
-
-
-def test_optional_readback_waits_and_cancellation_prevents_sampling(base_url, monkeypatch):
-    from queue import Queue
-    from src.app import server
-    from src.llm import chat
-    original = chat.ask
-    calls = []
-    def client(path, payload):
-        calls.append(payload)
-        if len(calls) == 1:
-            return {"message": {"tool_calls": [{"function": {"name": "run_query", "arguments": {"targets": ["EdgeOpen::e2"]}}}]}}
-        return {"message": {"content": "Cancelled."}}
-    monkeypatch.setenv("BN_LLM", "ollama")
-    monkeypatch.setattr(server.chat, "ask", lambda *a, **kw: original(*a, **kw, client=client, model="test"))
-    monkeypatch.setattr(chat.engine, "answer", lambda *a, **kw: (_ for _ in ()).throw(AssertionError("must not sample")))
-    queue = Queue()
-    def stream():
-        request = Request(base_url + "/api/ask", data=json.dumps({"assembly": "toy-ca/demo", "question": "b2 usability?", "review": True}).encode(), headers={"Content-Type": "application/json"})
-        with urlopen(request, timeout=30) as response:
-            for line in response:
-                queue.put(json.loads(line))
-    worker = threading.Thread(target=stream, daemon=True)
-    worker.start()
-    events = []
-    while True:
-        event = queue.get(timeout=15)
-        events.append(event)
-        if event["type"] == "review":
-            assert len(calls) == 1
-            status, _ = post(base_url + "/api/review", {"token": event["token"], "approved": False})
-            assert status == 200
-            break
-    while events[-1]["type"] != "answer":
-        events.append(queue.get(timeout=15))
-    worker.join(timeout=5)
-    assert not worker.is_alive()
-    assert any(e["type"] == "refused" and "cancelled" in e["error"] for e in events)
-    assert not any(e["type"] == "computed" for e in events)

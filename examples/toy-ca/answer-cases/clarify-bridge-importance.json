@@ -4,7 +4,7 @@
   "assembly": "toy-ca/demo",
   "context": {
     "defaults": {},
-    "system_failure": "SystemState::n4 == 0"
+    "system_failure": "SystemState::n4 == Fail"
   },
   "questions": [
     "Which of b2, b4 and b6 is most important for n4 meeting its system requirement?"

@@ -18,7 +18,7 @@
     {
       "name": "state",
       "quantity": "SystemState",
-      "description": "1 if the nearest key destination is reached within the system event's target_add_h hours of the intact network's travel time, else 0: ndtools' system state, which rsr's rules classify."
+      "description": "Survival if the nearest key destination is reached within the system event's target_add_h hours of the intact network's travel time, else Fail: ndtools' system state, which rsr's rules classify."
     }
   ],
   "tables": [
