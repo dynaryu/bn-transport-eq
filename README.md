@@ -20,9 +20,9 @@ commands in Anaconda Prompt; on macOS or Linux, use a terminal with Conda availa
 Download the app and its RSR inference dependency:
 
 ```sh
-git clone https://github.com/jieunbyun/bn-on-demand-pilot.git
+git clone https://github.com/jieunbyun/bn-transport-eq.git
 git clone https://github.com/jieunbyun/rsr.git
-cd bn-on-demand-pilot
+cd bn-transport-eq
 ```
 
 Create the Python environment and start the app:
@@ -38,7 +38,7 @@ The app opens at **http://127.0.0.1:8765**. Keep the terminal open while using i
 Run a baseline, select the decision task, then add observations and run another
 analysis. Use dropdown observations to try the app without configuring an LLM.
 
-To start it again later, open a terminal in the `bn-on-demand-pilot` folder and run:
+To start it again later, open a terminal in the `bn-transport-eq` folder and run:
 
 ```sh
 conda activate quakenet

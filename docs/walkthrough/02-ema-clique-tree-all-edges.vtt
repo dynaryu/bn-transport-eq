@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:00.120 --> 00:00:05.928
+Four connection types carry eight message directions, repeated across bridges and towns.
+
+00:00:06.360 --> 00:00:10.416
+A station reading sends a likelihood over the bridge's shaking.
+
+00:00:10.840 --> 00:00:15.568
+Each bridge combines the likelihood with damage and road-state information.
+
+00:00:16.000 --> 00:00:19.984
+The hub combines local messages and sends them to the root.
+
+00:00:20.440 --> 00:00:25.024
+Observed access constrains possible combinations of road states.
+
+00:00:25.480 --> 00:00:33.280
+With access evidence, certificate MCMC updates road states. Otherwise, they are drawn directly.
+
+00:00:33.720 --> 00:00:39.144
+Road samples return to the hub, where elliptical slice sampling updates shaking.
+
+00:00:39.600 --> 00:00:44.736
+Shaking and road samples return to each bridge, updating its damage state.
+
+00:00:45.160 --> 00:00:49.744
+Shaking samples return to generate unobserved station readings.
+
+00:00:50.200 --> 00:00:55.264
+Road samples return to system cliques, which evaluate airport access.

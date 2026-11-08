@@ -1,0 +1,515 @@
+[
+  {
+    "id": "overview",
+    "title": "Four connections \u00b7 eight directions",
+    "text": "Four connection types carry eight message directions, repeated across bridges and towns.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#4399f2",
+    "box": [
+      8,
+      154,
+      1035,
+      852
+    ],
+    "card": [
+      1120,
+      475,
+      750,
+      150
+    ],
+    "lines": [
+      "Four connection types carry eight message directions,",
+      "repeated across bridges and towns."
+    ],
+    "start": 0.0,
+    "end": 6.24,
+    "speech_start": 0.12,
+    "speech_end": 5.928027210884354,
+    "connector": [
+      [
+        1043,
+        580
+      ],
+      [
+        1120,
+        580
+      ]
+    ]
+  },
+  {
+    "id": "measurement-up",
+    "message": [
+      "sa_obs",
+      "sa_d_e"
+    ],
+    "title": "1 / 8 \u00b7 Measurement \u2192 bridge",
+    "text": "A station reading sends a likelihood over the bridge's shaking.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#ef7845",
+    "box": [
+      320,
+      313,
+      218,
+      39
+    ],
+    "card": [
+      330,
+      130,
+      680,
+      145
+    ],
+    "lines": [
+      "A station reading sends a likelihood",
+      "over the bridge's shaking."
+    ],
+    "flows": [
+      [
+        [
+          338,
+          326
+        ],
+        [
+          527,
+          326
+        ]
+      ]
+    ],
+    "start": 6.24,
+    "end": 10.72,
+    "speech_start": 6.36,
+    "speech_end": 10.416009070294784,
+    "connector": [
+      [
+        429,
+        275
+      ],
+      [
+        429,
+        313
+      ]
+    ]
+  },
+  {
+    "id": "bridge-up",
+    "message": [
+      "sa_d_e",
+      "sa_e"
+    ],
+    "title": "2 / 8 \u00b7 Bridge \u2192 hub",
+    "text": "Each bridge combines the likelihood with damage and road-state information.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#35bf95",
+    "box": [
+      460,
+      408,
+      193,
+      118
+    ],
+    "card": [
+      20,
+      430,
+      400,
+      180
+    ],
+    "lines": [
+      "Each bridge combines",
+      "the likelihood with damage",
+      "and road-state information."
+    ],
+    "flows": [
+      [
+        [
+          646,
+          418
+        ],
+        [
+          646,
+          520
+        ]
+      ]
+    ],
+    "start": 10.72,
+    "end": 15.88,
+    "speech_start": 10.84,
+    "speech_end": 15.568027210884352,
+    "connector": [
+      [
+        420,
+        467
+      ],
+      [
+        460,
+        467
+      ]
+    ]
+  },
+  {
+    "id": "hub-up",
+    "message": [
+      "sa_e",
+      "e"
+    ],
+    "title": "3 / 8 \u00b7 Hub \u2192 root",
+    "text": "The hub combines local messages and sends them to the root.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#35bf95",
+    "box": [
+      519,
+      600,
+      167,
+      116
+    ],
+    "card": [
+      55,
+      586,
+      410,
+      170
+    ],
+    "lines": [
+      "The hub combines local",
+      "messages and sends them",
+      "to the root."
+    ],
+    "flows": [
+      [
+        [
+          677,
+          607
+        ],
+        [
+          677,
+          711
+        ]
+      ]
+    ],
+    "start": 15.88,
+    "end": 20.32,
+    "speech_start": 16.0,
+    "speech_end": 19.984036281179137,
+    "connector": [
+      [
+        465,
+        658
+      ],
+      [
+        519,
+        658
+      ]
+    ]
+  },
+  {
+    "id": "access-up",
+    "message": [
+      "e_s",
+      "e"
+    ],
+    "title": "4 / 8 \u00b7 Access \u2192 root",
+    "text": "Observed access constrains possible combinations of road states.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#ef84b0",
+    "box": [
+      642,
+      778,
+      193,
+      117
+    ],
+    "card": [
+      920,
+      850,
+      950,
+      150
+    ],
+    "lines": [
+      "Observed access constrains possible combinations",
+      "of road states."
+    ],
+    "flows": [
+      [
+        [
+          649,
+          888
+        ],
+        [
+          649,
+          785
+        ]
+      ]
+    ],
+    "start": 20.32,
+    "end": 25.36,
+    "speech_start": 20.44,
+    "speech_end": 25.02403628117914,
+    "connector": [
+      [
+        835,
+        865
+      ],
+      [
+        920,
+        865
+      ]
+    ]
+  },
+  {
+    "id": "root",
+    "title": "Root update \u00b7 certificate MCMC",
+    "text": "With access evidence, certificate MCMC updates road states. Otherwise, they are drawn directly.",
+    "speech": "With access evidence, certificate M C M C updates road states. Otherwise, they are drawn directly.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#ecc34c",
+    "box": [
+      692,
+      708,
+      335,
+      80
+    ],
+    "card": [
+      1100,
+      660,
+      755,
+      185
+    ],
+    "lines": [
+      "With access evidence, certificate MCMC",
+      "updates road states. Otherwise,",
+      "they are drawn directly."
+    ],
+    "start": 25.36,
+    "end": 33.6,
+    "speech_start": 25.48,
+    "speech_end": 33.28,
+    "connector": [
+      [
+        1027,
+        748
+      ],
+      [
+        1100,
+        748
+      ]
+    ]
+  },
+  {
+    "id": "hub-down",
+    "message": [
+      "e",
+      "sa_e"
+    ],
+    "title": "5 / 8 \u00b7 Root \u2192 hub",
+    "text": "Road samples return to the hub, where elliptical slice sampling updates shaking.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#4399f2",
+    "box": [
+      686,
+      600,
+      172,
+      115
+    ],
+    "card": [
+      1055,
+      515,
+      810,
+      150
+    ],
+    "lines": [
+      "Road samples return to the hub, where",
+      "elliptical slice sampling updates shaking."
+    ],
+    "flows": [
+      [
+        [
+          691,
+          711
+        ],
+        [
+          691,
+          606
+        ]
+      ]
+    ],
+    "start": 33.6,
+    "end": 39.480000000000004,
+    "speech_start": 33.72,
+    "speech_end": 39.14403628117914,
+    "connector": [
+      [
+        858,
+        650
+      ],
+      [
+        1055,
+        650
+      ]
+    ]
+  },
+  {
+    "id": "bridge-down",
+    "message": [
+      "sa_e",
+      "sa_d_e"
+    ],
+    "title": "6 / 8 \u00b7 Hub \u2192 bridge",
+    "text": "Shaking and road samples return to each bridge, updating its damage state.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#35bf95",
+    "box": [
+      654,
+      408,
+      208,
+      118
+    ],
+    "card": [
+      1050,
+      415,
+      820,
+      150
+    ],
+    "lines": [
+      "Shaking and road samples return to each bridge,",
+      "updating its damage state."
+    ],
+    "flows": [
+      [
+        [
+          660,
+          520
+        ],
+        [
+          660,
+          418
+        ]
+      ]
+    ],
+    "start": 39.48,
+    "end": 45.04,
+    "speech_start": 39.599999999999994,
+    "speech_end": 44.73600907029478,
+    "connector": [
+      [
+        862,
+        467
+      ],
+      [
+        1050,
+        467
+      ]
+    ]
+  },
+  {
+    "id": "measurement-down",
+    "message": [
+      "sa_d_e",
+      "sa_obs"
+    ],
+    "title": "7 / 8 \u00b7 Bridge \u2192 measurement",
+    "text": "Shaking samples return to generate unobserved station readings.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#ef7845",
+    "box": [
+      325,
+      350,
+      218,
+      40
+    ],
+    "card": [
+      45,
+      420,
+      560,
+      150
+    ],
+    "lines": [
+      "Shaking samples return to generate",
+      "unobserved station readings."
+    ],
+    "flows": [
+      [
+        [
+          527,
+          360
+        ],
+        [
+          338,
+          360
+        ]
+      ]
+    ],
+    "start": 45.04,
+    "end": 50.08,
+    "speech_start": 45.16,
+    "speech_end": 49.744036281179135,
+    "connector": [
+      [
+        434,
+        390
+      ],
+      [
+        434,
+        420
+      ]
+    ]
+  },
+  {
+    "id": "access-down",
+    "message": [
+      "e",
+      "e_s"
+    ],
+    "title": "8 / 8 \u00b7 Root \u2192 access",
+    "text": "Road samples return to system cliques, which evaluate airport access.",
+    "scene": "clique",
+    "background": "clique-guide-background.jpg",
+    "colour": "#ef84b0",
+    "box": [
+      485,
+      777,
+      157,
+      118
+    ],
+    "card": [
+      25,
+      790,
+      410,
+      180
+    ],
+    "lines": [
+      "Road samples return to",
+      "system cliques, which",
+      "evaluate airport access."
+    ],
+    "flows": [
+      [
+        [
+          635,
+          783
+        ],
+        [
+          635,
+          889
+        ]
+      ]
+    ],
+    "start": 50.08,
+    "end": 55.599999999999994,
+    "speech_start": 50.199999999999996,
+    "speech_end": 55.26403628117913,
+    "connector": [
+      [
+        435,
+        836
+      ],
+      [
+        485,
+        836
+      ]
+    ]
+  }
+]

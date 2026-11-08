@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.120 --> 00:00:09.312
+Earthquake inspection prioritisation for the Eastern Massachusetts highway benchmark network. Start with no observations or results.
+
+00:00:09.760 --> 00:00:15.160
+After an earthquake, which bridge inspections would help restore access to the airports?
+
+00:00:15.600 --> 00:00:19.536
+Blue nodes describe uncertain shaking at each bridge.
+
+00:00:19.960 --> 00:00:24.760
+Orange nodes model station readings, including measurement uncertainty.
+
+00:00:25.200 --> 00:00:29.904
+Green nodes translate shaking into probabilities of bridge damage.
+
+00:00:30.360 --> 00:00:34.512
+Yellow nodes describe whether each road is open or closed.
+
+00:00:34.960 --> 00:00:40.648
+Pink nodes show whether communities can reach an airport within the allowed extra travel time.

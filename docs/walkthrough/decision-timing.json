@@ -1,0 +1,316 @@
+[
+  {
+    "id": "fresh",
+    "title": "Start a fresh session",
+    "text": "Start with a fresh session, then run the baseline.",
+    "scene": "map",
+    "background": "raw/v2-fresh.jpg",
+    "colour": "#8fbcff",
+    "box": [
+      230,
+      4,
+      232,
+      41
+    ],
+    "card": [
+      235,
+      110,
+      680,
+      145
+    ],
+    "lines": [
+      "Set the sample count, then click Run.",
+      "This creates the baseline without evidence."
+    ],
+    "start": 0.0,
+    "end": 3.88,
+    "speech_start": 0.12,
+    "speech_end": 3.5760090702947847,
+    "connector": [
+      [
+        346,
+        45
+      ],
+      [
+        346,
+        110
+      ]
+    ]
+  },
+  {
+    "id": "task",
+    "title": "Choose the decision task",
+    "text": "Choose bridge inspection to prioritise people's access to key destinations.",
+    "scene": "decision",
+    "background": "decision-baseline.jpg",
+    "colour": "#68cbb8",
+    "box": [
+      12,
+      794,
+      762,
+      93
+    ],
+    "card": [
+      25,
+      560,
+      730,
+      160
+    ],
+    "lines": [
+      "Click Prioritise bridge inspection.",
+      "The objective is access to key destinations."
+    ],
+    "start": 3.88,
+    "end": 9.399999999999999,
+    "speech_start": 4.0,
+    "speech_end": 9.088027210884354,
+    "connector": [
+      [
+        393,
+        720
+      ],
+      [
+        393,
+        794
+      ]
+    ]
+  },
+  {
+    "id": "taskwait",
+    "title": "Calculating priorities",
+    "text": "The initial priorities are calculated. Waiting time is shortened here.",
+    "silent": true,
+    "duration": 0.7,
+    "scene": "decision",
+    "background": "decision-task-wait.jpg",
+    "colour": "#68cbb8",
+    "box": [
+      12,
+      794,
+      762,
+      93
+    ],
+    "card": [
+      25,
+      560,
+      730,
+      160
+    ],
+    "badge": "Inference wait shortened",
+    "lines": [
+      "Computing the initial priorities...",
+      "The real calculation took 18.5 seconds."
+    ],
+    "start": 9.4,
+    "end": 10.52,
+    "speech_start": 9.52,
+    "speech_end": 10.219999999999999,
+    "connector": [
+      [
+        393,
+        720
+      ],
+      [
+        393,
+        794
+      ]
+    ]
+  },
+  {
+    "id": "objective",
+    "title": "A task that stays active",
+    "text": "The active task updates its priorities as new observations arrive.",
+    "scene": "decision",
+    "background": "decision-task-active.jpg",
+    "colour": "#68cbb8",
+    "box": [
+      12,
+      794,
+      762,
+      151
+    ],
+    "card": [
+      25,
+      560,
+      730,
+      160
+    ],
+    "lines": [
+      "The decision task stays active.",
+      "New evidence triggers updated priorities."
+    ],
+    "start": 10.52,
+    "end": 15.76,
+    "speech_start": 10.639999999999999,
+    "speech_end": 15.439999999999998,
+    "connector": [
+      [
+        393,
+        720
+      ],
+      [
+        393,
+        794
+      ]
+    ]
+  },
+  {
+    "id": "observation",
+    "title": "Enter an observation",
+    "text": "For this example, enter a ground-motion reading of zero point zero five g at bridge e seventy-three.",
+    "speech": "For this example, enter a ground motion reading of zero point zero five gee at bridge E seventy-three.",
+    "scene": "decision",
+    "background": "decision-filled.jpg",
+    "colour": "#f1bf69",
+    "box": [
+      786,
+      800,
+      762,
+      217
+    ],
+    "card": [
+      795,
+      540,
+      735,
+      180
+    ],
+    "badge": "Example station observation",
+    "lines": [
+      "Ground-motion reading: bridge-e0073",
+      "Reading: 0.05 g",
+      "Source: demo station"
+    ],
+    "start": 15.76,
+    "end": 22.92,
+    "speech_start": 15.879999999999999,
+    "speech_end": 22.599999999999998,
+    "connector": [
+      [
+        1167,
+        720
+      ],
+      [
+        1167,
+        800
+      ]
+    ]
+  },
+  {
+    "id": "add",
+    "title": "Build the evidence base",
+    "text": "Add the observation to update the model and the inspection priorities.",
+    "scene": "decision",
+    "background": "decision-filled.jpg",
+    "colour": "#f1bf69",
+    "box": [
+      1419,
+      1020,
+      134,
+      38
+    ],
+    "card": [
+      795,
+      765,
+      735,
+      150
+    ],
+    "lines": [
+      "Click Add observation.",
+      "The model and priorities update together."
+    ],
+    "start": 22.92,
+    "end": 27.880000000000003,
+    "speech_start": 23.040000000000003,
+    "speech_end": 27.576009070294788,
+    "connector": [
+      [
+        1486,
+        915
+      ],
+      [
+        1486,
+        1020
+      ]
+    ]
+  },
+  {
+    "id": "evidencewait",
+    "title": "Updating with evidence",
+    "text": "The observation is being incorporated. Waiting time is shortened here.",
+    "silent": true,
+    "duration": 0.7,
+    "scene": "map",
+    "background": "decision-evidence-wait.jpg",
+    "colour": "#f1bf69",
+    "box": [
+      407,
+      4,
+      810,
+      42
+    ],
+    "card": [
+      795,
+      140,
+      735,
+      150
+    ],
+    "badge": "Inference wait shortened",
+    "lines": [
+      "Reweighting, or sampling again...",
+      "Waiting time is shortened in this clip."
+    ],
+    "start": 27.88,
+    "end": 29.0,
+    "speech_start": 28.0,
+    "speech_end": 28.7,
+    "connector": [
+      [
+        815,
+        46
+      ],
+      [
+        815,
+        140
+      ]
+    ]
+  },
+  {
+    "id": "evidence",
+    "title": "Evidence is now recorded",
+    "text": "The reading is now in the evidence base. Next, check the results in Roadmap and the Bayesian network.",
+    "scene": "decision",
+    "background": "decision-evidence-complete.jpg",
+    "colour": "#bc9dff",
+    "box": [
+      1566,
+      989,
+      340,
+      85
+    ],
+    "card": [
+      795,
+      870,
+      735,
+      180
+    ],
+    "lines": [
+      "The evidence base keeps the reading.",
+      "Next: inspect the updated results",
+      "in Roadmap and BN."
+    ],
+    "start": 29.0,
+    "end": 36.6,
+    "speech_start": 29.12,
+    "speech_end": 36.29600907029479,
+    "connector": [
+      [
+        1530,
+        1031
+      ],
+      [
+        1566,
+        1031
+      ]
+    ]
+  }
+]

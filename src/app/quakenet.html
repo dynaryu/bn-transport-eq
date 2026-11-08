@@ -58,12 +58,8 @@ button:disabled { opacity: 0.6; cursor: progress; }
 main { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); }
 header .samples { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; }
 header .samples input { width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
-#controls { max-width: 420px; margin-bottom: 24px; }
+#controls { margin-bottom: 24px; }
 #controls h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 18px 0 8px; }
-.field { display: grid; grid-template-columns: minmax(0, 1fr) 96px; align-items: center; gap: 8px; margin: 6px 0; }
-.field label { color: var(--ink-2); overflow-wrap: anywhere; }
-.field select { grid-column: 1 / -1; width: 100%; min-width: 0; text-overflow: ellipsis; }
-.field input { width: 100%; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .fixed { color: var(--ink-2); font-size: 13px; margin: 4px 0; }
 .fixed code { font-size: 12px; overflow-wrap: anywhere; }
 #status.err { color: var(--err); }
@@ -331,7 +327,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
       <div id="schema-info"></div>
       <iframe id="schema-frame" title="The schema drawing"></iframe>
     </div>
-    <div class="pane" id="pane-assume"><h2>Scenario settings</h2><div id="controls"></div><div id="assume-text"></div></div>
+    <div class="pane" id="pane-assume"><h2>Assumptions</h2><div id="controls"></div><div id="assume-text"></div></div>
     <div class="pane" id="pane-compute"></div>
     <div class="pane" id="pane-roadmap">
       <div id="road-start"></div>
@@ -439,47 +435,45 @@ const GROUPS = { Event: "Scenario (Event row)", SystemEvent: "System event" };
 
 function renderControls() {
   const menu = state.ex.menu, s = menu.settable;
+  const preset = state.preset || {};
+  const valueText = value => typeof value === "string" ? value : JSON.stringify(value);
+  const attributeNames = {mw: "Magnitude", lat: "Latitude", lon: "Longitude", depth_km: "Depth",
+                          target_add_h: "Allowed extra travel time"};
   let h = "";
   const byEntity = {};
   for (const r of s.rows) (byEntity[r.entity] ??= []).push(r);
   for (const [entity, rows] of Object.entries(byEntity)) {
-    h += `<h2>${esc(GROUPS[entity] || entity)}</h2>`;
+    h += `<h2>${esc(GROUPS[entity] || entity)}</h2><dl>`;
     for (const r of rows) {
-      const id = `row:${r.row}:${r.attribute}`;
-      h += `<div class="field"><label for="${esc(id)}">${esc(r.attribute)}${r.unit ? ` (${esc(r.unit)})` : ""}</label>` +
-           `<input type="number" step="${esc(r.step ?? "any")}" id="${esc(id)}" data-row="${esc(r.row)}" data-attr="${esc(r.attribute)}"${r.minimum != null ? ` min="${esc(r.minimum)}"` : ""} value="${esc(r.value)}"></div>`;
+      const value = preset.rows?.[r.row]?.[r.attribute] ?? r.value;
+      const row = rows.some(other => other !== r && other.attribute === r.attribute) ? ` (${r.row})` : "";
+      h += `<dt>${esc(attributeNames[r.attribute] || r.attribute.replaceAll("_", " "))}${esc(row)}</dt>` +
+           `<dd>${esc(valueText(value))}${r.unit ? ` ${esc(r.unit)}` : ""}</dd>`;
     }
+    h += `</dl>`;
   }
   if (s.parameters.length) {
-    h += `<h2>Parameters</h2>`;
+    h += `<h2>Parameters</h2><dl>`;
     for (const p of s.parameters) {
-      const id = `par:${p.function}:${p.name}`;
-      h += `<div class="field"><label for="${esc(id)}">${esc(p.name)}</label>` +
-           `<input type="text" id="${esc(id)}" data-fn="${esc(p.function)}" data-name="${esc(p.name)}" value="${esc(JSON.stringify(p.value))}"></div>`;
+      const value = preset.parameters?.[p.function]?.[p.name] ?? p.value;
+      h += `<dt>${esc(p.name.replaceAll("_", " "))}</dt><dd>${esc(valueText(value))}</dd>`;
     }
+    h += `</dl>`;
   }
   h += `<h2>Models</h2>`;
   for (const c of s.parameter_sets) {
-    if (c.by_location) {
+    const current = preset.parameter_sets?.[c.function] || c.current;
+    if (c.by_location && !current) {
       const used = Object.entries(c.by_location).filter(([k]) => k !== "null").map(([k, n]) => `<code>${esc(k)}</code> ×${n}`).join(", ");
       h += `<p class="fixed"><b>${esc(c.function)}</b>: chosen by location, ${used}</p>`;
-    } else if (c.choices.length > 1) {
-      const id = `set:${c.function}`;
-      h += `<div class="field"><label for="${esc(id)}">${esc(c.function)}</label><select id="${esc(id)}" data-fn="${esc(c.function)}" data-current="${esc(c.current)}">` +
-           c.choices.map(o => `<option value="${esc(o.id)}"${o.id === c.current ? " selected" : ""} title="${esc(o.label)}">${esc(o.label)}</option>`).join("") +
-           `</select></div>`;
+    } else {
+      const chosen = c.choices.find(o => o.id === current);
+      h += `<p class="fixed"><b>${esc(c.function)}</b>: ${esc(chosen?.label || current || "Not specified")}</p>`;
     }
   }
   const templated = state.ex.assembly.bindings.filter(b => (b.parameter_set || "").includes("{"));
   for (const b of templated) h += `<p class="fixed"><b>${esc(b.function)}</b>: <code>${esc(b.parameter_set)}</code> per row</p>`;
   $("#controls").innerHTML = h;
-  for (const el of $("#controls").querySelectorAll("input[data-attr]")) {
-    el.addEventListener("input", renderMap);
-    // min only bounds the spinner; a typed value below it snaps back when the field is left.
-    if (el.min !== "") el.addEventListener("change", () => {
-      if (el.value !== "" && Number(el.value) < Number(el.min)) { el.value = el.min; renderMap(); }
-    });
-  }
 }
 
 function interventions() {
@@ -1167,18 +1161,7 @@ function currentScenario() {
 }
 
 function applyScenarioControls() {
-  for (const input of document.querySelectorAll("#controls input[data-row]")) {
-    const v = state.preset.rows?.[input.dataset.row]?.[input.dataset.attr];
-    if (v != null) input.value = v;
-  }
-  for (const input of document.querySelectorAll("#controls input[data-fn]")) {
-    const v = state.preset.parameters?.[input.dataset.fn]?.[input.dataset.name];
-    if (v != null) input.value = JSON.stringify(v);
-  }
-  for (const input of document.querySelectorAll("#controls select[data-fn]")) {
-    const v = state.preset.parameter_sets?.[input.dataset.fn];
-    if (v != null) input.value = v;
-  }
+  renderControls();
 }
 
 // ---- the session: decision queries and evidence, and the roadmap of the discussion --------------------------

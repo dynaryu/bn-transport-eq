@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.120 --> 00:00:03.576
+Start with a fresh session, then run the baseline.
+
+00:00:04.000 --> 00:00:09.088
+Choose bridge inspection to prioritise people's access to key destinations.
+
+00:00:09.520 --> 00:00:10.220
+The initial priorities are calculated. Waiting time is shortened here.
+
+00:00:10.640 --> 00:00:15.440
+The active task updates its priorities as new observations arrive.
+
+00:00:15.880 --> 00:00:22.600
+For this example, enter a ground-motion reading of zero point zero five g at bridge e seventy-three.
+
+00:00:23.040 --> 00:00:27.576
+Add the observation to update the model and the inspection priorities.
+
+00:00:28.000 --> 00:00:28.700
+The observation is being incorporated. Waiting time is shortened here.
+
+00:00:29.120 --> 00:00:36.296
+The reading is now in the evidence base. Next, check the results in Roadmap and the Bayesian network.

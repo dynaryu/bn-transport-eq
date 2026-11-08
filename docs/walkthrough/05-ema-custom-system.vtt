@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.120 --> 00:00:05.928
+Your system is described in network dot json, with nodes, roads and bridges.
+
+00:00:06.360 --> 00:00:08.808
+Find the road you want to change.
+
+00:00:09.240 --> 00:00:16.008
+Here, change road E seventy-three's assumed speed from sixty to forty kilometres per hour, then save.
+
+00:00:16.440 --> 00:00:20.688
+Run python minus m src check to validate the data and model.
+
+00:00:21.120 --> 00:00:26.040
+Restart the server, then begin a new session to load the changed network.
+
+00:00:26.480 --> 00:00:27.180
+The actual inference wait is shortened here.
+
+00:00:27.600 --> 00:00:36.264
+The new baseline uses your edited data. Network dot json defines system data; the assembly defines model choices.

@@ -1,0 +1,179 @@
+[
+  {
+    "id": "data",
+    "title": "Describe your system",
+    "text": "Your system is described in network dot json, with nodes, roads and bridges.",
+    "scene": "decision",
+    "background": "custom-editor-before.jpg",
+    "colour": "#8fbcff",
+    "box": [
+      515,
+      90,
+      385,
+      37
+    ],
+    "card": [
+      1140,
+      110,
+      740,
+      180
+    ],
+    "lines": [
+      "examples/ema-highway/network.json",
+      "Node, Edge and Bridge tables",
+      "describe your system."
+    ]
+  },
+  {
+    "id": "before",
+    "title": "Choose an attribute to change",
+    "text": "Find the road you want to change.",
+    "scene": "decision",
+    "background": "custom-editor-before.jpg",
+    "colour": "#68cbb8",
+    "box": [
+      195,
+      550,
+      600,
+      290
+    ],
+    "card": [
+      1140,
+      570,
+      740,
+      170
+    ],
+    "lines": [
+      "Road e0073 connects n71 and n36.",
+      "Its assumed speed is 60 km/h."
+    ]
+  },
+  {
+    "id": "edit",
+    "title": "Edit the data and save",
+    "text": "Here, change road E seventy-three's assumed speed from sixty to forty kilometres per hour, then save.",
+    "scene": "decision",
+    "background": "custom-editor-after.jpg",
+    "colour": "#68cbb8",
+    "box": [
+      195,
+      350,
+      600,
+      285
+    ],
+    "card": [
+      1140,
+      410,
+      740,
+      180
+    ],
+    "lines": [
+      "e0073: avg_speed_kph = 40",
+      "Save the file after editing.",
+      "Keep the assumptions consistent too."
+    ]
+  },
+  {
+    "id": "validate",
+    "title": "Validate the inputs",
+    "text": "Run python minus m src check to validate the data and model.",
+    "speech": "Run the validation command shown here to check the data and model.",
+    "scene": "decision",
+    "background": "custom-validation.jpg",
+    "colour": "#f1bf69",
+    "box": [
+      105,
+      120,
+      880,
+      102
+    ],
+    "card": [
+      1140,
+      145,
+      740,
+      180
+    ],
+    "lines": [
+      "python -m src check",
+      "The changed EMA assembly validates.",
+      "Shown here: actual validation output."
+    ]
+  },
+  {
+    "id": "restart",
+    "title": "Reload the changed network",
+    "text": "Restart the server, then begin a new session to load the changed network.",
+    "scene": "map",
+    "background": "custom-fresh.jpg",
+    "colour": "#8fbcff",
+    "box": [
+      1530,
+      10,
+      170,
+      64
+    ],
+    "card": [
+      1090,
+      220,
+      790,
+      180
+    ],
+    "lines": [
+      "Restart the server after saving.",
+      "Then click New session.",
+      "This clears old evidence and results."
+    ]
+  },
+  {
+    "id": "wait",
+    "title": "Compute the new baseline",
+    "text": "The actual inference wait is shortened here.",
+    "silent": true,
+    "duration": 0.7,
+    "scene": "map",
+    "background": "custom-wait.jpg",
+    "colour": "#f1bf69",
+    "box": [
+      610,
+      10,
+      740,
+      65
+    ],
+    "card": [
+      1090,
+      220,
+      790,
+      150
+    ],
+    "badge": "Inference wait shortened",
+    "lines": [
+      "Computing with the changed network...",
+      "Waiting time is shortened in this clip."
+    ]
+  },
+  {
+    "id": "ready",
+    "title": "Analyse your edited system",
+    "text": "The new baseline uses your edited data. Network dot json defines system data; the assembly defines model choices.",
+    "scene": "decision",
+    "background": "custom-complete.jpg",
+    "colour": "#bc9dff",
+    "box": [
+      465,
+      170,
+      446,
+      455
+    ],
+    "card": [
+      1000,
+      300,
+      880,
+      180
+    ],
+    "lines": [
+      "A fresh baseline uses the edited inputs.",
+      "network.json: system data",
+      "*.assembly.json: model choices"
+    ]
+  }
+]

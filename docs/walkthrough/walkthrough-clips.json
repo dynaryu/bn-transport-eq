@@ -1,0 +1,356 @@
+[
+  {
+    "title": "Problem and Bayesian network",
+    "summary": "The physical system and the model that describes it.",
+    "video": "01-ema-guided-bn.mp4",
+    "silent": "01-ema-guided-bn-silent.mp4",
+    "poster": "callout-parts/preview-fresh.jpg",
+    "duration": 41,
+    "steps": [
+      {
+        "id": "fresh",
+        "title": "Earthquake inspection prioritisation",
+        "text": "Earthquake inspection prioritisation for the Eastern Massachusetts highway benchmark network. Start with no observations or results.",
+        "start": 0.0,
+        "end": 9.64,
+        "colour": "#2a78d6"
+      },
+      {
+        "id": "purpose",
+        "title": "The inspection decision",
+        "text": "After an earthquake, which bridge inspections would help restore access to the airports?",
+        "start": 9.64,
+        "end": 15.48,
+        "colour": "#2a78d6"
+      },
+      {
+        "id": "shaking",
+        "title": "Shaking · SA(1.0)",
+        "text": "Blue nodes describe uncertain shaking at each bridge.",
+        "start": 15.48,
+        "end": 19.84,
+        "colour": "#4399f2"
+      },
+      {
+        "id": "reading",
+        "title": "Station readings · SAObs(1.0)",
+        "text": "Orange nodes model station readings, including measurement uncertainty.",
+        "start": 19.84,
+        "end": 25.08,
+        "colour": "#ef7845"
+      },
+      {
+        "id": "damage",
+        "title": "Bridge damage · DamageState",
+        "text": "Green nodes translate shaking into probabilities of bridge damage.",
+        "start": 25.08,
+        "end": 30.24,
+        "colour": "#35bf95"
+      },
+      {
+        "id": "road",
+        "title": "Road availability · EdgeOpen",
+        "text": "Yellow nodes describe whether each road is open or closed.",
+        "start": 30.24,
+        "end": 34.839999999999996,
+        "colour": "#ecc34c"
+      },
+      {
+        "id": "access",
+        "title": "Community access · SystemState",
+        "text": "Pink nodes show whether communities can reach an airport within the allowed extra travel time.",
+        "start": 34.84,
+        "end": 40.96,
+        "colour": "#ef84b0"
+      }
+    ]
+  },
+  {
+    "title": "Clique tree and inference",
+    "summary": "Follow every message direction through the inference circuit.",
+    "video": "02-ema-clique-tree-all-edges.mp4",
+    "silent": "02-ema-clique-tree-all-edges-silent.mp4",
+    "poster": "clique-all-edges-parts/preview-overview.jpg",
+    "duration": 56,
+    "steps": [
+      {
+        "id": "overview",
+        "title": "Four connections · eight directions",
+        "text": "Four connection types carry eight message directions, repeated across bridges and towns.",
+        "start": 0.0,
+        "end": 6.24,
+        "colour": "#4399f2"
+      },
+      {
+        "id": "measurement-up",
+        "title": "1 / 8 · Measurement → bridge",
+        "text": "A station reading sends a likelihood over the bridge's shaking.",
+        "start": 6.24,
+        "end": 10.72,
+        "colour": "#ef7845"
+      },
+      {
+        "id": "bridge-up",
+        "title": "2 / 8 · Bridge → hub",
+        "text": "Each bridge combines the likelihood with damage and road-state information.",
+        "start": 10.72,
+        "end": 15.88,
+        "colour": "#35bf95"
+      },
+      {
+        "id": "hub-up",
+        "title": "3 / 8 · Hub → root",
+        "text": "The hub combines local messages and sends them to the root.",
+        "start": 15.88,
+        "end": 20.32,
+        "colour": "#35bf95"
+      },
+      {
+        "id": "access-up",
+        "title": "4 / 8 · Access → root",
+        "text": "Observed access constrains possible combinations of road states.",
+        "start": 20.32,
+        "end": 25.36,
+        "colour": "#ef84b0"
+      },
+      {
+        "id": "root",
+        "title": "Root update · certificate MCMC",
+        "text": "With access evidence, certificate MCMC updates road states. Otherwise, they are drawn directly.",
+        "start": 25.36,
+        "end": 33.6,
+        "colour": "#ecc34c"
+      },
+      {
+        "id": "hub-down",
+        "title": "5 / 8 · Root → hub",
+        "text": "Road samples return to the hub, where elliptical slice sampling updates shaking.",
+        "start": 33.6,
+        "end": 39.480000000000004,
+        "colour": "#4399f2"
+      },
+      {
+        "id": "bridge-down",
+        "title": "6 / 8 · Hub → bridge",
+        "text": "Shaking and road samples return to each bridge, updating its damage state.",
+        "start": 39.48,
+        "end": 45.04,
+        "colour": "#35bf95"
+      },
+      {
+        "id": "measurement-down",
+        "title": "7 / 8 · Bridge → measurement",
+        "text": "Shaking samples return to generate unobserved station readings.",
+        "start": 45.04,
+        "end": 50.08,
+        "colour": "#ef7845"
+      },
+      {
+        "id": "access-down",
+        "title": "8 / 8 · Root → access",
+        "text": "Road samples return to system cliques, which evaluate airport access.",
+        "start": 50.08,
+        "end": 55.599999999999994,
+        "colour": "#ef84b0"
+      }
+    ]
+  },
+  {
+    "title": "Decision task and evidence",
+    "summary": "Select an inspection task and add a station observation.",
+    "video": "03-ema-decision-evidence.mp4",
+    "silent": "03-ema-decision-evidence-silent.mp4",
+    "poster": "decision-parts/preview-observation.jpg",
+    "duration": 37,
+    "steps": [
+      {
+        "id": "fresh",
+        "title": "Start a fresh session",
+        "text": "Start with a fresh session, then run the baseline.",
+        "start": 0.0,
+        "end": 3.88,
+        "colour": "#8fbcff"
+      },
+      {
+        "id": "task",
+        "title": "Choose the decision task",
+        "text": "Choose bridge inspection to prioritise people's access to key destinations.",
+        "start": 3.88,
+        "end": 9.399999999999999,
+        "colour": "#68cbb8"
+      },
+      {
+        "id": "taskwait",
+        "title": "Calculating priorities",
+        "text": "The initial priorities are calculated. Waiting time is shortened here.",
+        "start": 9.4,
+        "end": 10.52,
+        "colour": "#68cbb8"
+      },
+      {
+        "id": "objective",
+        "title": "A task that stays active",
+        "text": "The active task updates its priorities as new observations arrive.",
+        "start": 10.52,
+        "end": 15.76,
+        "colour": "#68cbb8"
+      },
+      {
+        "id": "observation",
+        "title": "Enter an observation",
+        "text": "For this example, enter a ground-motion reading of zero point zero five g at bridge e seventy-three.",
+        "start": 15.76,
+        "end": 22.92,
+        "colour": "#f1bf69"
+      },
+      {
+        "id": "add",
+        "title": "Build the evidence base",
+        "text": "Add the observation to update the model and the inspection priorities.",
+        "start": 22.92,
+        "end": 27.880000000000003,
+        "colour": "#f1bf69"
+      },
+      {
+        "id": "evidencewait",
+        "title": "Updating with evidence",
+        "text": "The observation is being incorporated. Waiting time is shortened here.",
+        "start": 27.88,
+        "end": 29.0,
+        "colour": "#f1bf69"
+      },
+      {
+        "id": "evidence",
+        "title": "Evidence is now recorded",
+        "text": "The reading is now in the evidence base. Next, check the results in Roadmap and the Bayesian network.",
+        "start": 29.0,
+        "end": 36.6,
+        "colour": "#bc9dff"
+      }
+    ]
+  },
+  {
+    "title": "Read the results",
+    "summary": "Compare inspection priorities and BN distributions.",
+    "video": "04-ema-read-results.mp4",
+    "silent": "04-ema-read-results-silent.mp4",
+    "poster": "results-parts/preview-distribution.jpg",
+    "duration": 35,
+    "steps": [
+      {
+        "id": "history",
+        "title": "Newest analysis first",
+        "text": "Roadmap shows the newest analysis first.",
+        "start": 0.0,
+        "end": 3.72,
+        "colour": "#8fbcff"
+      },
+      {
+        "id": "comparison",
+        "title": "Compare the priorities",
+        "text": "Grey is the previous round. Blue shows the updated inspection priorities.",
+        "start": 3.72,
+        "end": 9.96,
+        "colour": "#68cbb8"
+      },
+      {
+        "id": "leader",
+        "title": "Read the leading candidate",
+        "text": "Bridge E one twenty-five still ranks first, at about fifty-one people whose access could be restored.",
+        "start": 9.96,
+        "end": 16.8,
+        "colour": "#68cbb8"
+      },
+      {
+        "id": "time",
+        "title": "Actual computation time",
+        "text": "Each milestone keeps its actual computation time.",
+        "start": 16.8,
+        "end": 20.84,
+        "colour": "#f1bf69"
+      },
+      {
+        "id": "node",
+        "title": "Inspect a BN variable",
+        "text": "In the Bayesian network, click the shaking node for bridge E seventy-three.",
+        "start": 20.84,
+        "end": 26.0,
+        "colour": "#8fbcff"
+      },
+      {
+        "id": "distribution",
+        "title": "See how uncertainty changes",
+        "text": "The reading narrows the shaking distribution. Its median shifts from point one two one to point zero five one g.",
+        "start": 26.0,
+        "end": 34.28,
+        "colour": "#bc9dff"
+      }
+    ]
+  },
+  {
+    "title": "Customise your system",
+    "summary": "Edit network.json, validate it and run a fresh analysis.",
+    "video": "05-ema-custom-system.mp4",
+    "silent": "05-ema-custom-system-silent.mp4",
+    "poster": "custom-parts/preview-edit.jpg",
+    "duration": 37,
+    "steps": [
+      {
+        "id": "data",
+        "title": "Describe your system",
+        "text": "Your system is described in network dot json, with nodes, roads and bridges.",
+        "start": 0.0,
+        "end": 6.24,
+        "colour": "#8fbcff"
+      },
+      {
+        "id": "before",
+        "title": "Choose an attribute to change",
+        "text": "Find the road you want to change.",
+        "start": 6.24,
+        "end": 9.120000000000001,
+        "colour": "#68cbb8"
+      },
+      {
+        "id": "edit",
+        "title": "Edit the data and save",
+        "text": "Here, change road E seventy-three's assumed speed from sixty to forty kilometres per hour, then save.",
+        "start": 9.12,
+        "end": 16.32,
+        "colour": "#68cbb8"
+      },
+      {
+        "id": "validate",
+        "title": "Validate the inputs",
+        "text": "Run python minus m src check to validate the data and model.",
+        "start": 16.32,
+        "end": 21.0,
+        "colour": "#f1bf69"
+      },
+      {
+        "id": "restart",
+        "title": "Reload the changed network",
+        "text": "Restart the server, then begin a new session to load the changed network.",
+        "start": 21.0,
+        "end": 26.36,
+        "colour": "#8fbcff"
+      },
+      {
+        "id": "wait",
+        "title": "Compute the new baseline",
+        "text": "The actual inference wait is shortened here.",
+        "start": 26.36,
+        "end": 27.48,
+        "colour": "#f1bf69"
+      },
+      {
+        "id": "ready",
+        "title": "Analyse your edited system",
+        "text": "The new baseline uses your edited data. Network dot json defines system data; the assembly defines model choices.",
+        "start": 27.48,
+        "end": 36.6,
+        "colour": "#bc9dff"
+      }
+    ]
+  }
+]

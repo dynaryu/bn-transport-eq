@@ -1,0 +1,277 @@
+[
+  {
+    "id": "data",
+    "title": "Describe your system",
+    "text": "Your system is described in network dot json, with nodes, roads and bridges.",
+    "scene": "decision",
+    "background": "custom-editor-before.jpg",
+    "colour": "#8fbcff",
+    "box": [
+      515,
+      90,
+      385,
+      37
+    ],
+    "card": [
+      1140,
+      110,
+      740,
+      180
+    ],
+    "lines": [
+      "examples/ema-highway/network.json",
+      "Node, Edge and Bridge tables",
+      "describe your system."
+    ],
+    "start": 0.0,
+    "end": 6.24,
+    "speech_start": 0.12,
+    "speech_end": 5.928027210884354,
+    "connector": [
+      [
+        900,
+        125
+      ],
+      [
+        1140,
+        125
+      ]
+    ]
+  },
+  {
+    "id": "before",
+    "title": "Choose an attribute to change",
+    "text": "Find the road you want to change.",
+    "scene": "decision",
+    "background": "custom-editor-before.jpg",
+    "colour": "#68cbb8",
+    "box": [
+      195,
+      550,
+      600,
+      290
+    ],
+    "card": [
+      1140,
+      570,
+      740,
+      170
+    ],
+    "lines": [
+      "Road e0073 connects n71 and n36.",
+      "Its assumed speed is 60 km/h."
+    ],
+    "start": 6.24,
+    "end": 9.120000000000001,
+    "speech_start": 6.36,
+    "speech_end": 8.808027210884354,
+    "connector": [
+      [
+        795,
+        695
+      ],
+      [
+        1140,
+        695
+      ]
+    ]
+  },
+  {
+    "id": "edit",
+    "title": "Edit the data and save",
+    "text": "Here, change road E seventy-three's assumed speed from sixty to forty kilometres per hour, then save.",
+    "scene": "decision",
+    "background": "custom-editor-after.jpg",
+    "colour": "#68cbb8",
+    "box": [
+      195,
+      350,
+      600,
+      285
+    ],
+    "card": [
+      1140,
+      410,
+      740,
+      180
+    ],
+    "lines": [
+      "e0073: avg_speed_kph = 40",
+      "Save the file after editing.",
+      "Keep the assumptions consistent too."
+    ],
+    "start": 9.12,
+    "end": 16.32,
+    "speech_start": 9.239999999999998,
+    "speech_end": 16.00802721088435,
+    "connector": [
+      [
+        795,
+        492
+      ],
+      [
+        1140,
+        492
+      ]
+    ]
+  },
+  {
+    "id": "validate",
+    "title": "Validate the inputs",
+    "text": "Run python minus m src check to validate the data and model.",
+    "speech": "Run the validation command shown here to check the data and model.",
+    "scene": "decision",
+    "background": "custom-validation.jpg",
+    "colour": "#f1bf69",
+    "box": [
+      105,
+      120,
+      880,
+      102
+    ],
+    "card": [
+      1140,
+      145,
+      740,
+      180
+    ],
+    "lines": [
+      "python -m src check",
+      "The changed EMA assembly validates.",
+      "Shown here: actual validation output."
+    ],
+    "start": 16.32,
+    "end": 21.0,
+    "speech_start": 16.44,
+    "speech_end": 20.688027210884357,
+    "connector": [
+      [
+        985,
+        171
+      ],
+      [
+        1140,
+        171
+      ]
+    ]
+  },
+  {
+    "id": "restart",
+    "title": "Reload the changed network",
+    "text": "Restart the server, then begin a new session to load the changed network.",
+    "scene": "map",
+    "background": "custom-fresh.jpg",
+    "colour": "#8fbcff",
+    "box": [
+      1530,
+      10,
+      170,
+      64
+    ],
+    "card": [
+      1090,
+      220,
+      790,
+      180
+    ],
+    "lines": [
+      "Restart the server after saving.",
+      "Then click New session.",
+      "This clears old evidence and results."
+    ],
+    "start": 21.0,
+    "end": 26.36,
+    "speech_start": 21.12,
+    "speech_end": 26.04,
+    "connector": [
+      [
+        1615,
+        74
+      ],
+      [
+        1615,
+        220
+      ]
+    ]
+  },
+  {
+    "id": "wait",
+    "title": "Compute the new baseline",
+    "text": "The actual inference wait is shortened here.",
+    "silent": true,
+    "duration": 0.7,
+    "scene": "map",
+    "background": "custom-wait.jpg",
+    "colour": "#f1bf69",
+    "box": [
+      610,
+      10,
+      740,
+      65
+    ],
+    "card": [
+      1090,
+      220,
+      790,
+      150
+    ],
+    "badge": "Inference wait shortened",
+    "lines": [
+      "Computing with the changed network...",
+      "Waiting time is shortened in this clip."
+    ],
+    "start": 26.36,
+    "end": 27.48,
+    "speech_start": 26.48,
+    "speech_end": 27.18,
+    "connector": [
+      [
+        1110,
+        75
+      ],
+      [
+        1110,
+        220
+      ]
+    ]
+  },
+  {
+    "id": "ready",
+    "title": "Analyse your edited system",
+    "text": "The new baseline uses your edited data. Network dot json defines system data; the assembly defines model choices.",
+    "scene": "decision",
+    "background": "custom-complete.jpg",
+    "colour": "#bc9dff",
+    "box": [
+      465,
+      170,
+      446,
+      455
+    ],
+    "card": [
+      1000,
+      300,
+      880,
+      180
+    ],
+    "lines": [
+      "A fresh baseline uses the edited inputs.",
+      "network.json: system data",
+      "*.assembly.json: model choices"
+    ],
+    "start": 27.48,
+    "end": 36.6,
+    "speech_start": 27.6,
+    "speech_end": 36.26403628117914,
+    "connector": [
+      [
+        911,
+        397
+      ],
+      [
+        1000,
+        397
+      ]
+    ]
+  }
+]
