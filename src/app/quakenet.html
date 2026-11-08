@@ -118,7 +118,7 @@ svg text { fill: var(--ink-2); font-size: 11px; }
            background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px #0003; }
 #msg-pop b { display: block; color: var(--ink); margin-bottom: 4px; }
 #msg-pop b .tk { font-weight: normal; color: var(--muted); }
-/* The roadmap: the session's timeline, newest at the bottom; each entry with every decision query against the step before. */
+/* The roadmap: the session's timeline, newest first; each entry with every decision query against the step before. */
 #pane-roadmap { padding: 16px; overflow: auto; }
 #pane-roadmap.on { display: block; }
 #road { position: relative; margin: 8px 0 24px 8px; padding-left: 26px; border-left: 2px solid var(--grid); max-width: 1100px; }
@@ -1263,8 +1263,8 @@ function renderRoadmap() {
   $("#road-start").innerHTML = `<div class="road-key"><span><i style="background:var(--idle)"></i>the step before</span>` +
     `<span><i style="background:var(--accent)"></i>this step</span><span>${Object.keys(s.evidence).length} observation(s), ` +
     `${s.queries.length} decision quer${s.queries.length === 1 ? "y" : "ies"}; ${share(s.ess)} of the samples' weight effective</span></div>`;
-  $("#road").innerHTML = s.timeline.map((e, i) => roadEntry(e, s.timeline[i - 1], s)).join("");
-  if (paneOn("roadmap")) $("#pane-roadmap").scrollTop = $("#pane-roadmap").scrollHeight;
+  $("#road").innerHTML = s.timeline.map((e, i) => roadEntry(e, s.timeline[i - 1], s)).reverse().join("");
+  $("#pane-roadmap").scrollTop = 0;
 }
 
 // The session's numbers are the map's: after Run and after every addition, the map and results show them.
