@@ -103,7 +103,7 @@ class Session:
         self.rows = self.lw = None
         self._sample()
         self.timeline.append({"at": _now(), "kind": "start", "text": "Scenario started: no evidence yet",
-                              "update": "sampled", "ess": 1.0, "values": {}})
+                              "update": "sampled", "ess": 1.0, "values": {}, "elapsed_s": self.elapsed})
 
     # ---- kept on disk ---------------------------------------------------------------------------
     def save(self, path, **extra):
@@ -221,6 +221,7 @@ class Session:
         entry = {"at": at or _now(), "kind": "evidence", "text": text or f"{var} = {self._label(var, value)}",
                  "evidence": {"variable": var, "value": value, "label": self._label(var, value), "source": source},
                  "update": update, "ess": ess, "values": {q: self._values(s) for q, s in self.queries.items()}}
+        entry["elapsed_s"] = time.perf_counter() - started
         self.timeline.append(entry)
         return entry
 
@@ -266,10 +267,12 @@ class Session:
 
     def add_query(self, spec, at=None):
         """Add a decision query; its timeline entry carries every query's values, the new one's included."""
+        started = time.perf_counter()
         spec = {"id": f"q{len(self.queries) + 1}", **self._check_query(spec)}
         self.queries[spec["id"]] = spec
         values = {**self.timeline[-1]["values"], spec["id"]: self._values(spec)}
-        entry = {"at": at or _now(), "kind": "query", "text": spec["name"], "query": spec, "values": values}
+        entry = {"at": at or _now(), "kind": "query", "text": spec["name"], "query": spec, "values": values,
+                 "elapsed_s": time.perf_counter() - started}
         self.timeline.append(entry)
         return entry
 

@@ -104,9 +104,20 @@ def test_a_session_runs_and_drafting_without_a_model_says_why(base_url, monkeypa
     assert status == 400 and "Run" in body["error"]                   # no session yet
     status, body = post(base_url + "/api/session", {"assembly": "toy-ca/demo", "samples": 10000})
     assert status == 200 and body["n"] == 10000 and body["result"]["events"]
+    assert body["timeline"][0]["elapsed_s"] >= 0
+    status, body = post(base_url + "/api/session/query", {"assembly": "toy-ca/demo", "query": {
+        "name": "Towns cut off", "target": {"kind": "cut_off"}, "decision": "track"}})
+    assert status == 200 and body["timeline"][-1]["kind"] == "query"
+    assert body["timeline"][-1]["elapsed_s"] >= 0 and body["timeline"][-1]["values"]["q1"]
     status, body = post(base_url + "/api/session/evidence", {"assembly": "toy-ca/demo", "variable": "EdgeOpen::e6",
                                                              "value": "closed"})
     assert status == 200 and body["timeline"][-1]["kind"] == "evidence"
+    timings = [entry["elapsed_s"] for entry in body["timeline"]]
+    assert len(timings) == 3 and all(elapsed >= 0 for elapsed in timings)
+    from src.app import server
+    server._sessions.clear()                         # reopen the saved session, as after a restart
+    _, saved = get(base_url + "/api/session?assembly=toy-ca/demo")
+    assert [entry["elapsed_s"] for entry in json.loads(saved)["session"]["timeline"]] == timings
     monkeypatch.setenv("BN_LLM", "gemini")
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     status, body = post(base_url + "/api/session/draft", {"assembly": "toy-ca/demo", "kind": "evidence", "text": "hi"})

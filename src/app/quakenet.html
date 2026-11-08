@@ -129,6 +129,7 @@ svg text { fill: var(--ink-2); font-size: 11px; }
 .road-head time { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; margin-right: 8px; }
 .road-head .what { font-weight: 600; color: var(--ink); }
 .road-head .how { margin-left: 8px; font-size: 12px; color: var(--muted); }
+.road-head .duration { margin-left: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bubble { margin-top: 6px; padding: 10px 12px; background: var(--raised); border: 1px solid var(--border); border-radius: 8px;
   display: flex; gap: 22px; overflow-x: auto; max-height: 360px; overflow-y: auto; }
 .qchart { flex: none; min-width: 300px; font-size: 12px; }
@@ -319,7 +320,8 @@ const FAMILIES = [
 ];
 // A bridge has no state of its own: it closes the edge it carries, so it takes that edge's colour.
 
-const state = { examples: [], ex: null, result: null, session: null, preset: {}, basemap: store.get("basemap") !== "off" };
+const state = { examples: [], ex: null, result: null, session: null, preset: {}, epoch: 0, loading: false,
+                basemap: store.get("basemap") !== "off" };
 
 // ---- loading an example ---------------------------------------------------------------
 
@@ -350,19 +352,44 @@ async function init() {
 }
 
 async function load(id) {
+  saveConversation();
+  const epoch = ++state.epoch, main = $("main");
+  state.loading = true;
+  main.style.visibility = "hidden";
+  main.inert = true;
+  $("#node-pop").hidden = $("#msg-pop").hidden = true;
+  $("#run").disabled = $("#new-session").disabled = true;
+  setDemoPlaying(false);
+  resetConversation();
+  $("#q-demo").innerHTML = $("#e-demo").innerHTML = "";
   setStatus("Loading…");
-  state.result = null;
+  state.ex = state.session = state.result = null;
   state.preset = {};
   try {
-    state.ex = await getJSON(`/api/example?assembly=${encodeURIComponent(id)}`);
-  } catch (err) { setStatus(err.message, true); return; }
-  store.set("example", id);
-  history.replaceState(null, "", `#example=${encodeURIComponent(id)}`);
-  Object.assign(cliquePick, { obs: 0, local: 0, systems: 0 });
-  renderControls(); applyScenarioControls(); renderMap(); renderResults(); renderBN(); renderCliques(); renderSchema(); renderAssumptions();
-  $("#node-pop").hidden = true;
-  await loadSession();
-  setStatus("");
+    const example = await getJSON(`/api/example?assembly=${encodeURIComponent(id)}`);
+    if (epoch !== state.epoch) return;
+    state.ex = example;
+    store.set("example", id);
+    history.replaceState(null, "", `#example=${encodeURIComponent(id)}`);
+    Object.assign(cliquePick, { obs: 0, local: 0, systems: 0 });
+    renderControls();
+    if (!await loadSession(id, epoch)) return;
+    restoreConversation();
+    applyScenarioControls(); renderMap(); renderResults(); renderBN(); renderCliques(); renderSchema(); renderAssumptions();
+    $("#node-pop").hidden = $("#msg-pop").hidden = true;
+    setStatus("");
+    agentStatus();
+  } catch (err) {
+    if (epoch === state.epoch) { state.ex = null; setStatus(err.message, true); }
+  } finally {
+    if (epoch === state.epoch) {
+      state.loading = false;
+      main.style.visibility = state.ex ? "" : "hidden";
+      main.inert = false;
+      $("#run").disabled = $("#new-session").disabled = !state.ex;
+      saveConversation();
+    }
+  }
 }
 
 // ---- controls: the scenario and the choices the assembly leaves open ---------------------
@@ -1122,10 +1149,13 @@ const post = (url, body) => getJSON(url, {method: "POST", headers: {"Content-Typ
 const short = v => v.split("::")[1];
 const share = x => `${(100 * x).toFixed(x < 0.1 ? 1 : 0)}%`;
 
-async function loadSession() {
-  let session = null;
-  try { session = (await getJSON(`/api/session?assembly=${encodeURIComponent(state.ex.assembly.id)}`)).session; } catch {}
+async function loadSession(id, epoch) {
+  const session = (await getJSON(`/api/session?assembly=${encodeURIComponent(id)}`)).session;
+  if (epoch !== state.epoch) return false;
+  state.preset = session?.scenario || {};
+  $("#samples").value = session?.n || 200000;
   showSession(session);
+  return true;
 }
 
 function evidenceText(ev, s) {
@@ -1162,6 +1192,12 @@ function queryChart(q, now, prev, s, added) {
   return `<div class="qchart${added ? " new" : ""}"><h4>${esc(q.name)}</h4><div class="unit">${esc(unit)}</div>${rows}</div>`;
 }
 
+function computationTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "computation time not recorded";
+  if (seconds < 0.001) return "computed in <1 ms";
+  return `computed in ${seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(2)} s`}`;
+}
+
 function roadEntry(e, prev, s) {
   const what = { start: "Session started", query: "Decision query added", evidence: "Evidence added" }[e.kind];
   const text = e.kind === "evidence" ? evidenceText({...e.evidence}, s) : e.kind === "query" ? e.query.name : "no evidence yet";
@@ -1170,7 +1206,8 @@ function roadEntry(e, prev, s) {
   const bubble = queries.length ? `<div class="bubble">${queries.map(q =>
     queryChart(q, e.values[q.id], prev?.values?.[q.id], s, e.kind === "query" && e.query.id === q.id)).join("")}</div>` : "";
   return `<div class="road-entry ${e.kind}"><div class="road-head"><time>${esc(e.at)}</time><span class="what">${what}:</span> ` +
-    `${esc(text)}${how ? `<span class="how">${esc(how)}</span>` : ""}</div>${bubble}</div>`;
+    `${esc(text)}${how ? `<span class="how">${esc(how)}</span>` : ""}` +
+    `<span class="duration">· ${esc(computationTime(e.elapsed_s))}</span></div>${bubble}</div>`;
 }
 
 function renderRoadmap() {
@@ -1197,22 +1234,30 @@ function showSession(s) {
 }
 
 async function sessionCall(url, body, busy) {
+  const epoch = state.epoch, assembly = state.ex.assembly.id;
   setStatus(busy);
   try {
-    showSession(await post(url, {assembly: state.ex.assembly.id, ...body}));
+    const session = await post(url, {assembly, ...body});
+    if (epoch !== state.epoch) return false;
+    showSession(session);
     setStatus(`${state.session.n.toLocaleString()} samples, ${share(state.session.ess)} of their weight effective, ${state.result.elapsed_s.toFixed(1)} s.`);
-  } catch (err) { setStatus(err.message, true); throw err; }
+    return true;
+  } catch (err) { if (epoch === state.epoch) setStatus(err.message, true); throw err; }
 }
 
 // Run: a new session under the scenario settings (Assumptions), sampled with no evidence.
 async function run() {
+  if (state.loading) return;
+  const epoch = state.epoch;
   const samples = Math.round(Number($("#samples").value) || 200000);
   $("#run").disabled = true;
   try {
-    await sessionCall("/api/session", {scenario: currentScenario(), samples},
-                      `Sampling ${samples.toLocaleString()}…`);
-    talk.query = []; talk.evidence = []; $("#q-talk").innerHTML = $("#e-talk").innerHTML = "";
-  } catch {} finally { $("#run").disabled = false; }
+    if (await sessionCall("/api/session", {scenario: currentScenario(), samples},
+                          `Sampling ${samples.toLocaleString()}…`)) {
+      resetConversation();
+      saveConversation();
+    }
+  } catch {} finally { if (epoch === state.epoch) $("#run").disabled = false; }
 }
 
 // ---- the two panels: a decision query and an observation, each drafted by the agent from what the questioner
@@ -1220,6 +1265,65 @@ async function run() {
 // asked for in words, and the agent drafts again from the conversation so far.
 const pending = { query: null, evidence: null };
 let demoPlaying = false;
+const messages = { query: [], evidence: [] };
+
+function conversationKey() {
+  const s = state.session;
+  return s ? JSON.stringify([s.n, s.timeline[0], s.timeline.length, s.timeline.at(-1)?.at]) : null;
+}
+
+function saveConversation() {
+  if (state.loading || !state.ex || !state.session) return;
+  store.set(`conversation:${state.ex.assembly.id}`, JSON.stringify({
+    session: conversationKey(), messages, talk, pending,
+    asked: Object.fromEntries(["query", "evidence"].map(kind => [kind, (DEMO[state.ex.assembly.id] || []).indexOf(asked[kind])])),
+    words: { query: $("#q-words").value, evidence: $("#e-words").value },
+    scenario: currentScenario(), samples: $("#samples").value,
+  }));
+}
+
+function resetConversation() {
+  for (const kind of ["query", "evidence"]) {
+    messages[kind] = []; talk[kind] = []; pending[kind] = asked[kind] = null;
+    $(kind === "query" ? "#q-talk" : "#e-talk").innerHTML = "";
+    $(kind === "query" ? "#q-words" : "#e-words").value = "";
+  }
+}
+
+function restoreConversation() {
+  let saved = null;
+  try { saved = JSON.parse(store.get(`conversation:${state.ex.assembly.id}`)); } catch {}
+  resetConversation();
+  if (saved?.session === conversationKey() && saved?.messages) {
+    for (const kind of ["query", "evidence"]) {
+      for (const m of saved.messages[kind] || []) say(kind, m.who, m.text, m.choices, false, false);
+      messages[kind] = saved.messages[kind] || [];
+      talk[kind] = saved.talk[kind] || [];
+      pending[kind] = saved.pending[kind];
+      asked[kind] = (DEMO[state.ex.assembly.id] || [])[saved.asked[kind]] || null;
+      $(kind === "query" ? "#q-words" : "#e-words").value = saved.words[kind] || "";
+    }
+    state.preset = saved.scenario || state.preset;
+    $("#samples").value = saved.samples;
+  } else if (state.session) {
+    // Older sessions already have a timeline, but their chat was never saved. Rebuild the completed demo steps.
+    for (const entry of state.session.timeline) {
+      const st = (DEMO[state.ex.assembly.id] || []).find(st => st.kind === entry.kind &&
+        (entry.kind === "query" ? st.draft.name === entry.query.name : st.draft.variable === entry.evidence.variable));
+      if (!st) continue;
+      say(st.kind, "user", st.say, undefined, false, false);
+      if (st.ask) {
+        say(st.kind, "agent", st.ask.question, st.ask.choices, false, false);
+        say(st.kind, "user", st.choice, undefined, false, false);
+      }
+      say(st.kind, "agent", `${formulation(st.kind, st.draft)}\n\n${CONFIRM}`, undefined, false, false);
+      say(st.kind, "user", "yes", undefined, false, false);
+      say(st.kind, "agent", entry.kind === "query" ? "Added to the decision queries and the roadmap." : `Added (${entry.update}).`, undefined, false, false);
+    }
+  } else {
+    for (const kind of ["query", "evidence"]) say(kind, "agent", "Press Run first.", undefined, false, false);
+  }
+}
 
 function setDemoPlaying(active) {
   demoPlaying = active;
@@ -1234,7 +1338,7 @@ function formulation(kind, d) {
     const value = typeof d.value === "number" ? `${d.value} g` : d.value;
     return `Evidence: ${d.variable} = ${value}${d.source ? ` (source: ${d.source})` : ""}`;
   }
-  const t = d.target || {}, w = Object.keys(s.population || {}).length ? "pop_k · " : "";
+  const t = d.target || {}, w = s.unit === "people" ? "pop_k · " : "";
   const of = given => ({
     cut_off: `Σ_k ${w}P(S_k = Fail | ${given})`,
     cut_off_at_least: `P(Σ_k ${w}1[S_k = Fail] ≥ ${t.at_least} | ${given})`,
@@ -1252,7 +1356,7 @@ function formulation(kind, d) {
 function preparePanels() {
   const s = state.session;
   asked.query = asked.evidence = null;
-  if (DEMO[state.ex.assembly.id]) $("#agent-status").textContent = "Demo script: replies in a fixed order, no language model";
+  if (DEMO[state.ex.assembly.id]) $("#agent-status").textContent = "Demo script: later tuned AI agent to be in place.";
   for (const el of document.querySelectorAll("#map-side .say button, #map-side .say textarea")) el.disabled = !s || demoPlaying;
   pending.query = pending.evidence = null;
   if (!s) for (const kind of ["query", "evidence"]) if (!(kind === "query" ? $("#q-talk") : $("#e-talk")).children.length)
@@ -1260,23 +1364,30 @@ function preparePanels() {
 }
 
 async function addPending(kind, animate = false) {
-  const d = pending[kind];
+  const d = pending[kind], epoch = state.epoch;
   try {
-    if (kind === "query") await sessionCall("/api/session/query", {query: d}, "Adding the decision query…");
-    else await sessionCall("/api/session/evidence", {variable: d.variable, value: d.value, source: d.source || undefined,
+    const added = kind === "query" ? await sessionCall("/api/session/query", {query: d}, "Adding the decision query…")
+      : await sessionCall("/api/session/evidence", {variable: d.variable, value: d.value, source: d.source || undefined,
                            at: new Date().toTimeString().slice(0, 8)},
                            "Taking the observation in: reweighting, or sampling again if too little weight is left…");
+    if (!added) return;
     await say(kind, "agent", kind === "query" ? "Added to the decision queries and the roadmap."
                                               : `Added (${state.session.timeline.at(-1).update}).`, undefined, animate);
+    if (epoch !== state.epoch) return;
     talk[kind] = [];
-  } catch (e) { say(kind, "error", e.message); }
+    saveConversation();
+  } catch (e) { if (epoch === state.epoch) say(kind, "error", e.message); }
 }
 
 // The agent: each panel is a short conversation. The questioner writes; the agent drafts, shown as its exact
 // formulation, or asks what the sentence leaves open, with choices. Nothing is added until the questioner says yes.
 const talk = { query: [], evidence: [] };
-async function say(kind, who, text, choices, animate = false) {
+async function say(kind, who, text, choices, animate = false, remember = true) {
+  const epoch = state.epoch;
   const box = kind === "query" ? $("#q-talk") : $("#e-talk"), el = document.createElement("div");
+  for (const b of box.querySelectorAll(".choices button")) b.disabled = true;
+  messages[kind].push({who, text, choices});
+  if (remember) saveConversation();
   el.className = `said ${who === "user" ? "user" : "agent"}${who === "error" ? " err" : ""}`;
   box.append(el);
   const scroll = () => { box.scrollTop = box.scrollHeight; };
@@ -1287,6 +1398,7 @@ async function say(kind, who, text, choices, animate = false) {
       el.innerHTML = '<span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
       scroll();
       await pause(500);
+      if (epoch !== state.epoch || !el.isConnected) return;
       el.removeAttribute("aria-label");
     }
     el.textContent = "";
@@ -1294,7 +1406,7 @@ async function say(kind, who, text, choices, animate = false) {
     // Reveal exactly one character per tick, even for long replies. Reduced motion disables the CSS
     // dots/caret animation, while preserving the demo's requested character-by-character typing.
     for (const character of Array.from(text)) {
-      if (!el.isConnected) break;
+      if (epoch !== state.epoch || !el.isConnected) return;
       el.textContent += character;
       scroll();
       await pause(35);
@@ -1302,6 +1414,7 @@ async function say(kind, who, text, choices, animate = false) {
     el.classList.remove("typing");
     el.removeAttribute("aria-busy");
   }
+  if (epoch !== state.epoch || !el.isConnected) return;
   el.textContent = text;
   if (choices?.length) {
     const list = document.createElement("div");
@@ -1318,6 +1431,7 @@ async function say(kind, who, text, choices, animate = false) {
     el.append(list);
   }
   scroll();
+  if (remember) saveConversation();
 }
 
 const CONFIRM = "Say yes if this is correct; otherwise explain more.";
@@ -1395,6 +1509,7 @@ function renderDemo() {
   b.innerHTML = `▶ ${esc(st.label)}: ${esc(st.say)}<span>the next step of the walkthrough</span>`;
   b.onclick = async () => {
     if (demoPlaying) return;
+    const epoch = state.epoch;
     setDemoPlaying(true);
     try {
       await draft(st.kind, st.say, true);
@@ -1402,21 +1517,23 @@ function renderDemo() {
       if (st.ask) { await pause(900); if (!b.isConnected) return; await draft(st.kind, st.choice, true); }
       await pause(900);
       if (b.isConnected) await draft(st.kind, "yes", true);
-    } finally { setDemoPlaying(false); }
+    } finally { if (epoch === state.epoch) setDemoPlaying(false); }
   };
   box.append(b);
 }
 
 // What the questioner writes: "yes" to a draft adds it; anything else goes to the agent, with the conversation so far.
 async function draft(kind, text, animate = false) {
-  if (demoPlaying && !animate) return;
+  if (state.loading || !state.session || (demoPlaying && !animate)) return;
+  const epoch = state.epoch;
   const words = kind === "query" ? $("#q-words") : $("#e-words"), button = words.closest("form").querySelector("button");
   words.value = ""; button.disabled = true;
   const session = state.session;
   await say(kind, "user", text, undefined, animate);
-  if (session !== state.session) return;
+  if (epoch !== state.epoch || session !== state.session) return;
   if (pending[kind] && YES.test(text)) {
     await addPending(kind, animate);
+    if (epoch !== state.epoch) return;
     pending[kind] = null; button.disabled = demoPlaying || !state.session;
     return;
   }
@@ -1424,14 +1541,17 @@ async function draft(kind, text, animate = false) {
   try {
     const d = DEMO[state.ex.assembly.id] ? demoReply(kind)
       : await post("/api/session/draft", {assembly: state.ex.assembly.id, kind, text, history: talk[kind]});
+    if (epoch !== state.epoch) return;
     talk[kind].push({role: "user", content: text});
     const reply = d.clarification ? d.clarification.question
       : d.draft ? `${formulation(kind, d.draft)}\n\n${CONFIRM}` : (d.note || "No draft was produced; try saying it another way.");
     talk[kind].push({role: "assistant", content: reply + (d.draft ? ` (draft: ${JSON.stringify(d.draft)})` : "")});
     if (d.draft) pending[kind] = d.draft;
     await say(kind, "agent", reply, d.clarification?.choices, animate);
-  } catch (err) { say(kind, "error", err.message); }
+  } catch (err) { if (epoch === state.epoch) say(kind, "error", err.message); }
+  if (epoch !== state.epoch) return;
   button.disabled = demoPlaying || !state.session;
+  saveConversation();
 }
 
 for (const form of document.querySelectorAll("#map-side .say")) form.onsubmit = e => {
@@ -1445,12 +1565,14 @@ for (const t of document.querySelectorAll("#map-side .say textarea")) t.addEvent
 
 async function agentStatus() {
   if (DEMO[state.ex?.assembly.id]) return;          // the demo script stands in: preparePanels says so
+  const epoch = state.epoch;
   try {
     const s = await getJSON("/api/chat-status");
+    if (epoch !== state.epoch) return;
     $("#agent-status").textContent = s.available
       ? `Drafting: ${s.provider} · ${s.model}`
       : `No language model is ready (${s.reason})`;
-  } catch (err) { $("#agent-status").textContent = err.message; }
+  } catch (err) { if (epoch === state.epoch) $("#agent-status").textContent = err.message; }
 }
 
 // A BN node, clicked: its distribution given the session's evidence so far.
@@ -1482,6 +1604,7 @@ function nodeChart(d) {
 }
 
 async function showNodeDistribution(target) {
+  const epoch = state.epoch;
   // A click on the BN: a node opens its distribution beside it; anywhere else closes it.
   const g = target?.closest?.("[data-tip=bnnode]"), pop = $("#node-pop");
   if (!g) { pop.hidden = true; return; }
@@ -1493,9 +1616,10 @@ async function showNodeDistribution(target) {
   pop.innerHTML = `<b>${esc(id)}</b><p>Reading the samples…</p>`;
   try {
     const d = await getJSON(`/api/session/node?assembly=${encodeURIComponent(state.ex.assembly.id)}&node=${encodeURIComponent(id)}`);
+    if (epoch !== state.epoch) return;
     pop.innerHTML = `<b>${esc(id)}</b>${d.observed ? " · observed" : ""}<div>as of discussion at ${esc(d.at)}</div>` +
       nodeChart(d) + (d.kind === "continuous" ? `<div class="meta">x: ${esc(d.unit)}, on a log scale</div>` : `<div class="meta">± 2 SE</div>`);
-  } catch (err) { pop.innerHTML = `<b>${esc(id)}</b><p>${esc(err.message)}</p>`; }
+  } catch (err) { if (epoch === state.epoch) pop.innerHTML = `<b>${esc(id)}</b><p>${esc(err.message)}</p>`; }
 }
 document.addEventListener("click", e => {          // the BN viewport's own clicks come through showNodeDistribution
   if (!e.target.closest("#node-pop, #bn-viewport")) $("#node-pop").hidden = true;

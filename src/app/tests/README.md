@@ -2,6 +2,7 @@
 
 ```sh
 python -m pytest src/llm/tests src/app/tests
+node src/app/tests/test_example_switching.cjs
 ```
 
 Pytest blocks real model transports: every model response must come from an
