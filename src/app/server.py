@@ -27,30 +27,36 @@ Standard library only. Endpoints:
                                                   one variable's distribution given the evidence so far
     POST /api/session/draft      {assembly, kind: query | evidence, text}
                                                   the assistant's draft from a sentence; nothing is added
+    POST /api/session/stop       {request_id}       stop a running update, keeping its previous session
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 import sys
 import threading
 import traceback
 import webbrowser
+from collections import deque
+from contextlib import contextmanager
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+from uuid import uuid4
 
 from src.builder import shakemap
 from src.builder.bn_builder import attach_rules, compile_path, model_dir, tbn_data
-from src.builder.load import (ROOT, RegistryError, assembly_id_of, assembly_path, assembly_paths, load_assembly,
+from src.builder.load import (ROOT, RegistryError, assembly_id_of, assembly_path, load_assembly,
                               load_network)
+from src.cancellation import InferenceCancelled, cancellable, check_cancelled
 from src.inference import engine
 from src.llm import chat
 
-from .views import view_data
+from .views import app_assembly_paths, view_data
 
 PAGE = Path(__file__).with_name("quakenet.html")
 BN_PAGE = Path(__file__).with_name("page.html")
@@ -90,7 +96,7 @@ def views() -> dict[str, Any]:
 
 def examples() -> list[dict[str, Any]]:
     out = []
-    for path in assembly_paths():
+    for path in app_assembly_paths():
         a = load_assembly(path)
         out.append({"id": assembly_id_of(path), "label": a["label"], "network": a["network"]})
     return out
@@ -122,6 +128,54 @@ def example(assembly_id: str) -> dict[str, Any]:
 # session's requests are served one at a time.
 _sessions: dict[str, Any] = {}
 _sessions_lock = threading.Lock()
+_inference_jobs: dict[str, threading.Event] = {}
+_inference_jobs_lock = threading.Lock()
+# A Stop click can reach the server before its computation request registers.
+_early_stops: deque[str] = deque(maxlen=128)
+
+
+@contextmanager
+def inference_job(request_id: str):
+    if not isinstance(request_id, str) or not request_id or len(request_id) > 128:
+        raise ValueError("request_id must be a nonempty string of at most 128 characters")
+    event = threading.Event()
+    with _inference_jobs_lock:
+        if request_id in _inference_jobs:
+            raise ValueError("that inference request is already running")
+        if request_id in _early_stops:
+            _early_stops.remove(request_id)
+            event.set()
+        _inference_jobs[request_id] = event
+    try:
+        with cancellable(event):
+            yield
+    finally:
+        with _inference_jobs_lock:
+            _inference_jobs.pop(request_id, None)
+
+
+def stop_inference(request_id: str) -> None:
+    if not isinstance(request_id, str) or not request_id or len(request_id) > 128:
+        raise ValueError("request_id must be a nonempty string of at most 128 characters")
+    # Deliberately independent of _sessions_lock: the computation holds that lock.
+    with _inference_jobs_lock:
+        event = _inference_jobs.get(request_id)
+        if event is not None:
+            event.set()
+        elif request_id not in _early_stops:
+            _early_stops.append(request_id)
+
+
+@contextmanager
+def session_update_lock():
+    """Queued computations can also be stopped while another update owns the session lock."""
+    while not _sessions_lock.acquire(timeout=0.05):
+        check_cancelled()
+    try:
+        check_cancelled()
+        yield
+    finally:
+        _sessions_lock.release()
 
 
 SESSIONS = ROOT / "records" / "sessions"            # each example's latest session, to pick up after a restart
@@ -150,7 +204,7 @@ def save_session(assembly_id: str, s: Any) -> None:
 
 
 def start_session(assembly_id: str, scenario: dict[str, Any] | None = None, samples: int | None = None) -> Any:
-    """A new session for the example (Run): its BN under the page's scenario settings (rows, parameters,
+    """Build a candidate session (committed by the request handler): its BN under the scenario settings (rows, parameters,
     parameter_sets), sampled by the clique tree with no evidence; samples rows in all, 100 chains."""
     from src.inference import session
 
@@ -159,9 +213,6 @@ def start_session(assembly_id: str, scenario: dict[str, Any] | None = None, samp
     n_keep = max(100, -(-int(samples or 200_000) // session.SAMPLER["n_chain"]))
     s = session.Session(t, probs, variables, population=population, sampler={"n_keep": n_keep})
     s.computed, s.scenario = computed, settings      # the assumptions the session was started under
-    archive_session(assembly_id)
-    _sessions[assembly_id] = s
-    save_session(assembly_id, s)
     return s
 
 
@@ -190,6 +241,8 @@ def session_of(assembly_id: str, required: bool = True) -> Any:
             s, meta = session.Session.load(path, t, probs, variables)
             s.computed, s.scenario = meta.get("computed", []), meta.get("scenario") or {}
             _sessions[assembly_id] = s
+        except InferenceCancelled:
+            raise
         except Exception as exc:                       # e.g. the model changed since: start afresh with Run
             print(f"[bn] could not reopen the saved session of {assembly_id}: {type(exc).__name__}: {exc}", flush=True)
             s = None
@@ -307,6 +360,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         path = urlparse(self.path).path
+        if path == "/api/session/stop":
+            try:
+                stop_inference(self._read_request().get("request_id"))
+                return self._json({"stopping": True})
+            except (ValueError, json.JSONDecodeError) as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         if path == "/api/query":
             try:
                 query, notes = self._read_request(), []
@@ -365,19 +424,30 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = self._read_request()
             assembly = body.get("assembly", "")
-            with _sessions_lock:
+            with inference_job(body.get("request_id") or str(uuid4())), session_update_lock():
+                check_cancelled()
                 if path == "/api/session":
                     s = start_session(assembly, body.get("scenario"), body.get("samples"))
-                elif path == "/api/session/query":
-                    s = session_of(assembly)
-                    s.add_query(body.get("query") or {}, at=body.get("at"))
                 else:
-                    s = session_of(assembly)
-                    s.observe(body.get("variable", ""), body.get("value"), at=body.get("at"),
-                              source=body.get("source"), text=body.get("text"))
-                if path != "/api/session":
-                    save_session(assembly, s)
-                return self._json(session_reply(s))
+                    # Samples are read-only inputs to an update; mutable session metadata belongs to the candidate.
+                    # A cancelled candidate is discarded, without touching the live or saved session.
+                    s = copy.copy(session_of(assembly))
+                    s.evidence, s.queries, s.timeline = dict(s.evidence), dict(s.queries), list(s.timeline)
+                    if path == "/api/session/query":
+                        s.add_query(body.get("query") or {}, at=body.get("at"))
+                    else:
+                        s.observe(body.get("variable", ""), body.get("value"), at=body.get("at"),
+                                  source=body.get("source"), text=body.get("text"))
+                reply = session_reply(s)
+                check_cancelled()
+                # Commit only complete results. A stop arriving during this final save is too late to cancel.
+                if path == "/api/session":
+                    archive_session(assembly)
+                save_session(assembly, s)
+                _sessions[assembly] = s
+                return self._json(reply)
+        except InferenceCancelled as exc:
+            return self._json({"error": str(exc), "cancelled": True}, HTTPStatus.CONFLICT)
         except (RegistryError, ValueError, json.JSONDecodeError, engine.QueryError) as exc:
             problems = exc.problems if isinstance(exc, RegistryError) else [str(exc)]
             return self._json({"error": "; ".join(problems)}, HTTPStatus.BAD_REQUEST)

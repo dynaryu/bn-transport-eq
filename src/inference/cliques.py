@@ -45,6 +45,7 @@ import math
 import time
 
 import torch
+from src.cancellation import check_cancelled
 
 from src.builder.kernels.hazard import ShakeMap, SpatialCorrelationField
 from src.builder.kernels.observation import ObservedIntensity
@@ -312,6 +313,7 @@ def sa_e_down(t, ms, fld, sa, e, generator=None):
     lo, hi = theta - 2 * math.pi, theta.clone()
     out, todo, n_ops = sa.clone(), torch.arange(C), C * n
     while len(todo):
+        check_cancelled()
         th = theta[todo, None]
         s = torch.exp(mean + f0[todo] * torch.cos(th) + nu[todo] * torch.sin(th))
         ok = loglik(s, todo) > log_y[todo]
@@ -404,8 +406,10 @@ def system_down(t, k, e, ev):
 def _timer(cost):
     """timed(step, f, ...) calls f, which returns (result, n_ops), and adds its seconds and n_ops to cost[step]."""
     def timed(step, f, *args, **kwargs):
+        check_cancelled()
         t0 = time.perf_counter()
         out, n_ops = f(*args, **kwargs)
+        check_cancelled()
         c = cost.setdefault(step, {"sec": 0.0, "n_ops": 0})
         c["sec"] += time.perf_counter() - t0
         c["n_ops"] += n_ops
@@ -419,6 +423,7 @@ def _forward(t, n, generator):
     sa = field_draw(field(t), n, generator)
     d, e = {}, torch.empty(n, len(t["edges"]), dtype=torch.long)
     for i, c in enumerate(t["edges"]):
+        check_cancelled()
         d[i] = torch.multinomial(c["frag"].distribution(sa[:, i]), 1, generator=generator)[:, 0]
         e[:, i] = c["to_e"][d[i]].argmax(dim=1)
     return (sa, e, d), n
@@ -434,6 +439,7 @@ def sample(t, ev, n_chain=100, n_burn=200, n_keep=10_000, bridge=(8, 128), seed=
     order if given; and E from e0 (n_chain, n) where it lies in a box of every observed system's
     certificates, else at a corner of the boxes. Returns rows {variable: (N,)} (with a ShakeMap hazard,
     its residuals eps as well) and cost {step: {"sec", "n_ops"}}, summed over the cliques of each kind."""
+    check_cancelled()
     if direct := [c["SA"] for c in t["edges"] if c["SA"] in ev]:
         raise ValueError(f"SA is observed only through SAObs, not directly: {direct}")
     do = dict(do or {})
@@ -473,6 +479,7 @@ def sample(t, ev, n_chain=100, n_burn=200, n_keep=10_000, bridge=(8, 128), seed=
             state = (torch.zeros(n_chain, len(ms), 2, dtype=torch.long), None, None)
         kept_sa, kept_e = [], []
         for sweep in range(n_burn + n_keep):
+            check_cancelled()
             if sweep:
                 q = timed("sa_e_up", sa_e_up, t, ms, sa)
             state = timed("root_absorb", root_absorb, q, refs_list, state, bridge, generator=g)
@@ -503,4 +510,5 @@ def sample(t, ev, n_chain=100, n_burn=200, n_keep=10_000, bridge=(8, 128), seed=
         for e_name, site in t["eps"]:
             if site in rows:
                 rows[e_name] = (rows[site].log() - t["ln_median"][index[site]]) / t["sigma"][index[site]]
+    check_cancelled()
     return rows, cost

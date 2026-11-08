@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from src.builder.bn_builder import compile_path
-from src.builder.load import (Library, RegistryError, assembly_paths, load_assembly, load_network, port_choices,
+from src.builder.load import (Library, RegistryError, assembly_id_of, assembly_paths, load_assembly, load_network, port_choices,
                               quantity_template, via_kind)
 from src.inference import engine
 
@@ -132,12 +132,17 @@ def _assembly_view(path: Path, lib: Library) -> dict[str, Any]:
             "menu": engine.describe(assembly["id"])}
 
 
+def app_assembly_paths() -> list[Path]:
+    """Assemblies offered in the app; the archived Hebei example remains available to the CLI."""
+    return [path for path in assembly_paths() if assembly_id_of(path).split("/")[0] != "hebei-transport"]
+
+
 def view_data(schema_only: bool = False) -> dict[str, Any]:
     """Every view the page can draw; with ``schema_only``, just the schema's, nothing compiled."""
     lib = engine.library()
     views = [_library_view(lib)]
     if not schema_only:
-        views += [_assembly_view(p, lib) for p in assembly_paths()]
+        views += [_assembly_view(p, lib) for p in app_assembly_paths()]
     networks = {}
     for view in views:
         if view["network"] and view["network"] not in networks:

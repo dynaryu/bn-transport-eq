@@ -21,6 +21,7 @@ from typing import Any
 
 import networkx as nx
 import torch
+from src.cancellation import check_cancelled
 
 from . import Probability
 
@@ -131,6 +132,7 @@ class TravelTimeToNearest(Probability):
         Cs_pars : (N, n_edges) EdgeOpen of each edge, in the order of edge_ids
         Returns (N, 1) S index: 1 Survival, 0 Fail
         """
+        check_cancelled()
         if ((Cs_pars != 0) & (Cs_pars != 1)).any():
             raise ValueError("edge states must be binary")
         x = Cs_pars.long()
@@ -154,6 +156,10 @@ class TravelTimeToNearest(Probability):
         if len(rows):
             distinct, inverse = torch.unique(x[rows], dim=0, return_inverse=True)
             evaluate = self.system_function()
-            states = self.tensor([evaluate(dict(zip(self.edge_ids, s)))[1] for s in distinct.tolist()])
-            S[rows] = states[inverse]
+            states = []
+            for s in distinct.tolist():
+                check_cancelled()
+                states.append(evaluate(dict(zip(self.edge_ids, s)))[1])
+            S[rows] = self.tensor(states)[inverse]
+        check_cancelled()
         return S[:, None]

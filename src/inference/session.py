@@ -28,6 +28,7 @@ import math
 import time
 
 import torch
+from src.cancellation import check_cancelled
 
 from src.builder.kernels import Probability
 from . import cliques
@@ -62,6 +63,7 @@ def evaluate(prob, rows):
 def systems(t, rows):
     """{origin: (N,) SystemState} from the rows' edge states, each distinct edge vector evaluated once:
     the systems all read the edges in the same order."""
+    check_cancelled()
     probs = list(t["systems"].values())
     names = [v.name for v in probs[0].parents]
     assert all([v.name for v in p.parents] == names for p in probs), "systems read the edges in one order"
@@ -101,6 +103,7 @@ class Session:
         self.order = list(probs.values())
         self.queries, self.timeline = {}, []
         self.rows = self.lw = None
+        self.previous = None
         self._sample()
         self.timeline.append({"at": _now(), "kind": "start", "text": "Scenario started: no evidence yet",
                               "update": "sampled", "ess": 1.0, "values": {}, "elapsed_s": self.elapsed})
@@ -113,10 +116,22 @@ class Session:
         meta = {"evidence": self.evidence, "queries": self.queries, "timeline": self.timeline, "sampler": self.sampler,
                 "seed": self.seed, "threshold": self.threshold, "population": self.population,
                 "elapsed": getattr(self, "elapsed", 0.0), **extra}
-        rows = {k: v.float() if v.is_floating_point() else v.to(torch.int16) for k, v in self.rows.items()}
+        packed = {}
+
+        def pack(rows):
+            # A reweighted round shares most columns with its predecessor; serialize those tensors only once.
+            out = {}
+            for k, v in rows.items():
+                if id(v) not in packed:
+                    packed[id(v)] = v.float() if v.is_floating_point() else v.to(torch.int16)
+                out[k] = packed[id(v)]
+            return out
+
+        rows = pack(self.rows)
+        previous = {**self.previous, "rows": pack(self.previous["rows"])} if self.previous else None
         path.parent.mkdir(parents=True, exist_ok=True)
         part = path.with_suffix(".part")
-        torch.save({"meta": meta, "rows": rows, "lw": self.lw}, part)
+        torch.save({"meta": meta, "rows": rows, "lw": self.lw, "previous": previous}, part)
         part.replace(path)
 
     @classmethod
@@ -130,7 +145,19 @@ class Session:
         s.evidence, s.queries, s.timeline, s.elapsed = meta["evidence"], meta["queries"], meta["timeline"], meta["elapsed"]
         s.producer = {v.name: p for p in probs.values() for v in p.childs}
         s.order = list(probs.values())
-        s.rows = {k: v.double() if v.is_floating_point() else v.long() for k, v in data["rows"].items()}
+        unpacked = {}
+
+        def unpack(rows):
+            out = {}
+            for k, v in rows.items():
+                if id(v) not in unpacked:
+                    unpacked[id(v)] = v.double() if v.is_floating_point() else v.long()
+                out[k] = unpacked[id(v)]
+            return out
+
+        s.rows = unpack(data["rows"])
+        previous = data.get("previous")
+        s.previous = {**previous, "rows": unpack(previous["rows"])} if previous else None
         s.lw, s.cost = data["lw"], {}
         return s, meta
 
@@ -165,6 +192,7 @@ class Session:
     def _reweight(self, var, value):
         """The change in log weight for the observation var = value: log P(X = value | X's Markov blanket in
         each row), and the rows with X set to value; the rest of each row stays as it is."""
+        check_cancelled()
         rows, n = dict(self.rows), self.n
         own = self.producer[var]
         children = [p for p in self.order if any(v.name == var for v in p.parents)]
@@ -206,6 +234,7 @@ class Session:
         if any(var == c["SA"] for c in self.t["edges"]):
             raise ValueError("SA is observed only through SAObs, not directly")
         value = self._state(var, value)
+        previous = self._snapshot()
         self.evidence[var] = value
         started = time.perf_counter()
         rows, dlw = self._reweight(var, value)
@@ -223,6 +252,7 @@ class Session:
                  "update": update, "ess": ess, "values": {q: self._values(s) for q, s in self.queries.items()}}
         entry["elapsed_s"] = time.perf_counter() - started
         self.timeline.append(entry)
+        self.previous = previous
         return entry
 
     def _label(self, var, value):
@@ -268,13 +298,19 @@ class Session:
     def add_query(self, spec, at=None):
         """Add a decision query; its timeline entry carries every query's values, the new one's included."""
         started = time.perf_counter()
+        previous = self._snapshot()
         spec = {"id": f"q{len(self.queries) + 1}", **self._check_query(spec)}
         self.queries[spec["id"]] = spec
         values = {**self.timeline[-1]["values"], spec["id"]: self._values(spec)}
         entry = {"at": at or _now(), "kind": "query", "text": spec["name"], "query": spec, "values": values,
                  "elapsed_s": time.perf_counter() - started}
         self.timeline.append(entry)
+        self.previous = previous
         return entry
+
+    def _snapshot(self):
+        """Retain one prior round. Updates replace sample columns and weights rather than mutating them."""
+        return {"rows": self.rows, "lw": self.lw, "evidence": dict(self.evidence), "at": self.timeline[-1]["at"]}
 
     def _intervene(self, do, rows=None):
         """The rows (the session's, if not given) with do's variables set and what they decide evaluated again:
@@ -314,6 +350,7 @@ class Session:
     def _values(self, spec):
         """{label: [estimate, standard error]}: for "track", the target itself ("value"); for "inspect", per
         bridge not yet observed, what inspecting it and repairing it if damaged gives back, VOI_i."""
+        check_cancelled()
         now = self._target(spec["target"], self.rows)
         if spec["decision"] == "track":
             est, se = self._means(now[:, None])
@@ -324,6 +361,7 @@ class Session:
         # A row adds to VOI_i only where edge i is closed (opening an open edge changes nothing): evaluate those rows only.
         F = torch.zeros(self.n, len(candidates), dtype=torch.float64)
         for j, c in enumerate(candidates):
+            check_cancelled()
             closed = self.rows[c["E"]] == 0
             if closed.any():
                 sub = {k: v[closed] for k, v in self.rows.items()}
@@ -331,35 +369,46 @@ class Session:
         est, se = self._means(F)
         return {c["D"].split("::")[1]: [est[j].item(), se[j].item()] for j, c in enumerate(candidates)}
 
-    def _means(self, F):
+    def _means(self, F, lw=None):
         """Weighted means of the columns of F (N, Q), with standard errors from N_GROUP groups of chains."""
-        w = (self.lw - self.lw.max()).exp()
-        group = (torch.arange(self.n) % self.sampler["n_chain"]) % N_GROUP
+        lw = self.lw if lw is None else lw
+        w = (lw - lw.max()).exp()
+        group = (torch.arange(len(lw)) % self.sampler["n_chain"]) % N_GROUP
         sw = torch.zeros(N_GROUP, dtype=torch.float64).index_add_(0, group, w)
         swf = torch.zeros(N_GROUP, F.shape[1], dtype=torch.float64).index_add_(0, group, w[:, None] * F)
         means = swf[sw > 0] / sw[sw > 0, None]
         return swf.sum(0) / sw.sum(), means.std(0) / math.sqrt(len(means))
 
     def distribution(self, var, bins=40):
-        """One variable's distribution given the evidence so far: per state for a discrete one, a histogram of
-        its logarithm for a continuous one (in g), each with standard errors."""
+        """Current and previous-round distributions, using the same states or histogram bins for comparison."""
         if var not in self.rows:
             raise ValueError(f"no variable {var!r} in the samples")
-        x, states = self.rows[var], self.variables[var].values
-        out = {"node": var, "at": self.timeline[-1]["at"], "observed": var in self.evidence, "n": self.n,
-               "ess": self.ess()}
+        previous = self.previous if self.previous and var in self.previous["rows"] else None
+        edges = None
+        if isinstance(self.variables[var].values, tuple):
+            samples = [self.rows[var]] + ([previous["rows"][var]] if previous else [])
+            lo = min(x.log().min().item() for x in samples)
+            hi = max(x.log().max().item() for x in samples)
+            edges = torch.linspace(lo, hi + 1e-9, bins + 1, dtype=torch.float64)
+        out = self._distribution(var, self.rows, self.lw, self.evidence, self.timeline[-1]["at"], edges)
+        out["previous"] = self._distribution(var, previous["rows"], previous["lw"], previous["evidence"], previous["at"], edges) if previous else None
+        return out
+
+    def _distribution(self, var, rows, lw, evidence, at, edges):
+        x, states = rows[var], self.variables[var].values
+        out = {"node": var, "at": at, "observed": var in evidence, "n": len(lw), "ess": self.ess(lw)}
         if not isinstance(states, tuple):
             F = torch.nn.functional.one_hot(x.long(), len(states)).double()
-            est, se = self._means(F)
+            est, se = self._means(F, lw)
             words = WORDS.get(var.split("::")[0], {})
             return {**out, "kind": "discrete", "states": [words.get(s, s) for s in states], "p": est.tolist(),
                     "se": se.tolist()}
         lx = x.log()
-        edges = torch.linspace(lx.min().item(), lx.max().item() + 1e-9, bins + 1, dtype=torch.float64)
-        k = (torch.bucketize(lx, edges) - 1).clamp(0, bins - 1)
-        F = torch.nn.functional.one_hot(k, bins).double() / (edges[1] - edges[0])
-        est, se = self._means(F)
-        mean, _ = self._means(lx[:, None])
+        n_bins = len(edges) - 1
+        k = (torch.bucketize(lx, edges) - 1).clamp(0, n_bins - 1)
+        F = torch.nn.functional.one_hot(k, n_bins).double() / (edges[1] - edges[0])
+        est, se = self._means(F, lw)
+        mean, _ = self._means(lx[:, None], lw)
         return {**out, "kind": "continuous", "unit": "g", "ln_edges": edges.tolist(), "density": est.tolist(),
                 "se": se.tolist(), "median_g": math.exp(mean.item())}
 

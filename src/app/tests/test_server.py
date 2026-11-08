@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import deque
 from pathlib import Path
 import threading
 from urllib.error import HTTPError
@@ -39,6 +40,8 @@ def isolated_server_state(tmp_path, monkeypatch):
         CREATE_NEW_PROCESS_GROUP=0))
     monkeypatch.setattr(server, "_extractions", {})
     monkeypatch.setattr(server, "_sessions", {})
+    monkeypatch.setattr(server, "_inference_jobs", {})
+    monkeypatch.setattr(server, "_early_stops", deque(maxlen=128))
     monkeypatch.setattr(server, "SESSIONS", tmp_path / "sessions")
 
 
@@ -53,7 +56,7 @@ def post(url, body):
 
 def test_view_data_has_the_schema_and_every_bn():
     views = {v["id"]: v for v in view_data()["views"]}
-    assert {"library", "ema-highway/gmm", "hebei-transport/shakemap"} <= views.keys()
+    assert set(views) == {"library", "ema-highway/gmm", "toy-ca/demo"}
     links = {(x["from"], x["to"]) for x in views["library"]["links"]}
     for hazard in ("hazard.gmm", "hazard.shakemap"):
         assert (hazard, "fragility.bridge") in links          # alternatives, all type-compatible
@@ -87,7 +90,8 @@ def test_the_page_and_its_data_are_served(base_url):
     status, body = get(base_url + "/bn")
     assert status == 200 and b"/api/views" in body                # the BN drawing, embedded in quakenet's BN tab
     status, body = get(base_url + "/api/views")
-    assert status == 200 and json.loads(body)["networks"]["hebei-transport"]["rows"]["Bridge"] == 33
+    assert status == 200 and json.loads(body)["networks"]["ema-highway"]["rows"]["Bridge"] == 129
+    assert "hebei-transport" not in json.loads(body)["networks"]
 
 
 def test_a_query_is_answered_and_a_bad_one_explained(base_url):
@@ -109,6 +113,9 @@ def test_a_session_runs_and_drafting_without_a_model_says_why(base_url, monkeypa
         "name": "Towns cut off", "target": {"kind": "cut_off"}, "decision": "track"}})
     assert status == 200 and body["timeline"][-1]["kind"] == "query"
     assert body["timeline"][-1]["elapsed_s"] >= 0 and body["timeline"][-1]["values"]["q1"]
+    node_url = base_url + "/api/session/node?assembly=toy-ca/demo&node=EdgeOpen::e6"
+    _, before = get(node_url)
+    before = json.loads(before)
     status, body = post(base_url + "/api/session/evidence", {"assembly": "toy-ca/demo", "variable": "EdgeOpen::e6",
                                                              "value": "closed"})
     assert status == 200 and body["timeline"][-1]["kind"] == "evidence"
@@ -118,6 +125,11 @@ def test_a_session_runs_and_drafting_without_a_model_says_why(base_url, monkeypa
     server._sessions.clear()                         # reopen the saved session, as after a restart
     _, saved = get(base_url + "/api/session?assembly=toy-ca/demo")
     assert [entry["elapsed_s"] for entry in json.loads(saved)["session"]["timeline"]] == timings
+    status, comparison = get(node_url)
+    comparison = json.loads(comparison)
+    assert status == 200 and comparison["p"] == pytest.approx([1, 0])
+    assert comparison["previous"]["p"] == before["p"]
+    assert comparison["previous"]["at"] == before["at"]
     monkeypatch.setenv("BN_LLM", "gemini")
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     status, body = post(base_url + "/api/session/draft", {"assembly": "toy-ca/demo", "kind": "evidence", "text": "hi"})
@@ -145,7 +157,7 @@ def test_inference_failures_return_json_instead_of_dropping_the_connection(
 
 def test_an_example_carries_its_network_menu_and_rules(base_url):
     status, body = get(base_url + "/api/examples")
-    assert status == 200 and "toy-ca/demo" in {e["id"] for e in json.loads(body)["examples"]}
+    assert status == 200 and {e["id"] for e in json.loads(body)["examples"]} == {"toy-ca/demo", "ema-highway/gmm"}
     status, body = get(base_url + "/api/example?assembly=toy-ca/demo")
     ex = json.loads(body)
     assert status == 200 and set(ex["network"]["tables"]) >= {"Node", "Edge", "Bridge", "Event", "SystemEvent"}
@@ -210,3 +222,103 @@ def test_a_negative_threshold_is_refused(base_url):
     status, body = post(base_url + "/api/query", {"assembly": "toy-ca/demo", "targets": ["SystemState::n4"],
                                                   "rows": {"reach-key-destination": {"target_add_h": -0.1}}})
     assert status == 400 and "below its minimum" in body["error"]
+
+
+@pytest.mark.parametrize("operation", ["start", "query", "evidence"])
+def test_stop_interrupts_computation_and_keeps_the_previous_session(base_url, monkeypatch, operation):
+    import time
+    from src.app import server
+    from src.cancellation import check_cancelled
+    from src.inference.session import Session
+
+    assembly = "toy-ca/demo"
+    assert post(base_url + "/api/session", {"assembly": assembly, "samples": 10000})[0] == 200
+    assert post(base_url + "/api/session/query", {"assembly": assembly, "query": {
+        "name": "Towns cut off", "target": {"kind": "cut_off"}, "decision": "track"}})[0] == 200
+    previous = server._sessions[assembly]
+    saved = server._session_path(assembly).read_bytes()
+    evidence, queries, timeline, seed = dict(previous.evidence), dict(previous.queries), list(previous.timeline), previous.seed
+    entered = threading.Event()
+
+    def wait_for_stop(*args, **kwargs):
+        entered.set()
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            check_cancelled()
+            time.sleep(0.01)
+        raise AssertionError("Stop did not reach the computation")
+
+    monkeypatch.setattr(Session, "_draw" if operation == "start" else "_values", wait_for_stop)
+    request_id = f"stop-test-{operation}"
+    body = {"assembly": assembly, "request_id": request_id, "samples": 10000}
+    path = {"start": "/api/session", "query": "/api/session/query", "evidence": "/api/session/evidence"}[operation]
+    if operation == "query":
+        body["query"] = {"name": "Another target", "target": {"kind": "closed", "edge": "e9"}, "decision": "track"}
+    if operation == "evidence":
+        body.update(variable="EdgeOpen::e6", value="open")
+    reply = []
+    worker = threading.Thread(target=lambda: reply.append(post(base_url + path, body)), daemon=True)
+    worker.start()
+    try:
+        assert entered.wait(5), "The computation did not start"
+        # Stop must answer while the computation still owns _sessions_lock.
+        assert post(base_url + "/api/session/stop", {"request_id": request_id}) == (200, {"stopping": True})
+        worker.join(timeout=3)
+        assert not worker.is_alive()
+        assert reply[0][0] == 409 and reply[0][1]["cancelled"] is True
+        assert server._sessions[assembly] is previous
+        assert previous.evidence == evidence and previous.queries == queries and previous.timeline == timeline
+        assert previous.seed == seed
+        assert server._session_path(assembly).read_bytes() == saved
+        assert not server._inference_jobs
+    finally:
+        server.stop_inference(request_id)
+        worker.join(timeout=6)
+
+
+def test_stop_can_arrive_before_its_inference_request(base_url, monkeypatch):
+    from src.app import server
+
+    def must_not_start(*args, **kwargs):
+        raise AssertionError("A previously cancelled request must not start inference")
+
+    monkeypatch.setattr(server, "start_session", must_not_start)
+    assert post(base_url + "/api/session/stop", {"request_id": "stopped-before-start"})[0] == 200
+    status, body = post(base_url + "/api/session", {
+        "assembly": "toy-ca/demo", "request_id": "stopped-before-start", "samples": 10000})
+    assert status == 409 and body["cancelled"] is True
+    assert not server._inference_jobs
+
+
+def test_stop_requires_a_request_identifier(base_url):
+    status, body = post(base_url + "/api/session/stop", {})
+    assert status == 400 and "request_id" in body["error"]
+
+
+def test_stop_interrupts_a_queued_update_before_the_session_lock_is_available(base_url, monkeypatch):
+    from contextlib import contextmanager
+    from src.app import server
+
+    entered, reply = threading.Event(), []
+    original = server.inference_job
+
+    @contextmanager
+    def registered(request_id):
+        with original(request_id):
+            entered.set()
+            yield
+
+    monkeypatch.setattr(server, "inference_job", registered)
+    body = {"assembly": "toy-ca/demo", "request_id": "queued-update", "samples": 10000}
+    worker = threading.Thread(target=lambda: reply.append(post(base_url + "/api/session", body)), daemon=True)
+    try:
+        with server._sessions_lock:
+            worker.start()
+            assert entered.wait(3)
+            assert post(base_url + "/api/session/stop", {"request_id": "queued-update"})[0] == 200
+            worker.join(timeout=3)
+            assert not worker.is_alive(), "A queued update should stop without waiting for the other computation"
+            assert reply[0][0] == 409 and reply[0][1]["cancelled"] is True
+    finally:
+        server.stop_inference("queued-update")
+        worker.join(timeout=6)

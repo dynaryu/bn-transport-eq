@@ -52,6 +52,8 @@ select, input, button, textarea { font: inherit; color: inherit; }
 select, input[type=number], textarea { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
 button { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+#stop:not(:disabled) { color: var(--err); border-color: var(--err); }
+#stop:disabled { cursor: default; }
 button:disabled { opacity: 0.6; cursor: progress; }
 main { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); }
 header .samples { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; }
@@ -146,8 +148,7 @@ svg text { fill: var(--ink-2); font-size: 11px; }
 .qchart.new h4::after { content: " · new"; color: var(--accent); font-weight: normal; }
 .road-key { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
 .road-key i { display: inline-block; width: 14px; height: 7px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
-/* The two panels under the map that add to the session: a decision query, an observation. Each is a short
-   exchange with the agent, which drafts the fields; the questioner checks them and adds. */
+/* A fixed decision task, followed by observations entered through a form or drafted by the agent. */
 #results ul.given { margin: 4px 0 12px; padding-left: 18px; font-size: 13px; }
 #results ul.given li { margin: 2px 0; }
 #results .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
@@ -166,11 +167,21 @@ svg text { fill: var(--ink-2); font-size: 11px; }
 .side-panel .say textarea { flex: 1; }
 .side-panel .actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 8px; }
 .side-panel .err { color: var(--err); font-size: 12px; margin-right: auto; }
+.side-panel [hidden] { display: none; }
+.task-card { display: block; width: 100%; padding: 12px; margin: 8px 0; text-align: left; border-color: var(--accent); }
+.task-card strong, .task-card span { display: block; }
+.task-card span { margin-top: 5px; color: var(--ink-2); font-size: 12px; }
+.task-card .task-state { color: var(--accent); font-weight: 600; }
+.task-card[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 8%, var(--raised)); }
+.task-card:disabled[aria-pressed=true] { opacity: 1; cursor: default; }
+.task-summary { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; color: var(--ink-2); font-size: 12px; }
+.observation-modes { display: flex; gap: 4px; margin: 8px 0 10px; }
+.observation-modes button { flex: 1; padding: 5px 8px; }
+.observation-modes button[aria-pressed=true] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+#observation-form .actions button { margin-left: auto; }
+#e-confirm { margin-top: 8px; }
 .talk { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
 .talk:empty { display: none; }
-.demo-next:empty { display: none; }
-.demo-next button { width: 100%; text-align: left; white-space: normal; margin-top: 6px; border-color: var(--accent); }
-.demo-next button span { display: block; font-size: 11px; color: var(--muted); }
 .talk .said { padding: 6px 9px; border-radius: 8px; line-height: 1.45; white-space: pre-wrap; }
 .talk .said.user { align-self: flex-end; max-width: 88%; background: var(--accent); color: #fff; }
 .talk .said.agent { align-self: flex-start; background: var(--raised); border: 1px solid var(--border); }
@@ -222,6 +233,9 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
   #map { flex: none; height: clamp(200px, 42dvh, 420px); }
   #results { border-left: none; border-top: 1px solid var(--border); overflow: visible; }
 }
+@container (max-width: 640px) {
+  #map-side { grid-template-columns: 1fr; }
+}
 @media (max-width: 900px) {
   header .sub { display: none; }
 }
@@ -242,6 +256,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
   <span class="sub" id="status"></span>
   <button id="new-session" title="Start a new session with new memory; the current one is kept in records/sessions/archive/">New session</button>
   <button id="theme" title="Toggle light and dark">Theme</button>
+  <button id="stop" disabled title="Stop running Bayesian-network computations and keep the last completed results">Stop</button>
 </header>
 <main>
   <section class="work">
@@ -258,24 +273,45 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
       <div id="map-wrap">
         <svg id="map" role="img" aria-label="Network map"></svg>
         <div id="legend"></div>
-        <section id="map-side" aria-label="Decision queries and evidence">
+        <section id="map-side" aria-label="Decision task and observations">
           <div class="side-panel" id="panel-query">
-            <h2>Decision query</h2>
-            <div class="talk" id="q-talk" role="log" aria-live="polite"></div>
-            <div class="demo-next" id="q-demo"></div>
-            <form class="say" data-kind="query"><textarea id="q-words" aria-label="The decision query, in words"
-              placeholder="e.g. Which bridge should we reopen first to get people to the airports?"></textarea>
-              <button type="submit">Draft</button></form>
+            <h2>Decision task</h2>
+            <p class="meta">Choose the task to track as observations arrive.</p>
+            <div id="decision-tasks" role="group" aria-label="Available decision tasks"></div>
+            <p class="task-summary" id="task-summary"></p>
+            <p class="meta" id="task-status" role="status" aria-live="polite"></p>
           </div>
           <div class="side-panel" id="panel-evidence">
-            <h2>Evidence</h2>
-            <div class="talk" id="e-talk" role="log" aria-live="polite"></div>
-            <div class="demo-next" id="e-demo"></div>
-            <form class="say" data-kind="evidence"><textarea id="e-words" aria-label="The observation, in words"
-              placeholder="e.g. The station at b6 reads 0.8 g"></textarea>
-              <button type="submit">Draft</button></form>
+            <h2>Observations</h2>
+            <div class="observation-modes" role="group" aria-label="Observation entry mode">
+              <button type="button" data-observation-mode="form" aria-pressed="true">Dropdowns</button>
+              <button type="button" data-observation-mode="chat" aria-pressed="false">Agent chat (beta)</button>
+            </div>
+            <form id="observation-form">
+              <label for="observation-kind">Observation type</label>
+              <select id="observation-kind" required></select>
+              <label for="observation-variable">Asset</label>
+              <select id="observation-variable" required></select>
+              <label for="observation-value" id="observation-value-label">Observed state</label>
+              <select id="observation-value" required></select>
+              <label for="observation-reading" id="observation-reading-label" hidden>Reading (g)</label>
+              <input id="observation-reading" type="number" min="0" step="any" placeholder="e.g. 0.8" required hidden>
+              <label for="observation-source">Source (optional)</label>
+              <input id="observation-source" type="text" placeholder="e.g. station, police, inspection crew">
+              <div class="actions"><button type="submit" class="primary">Add observation</button></div>
+            </form>
+            <div id="observation-chat" hidden>
+              <p class="meta">Describe one observation. Review the agent’s draft before adding it.</p>
+              <div class="talk" id="e-talk" role="log" aria-live="polite"></div>
+              <form class="say" data-kind="evidence"><textarea id="e-words" aria-label="The observation, in words"
+                placeholder="Describe an observation, or ask for clarification"></textarea>
+                <button type="submit">Draft</button></form>
+              <button type="button" id="e-confirm" class="primary" hidden>Yes, add this observation.</button>
+              <p class="meta" id="agent-status"></p>
+            </div>
+            <p class="err" id="observation-error" role="alert"></p>
+            <p class="meta" id="observation-status" role="status" aria-live="polite"></p>
           </div>
-          <p class="meta" id="agent-status"></p>
         </section>
       </div>
       <div id="results" hidden></div>
@@ -328,7 +364,11 @@ const state = { examples: [], ex: null, result: null, session: null, preset: {},
 async function getJSON(url, opts) {
   const r = await fetch(url, opts);
   const body = await r.json();
-  if (!r.ok) throw new Error(body.error || r.statusText);
+  if (!r.ok) {
+    const error = new Error(body.error || r.statusText);
+    error.cancelled = !!body.cancelled;
+    throw error;
+  }
   return body;
 }
 
@@ -337,7 +377,8 @@ async function init() {
   if (theme) document.documentElement.dataset.theme = theme;
   const params = new URLSearchParams(location.hash.slice(1));
   state.examples = (await getJSON("/api/examples")).examples;
-  const wanted = params.get("example") || store.get("example") || "toy-ca/demo";
+  const requested = params.get("example") || store.get("example") || "toy-ca/demo";
+  const wanted = state.examples.some(e => e.id === requested) ? requested : "toy-ca/demo";
   // Each example is named by its network ("ema-highway" for ema-highway/gmm), unless two share one.
   const network = id => id.split("/")[0];
   const shared = id => state.examples.filter(e => network(e.id) === network(id)).length > 1;
@@ -346,7 +387,6 @@ async function init() {
   // The clique tree's message passing, as the inference code declares it, for the Clique tree tab's Inference toggle.
   try { state.inference = await getJSON("/api/inference"); } catch { state.inference = null; }
   await load($("#example").value);
-  agentStatus();
   if (params.get("tab")) document.querySelector(`nav button[data-pane="${CSS.escape(params.get("tab"))}"]`)?.click();
   if (params.get("run") === "1") run();
 }
@@ -359,9 +399,9 @@ async function load(id) {
   main.inert = true;
   $("#node-pop").hidden = $("#msg-pop").hidden = true;
   $("#run").disabled = $("#new-session").disabled = true;
-  setDemoPlaying(false);
+  panelBusy = false;
+  agentReady = false;
   resetConversation();
-  $("#q-demo").innerHTML = $("#e-demo").innerHTML = "";
   setStatus("Loading…");
   state.ex = state.session = state.result = null;
   state.preset = {};
@@ -387,6 +427,7 @@ async function load(id) {
       main.style.visibility = state.ex ? "" : "hidden";
       main.inert = false;
       $("#run").disabled = $("#new-session").disabled = !state.ex;
+      updatePanelControls();
       saveConversation();
     }
   }
@@ -1230,42 +1271,228 @@ function renderRoadmap() {
 function showSession(s) {
   state.session = s;
   state.result = s ? s.result : null;
-  renderRoadmap(); preparePanels(); renderMap(); renderResults(); renderDemo();
+  renderRoadmap(); preparePanels(); renderMap(); renderResults();
+}
+
+const inferenceRequests = new Map();
+
+function updateInferenceStop() {
+  const requests = [...inferenceRequests.values()], stopping = requests.length && requests.every(r => r.stopping);
+  $("#stop").disabled = !requests.length || stopping;
+  $("#stop").textContent = stopping ? "Stopping…" : "Stop";
+}
+
+async function stopInference() {
+  await Promise.all([...inferenceRequests.values()].filter(r => !r.stopping).map(async request => {
+    request.stopping = true;
+    updateInferenceStop();
+    if (request.epoch === state.epoch) setStatus("Stopping inference…");
+    try {
+      await post("/api/session/stop", {request_id: request.id});
+    } catch (err) {
+      if (inferenceRequests.has(request.id)) {
+        request.stopping = false;
+        if (request.epoch === state.epoch) setStatus(`Could not stop inference: ${err.message}`, true);
+      }
+    } finally { updateInferenceStop(); }
+  }));
 }
 
 async function sessionCall(url, body, busy) {
   const epoch = state.epoch, assembly = state.ex.assembly.id;
+  const request = {id: crypto.randomUUID(), epoch, stopping: false};
+  inferenceRequests.set(request.id, request);
+  updateInferenceStop();
   setStatus(busy);
   try {
-    const session = await post(url, {assembly, ...body});
+    const session = await post(url, {assembly, ...body, request_id: request.id});
     if (epoch !== state.epoch) return false;
     showSession(session);
     setStatus(`${state.session.n.toLocaleString()} samples, ${share(state.session.ess)} of their weight effective, ${state.result.elapsed_s.toFixed(1)} s.`);
     return true;
-  } catch (err) { if (epoch === state.epoch) setStatus(err.message, true); throw err; }
+  } catch (err) {
+    if (err.cancelled) {
+      if (epoch === state.epoch) setStatus("Inference stopped. Last completed results kept.");
+      return false;
+    }
+    if (epoch === state.epoch) setStatus(err.message, true);
+    throw err;
+  } finally {
+    inferenceRequests.delete(request.id);
+    updateInferenceStop();
+  }
 }
 
 // Run: a new session under the scenario settings (Assumptions), sampled with no evidence.
 async function run() {
-  if (state.loading) return;
+  if (state.loading || panelBusy) return;
   const epoch = state.epoch;
   const samples = Math.round(Number($("#samples").value) || 200000);
-  $("#run").disabled = true;
+  setPanelBusy(true);
   try {
     if (await sessionCall("/api/session", {scenario: currentScenario(), samples},
                           `Sampling ${samples.toLocaleString()}…`)) {
       resetConversation();
+      preparePanels();
       saveConversation();
     }
-  } catch {} finally { if (epoch === state.epoch) $("#run").disabled = false; }
+  } catch {} finally { if (epoch === state.epoch) setPanelBusy(false); }
 }
 
-// ---- the two panels: a decision query and an observation, each drafted by the agent from what the questioner
-// writes. The latest draft is shown as a summary in the conversation; Add sends it as it stands. A correction is
-// asked for in words, and the agent drafts again from the conversation so far.
+// ---- decision task and observation entry ---------------------------------------------------------------
 const pending = { query: null, evidence: null };
-let demoPlaying = false;
+let panelBusy = false, agentReady = false;
 const messages = { query: [], evidence: [] };
+const observationUI = { mode: "form", kind: "reading", variable: "", value: "", source: "" };
+
+// Add further tasks here; the task selector and its active state are rendered from this catalogue.
+const DECISION_TASKS = [{
+  id: "inspection-access", title: "Prioritise bridge inspection",
+  description: unit => `Maximise the number of ${unit} with access to key destinations. Repair inspected bridges if damaged.`,
+  query: unit => ({name: `Inspection priority for ${unit === "people" ? "people's" : "towns'"} access`,
+                   target: {kind: "cut_off"}, decision: "inspect"}),
+}];
+
+function taskUnit() {
+  return state.session?.unit || ((state.ex?.network?.tables?.Node || []).some(n => n.population != null) ? "people" : "towns");
+}
+
+function activeTaskQuery(task) {
+  const spec = task.query(taskUnit());
+  return state.session?.queries.find(q => q.decision === spec.decision && JSON.stringify(q.target) === JSON.stringify(spec.target));
+}
+
+function renderDecisionTasks() {
+  const box = $("#decision-tasks");
+  box.innerHTML = "";
+  for (const task of DECISION_TASKS) {
+    const active = activeTaskQuery(task), button = document.createElement("button");
+    button.type = "button";
+    button.className = "task-card";
+    button.dataset.task = task.id;
+    button.setAttribute("aria-pressed", String(!!active));
+    button.innerHTML = `<strong>${esc(task.title)}</strong><span>${esc(task.description(taskUnit()))}</span>` +
+      `<span class="task-state">${active ? "Active task" : "Select task"}</span>`;
+    button.onclick = () => selectDecisionTask(task.id);
+    box.append(button);
+  }
+  const active = DECISION_TASKS.map(activeTaskQuery).find(Boolean);
+  $("#task-summary").textContent = active ? formulation("query", active).split("\n").slice(1).join("\n") : "";
+  $("#task-status").textContent = !state.session ? "Press Run to start a session." : active
+    ? "Priorities update whenever an observation is added." : "";
+}
+
+async function selectDecisionTask(id) {
+  const task = DECISION_TASKS.find(t => t.id === id);
+  if (!task || !state.session || state.loading || panelBusy || activeTaskQuery(task)) return;
+  const epoch = state.epoch;
+  setPanelBusy(true);
+  try {
+    await sessionCall("/api/session/query", {query: task.query(taskUnit())}, "Computing inspection priorities…");
+  } catch (err) {
+    if (epoch === state.epoch) $("#task-status").textContent = err.message;
+  } finally {
+    if (epoch === state.epoch) { setPanelBusy(false); saveConversation(); }
+  }
+}
+
+const OBSERVATION_KINDS = {reading: "Ground-motion reading", damage: "Bridge damage", edge: "Road status", system: "Town access"};
+
+function observationVariables(kind) {
+  return Object.entries(state.session?.variables || {}).filter(([name, v]) => v.kind === kind && !(name in state.session.evidence))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, {numeric: true}));
+}
+
+function renderObservationFields() {
+  const kinds = Object.keys(OBSERVATION_KINDS).filter(kind => observationVariables(kind).length);
+  if (!kinds.includes(observationUI.kind)) Object.assign(observationUI, {kind: kinds[0] || "", variable: "", value: ""});
+  $("#observation-kind").innerHTML = kinds.map(kind => `<option value="${kind}">${OBSERVATION_KINDS[kind]}</option>`).join("") ||
+    '<option value="">No unobserved assets available</option>';
+  $("#observation-kind").value = observationUI.kind;
+  const variables = observationVariables(observationUI.kind);
+  if (!variables.some(([name]) => name === observationUI.variable))
+    Object.assign(observationUI, {variable: variables[0]?.[0] || "", value: ""});
+  $("#observation-variable").innerHTML = variables.map(([name]) => `<option value="${esc(name)}">${esc(short(name))}</option>`).join("");
+  $("#observation-variable").value = observationUI.variable;
+  const meta = state.session?.variables[observationUI.variable], reading = meta?.states === null;
+  $("#observation-reading").hidden = $("#observation-reading-label").hidden = !reading;
+  $("#observation-value").hidden = $("#observation-value-label").hidden = reading;
+  $("#observation-reading").value = reading ? observationUI.value : "";
+  const states = meta?.states || [];
+  if (!reading && !states.includes(observationUI.value)) observationUI.value = states[0] || "";
+  const label = value => observationUI.kind === "system" ? ({Fail: "No access", Survival: "Has access"}[value] || value) : value;
+  $("#observation-value").innerHTML = states.map(value => `<option value="${esc(value)}">${esc(label(value))}</option>`).join("");
+  $("#observation-value").value = reading ? "" : observationUI.value;
+  $("#observation-source").value = observationUI.source;
+}
+
+function rememberObservationFields() {
+  observationUI.kind = $("#observation-kind").value;
+  observationUI.variable = $("#observation-variable").value;
+  const reading = state.session?.variables[observationUI.variable]?.states === null;
+  observationUI.value = $(reading ? "#observation-reading" : "#observation-value").value;
+  observationUI.source = $("#observation-source").value;
+}
+
+function setObservationMode(mode) {
+  observationUI.mode = mode === "chat" ? "chat" : "form";
+  $("#observation-form").hidden = observationUI.mode !== "form";
+  $("#observation-chat").hidden = observationUI.mode !== "chat";
+  for (const button of document.querySelectorAll("[data-observation-mode]"))
+    button.setAttribute("aria-pressed", String(button.dataset.observationMode === observationUI.mode));
+  saveConversation();
+}
+
+function observationFromFields() {
+  const variable = observationUI.variable, meta = state.session?.variables[variable];
+  if (!meta || variable in state.session.evidence) throw new Error("Choose an unobserved asset.");
+  let value = observationUI.value;
+  if (meta.states === null) {
+    if (String(value).trim() === "" || !Number.isFinite(Number(value)) || Number(value) < 0)
+      throw new Error("Enter a finite, nonnegative reading in g.");
+    value = Number(value);
+  } else if (!meta.states.includes(value)) throw new Error("Choose an observed state.");
+  return {variable, value, source: observationUI.source.trim() || undefined};
+}
+
+async function submitObservation() {
+  if (!state.session || state.loading || panelBusy) return;
+  const epoch = state.epoch;
+  $("#observation-error").textContent = "";
+  try {
+    rememberObservationFields();
+    const d = observationFromFields();
+    setPanelBusy(true);
+    pending.evidence = d;
+    await say("evidence", "user", formulation("evidence", d));
+    if (await addPending("evidence")) {
+      observationUI.value = "";
+      renderObservationFields();
+    }
+  } catch (err) {
+    if (epoch === state.epoch) $("#observation-error").textContent = err.message;
+  } finally {
+    if (epoch === state.epoch) { setPanelBusy(false); saveConversation(); }
+  }
+}
+
+function updatePanelControls() {
+  updateInferenceStop();
+  const blocked = !state.session || state.loading || panelBusy;
+  $("#run").disabled = $("#new-session").disabled = !state.ex || state.loading || panelBusy;
+  for (const button of $("#decision-tasks").querySelectorAll("button")) {
+    const task = DECISION_TASKS.find(t => t.id === button.dataset.task);
+    button.disabled = blocked || !!activeTaskQuery(task);
+  }
+  for (const input of $("#observation-form").querySelectorAll("input, select, button"))
+    input.disabled = blocked || !observationUI.variable || input.hidden;
+  $("#e-words").disabled = blocked || !agentReady;
+  $("#e-words").closest("form").querySelector("button").disabled = blocked || !agentReady;
+  $("#e-confirm").hidden = !pending.evidence;
+  $("#e-confirm").disabled = blocked;
+}
+
+function setPanelBusy(active) { panelBusy = active; updatePanelControls(); }
 
 function conversationKey() {
   const s = state.session;
@@ -1276,18 +1503,19 @@ function saveConversation() {
   if (state.loading || !state.ex || !state.session) return;
   store.set(`conversation:${state.ex.assembly.id}`, JSON.stringify({
     session: conversationKey(), messages, talk, pending,
-    asked: Object.fromEntries(["query", "evidence"].map(kind => [kind, (DEMO[state.ex.assembly.id] || []).indexOf(asked[kind])])),
-    words: { query: $("#q-words").value, evidence: $("#e-words").value },
+    words: { evidence: $("#e-words").value }, observation: observationUI,
     scenario: currentScenario(), samples: $("#samples").value,
   }));
 }
 
 function resetConversation() {
   for (const kind of ["query", "evidence"]) {
-    messages[kind] = []; talk[kind] = []; pending[kind] = asked[kind] = null;
-    $(kind === "query" ? "#q-talk" : "#e-talk").innerHTML = "";
-    $(kind === "query" ? "#q-words" : "#e-words").value = "";
+    messages[kind] = []; talk[kind] = []; pending[kind] = null;
   }
+  $("#e-talk").innerHTML = "";
+  $("#e-words").value = "";
+  $("#observation-error").textContent = $("#observation-status").textContent = "";
+  Object.assign(observationUI, {mode: "form", kind: "reading", variable: "", value: "", source: ""});
 }
 
 function restoreConversation() {
@@ -1295,40 +1523,29 @@ function restoreConversation() {
   try { saved = JSON.parse(store.get(`conversation:${state.ex.assembly.id}`)); } catch {}
   resetConversation();
   if (saved?.session === conversationKey() && saved?.messages) {
-    for (const kind of ["query", "evidence"]) {
+    for (const kind of ["evidence"]) {
       for (const m of saved.messages[kind] || []) say(kind, m.who, m.text, m.choices, false, false);
       messages[kind] = saved.messages[kind] || [];
       talk[kind] = saved.talk[kind] || [];
       pending[kind] = saved.pending[kind];
-      asked[kind] = (DEMO[state.ex.assembly.id] || [])[saved.asked[kind]] || null;
-      $(kind === "query" ? "#q-words" : "#e-words").value = saved.words[kind] || "";
+      $("#e-words").value = saved.words.evidence || "";
     }
+    Object.assign(observationUI, saved.observation || {});
     state.preset = saved.scenario || state.preset;
     $("#samples").value = saved.samples;
   } else if (state.session) {
-    // Older sessions already have a timeline, but their chat was never saved. Rebuild the completed demo steps.
+    // Older sessions may have a timeline without a saved chat. Show the actual recorded observations.
     for (const entry of state.session.timeline) {
-      const st = (DEMO[state.ex.assembly.id] || []).find(st => st.kind === entry.kind &&
-        (entry.kind === "query" ? st.draft.name === entry.query.name : st.draft.variable === entry.evidence.variable));
-      if (!st) continue;
-      say(st.kind, "user", st.say, undefined, false, false);
-      if (st.ask) {
-        say(st.kind, "agent", st.ask.question, st.ask.choices, false, false);
-        say(st.kind, "user", st.choice, undefined, false, false);
-      }
-      say(st.kind, "agent", `${formulation(st.kind, st.draft)}\n\n${CONFIRM}`, undefined, false, false);
-      say(st.kind, "user", "yes", undefined, false, false);
-      say(st.kind, "agent", entry.kind === "query" ? "Added to the decision queries and the roadmap." : `Added (${entry.update}).`, undefined, false, false);
+      if (entry.kind !== "evidence") continue;
+      say("evidence", "user", entry.text || evidenceText(entry.evidence, state.session), undefined, false, false);
+      say("evidence", "agent", `Added (${entry.update}).`, undefined, false, false);
     }
   } else {
-    for (const kind of ["query", "evidence"]) say(kind, "agent", "Press Run first.", undefined, false, false);
+    say("evidence", "agent", "Press Run first.", undefined, false, false);
   }
-}
-
-function setDemoPlaying(active) {
-  demoPlaying = active;
-  for (const el of document.querySelectorAll("#map-side .say button, #map-side .say textarea, .demo-next button"))
-    el.disabled = active || !state.session;
+  renderObservationFields();
+  setObservationMode(observationUI.mode);
+  updatePanelControls();
 }
 
 // The draft written out exactly, by the page from the draft itself (not by the model).
@@ -1354,37 +1571,43 @@ function formulation(kind, d) {
 }
 
 function preparePanels() {
-  const s = state.session;
-  asked.query = asked.evidence = null;
-  if (DEMO[state.ex.assembly.id]) $("#agent-status").textContent = "Demo script: later tuned AI agent to be in place.";
-  for (const el of document.querySelectorAll("#map-side .say button, #map-side .say textarea")) el.disabled = !s || demoPlaying;
-  pending.query = pending.evidence = null;
-  if (!s) for (const kind of ["query", "evidence"]) if (!(kind === "query" ? $("#q-talk") : $("#e-talk")).children.length)
-    say(kind, "agent", "Press Run first.");
+  renderDecisionTasks();
+  renderObservationFields();
+  setObservationMode(observationUI.mode);
+  updatePanelControls();
+  const reading = observationVariables("reading")[0]?.[0];
+  $("#e-words").placeholder = reading ? `e.g. The station at ${short(reading)} reads 0.8 g` : "Describe the asset, observed state or reading, and source";
 }
 
 async function addPending(kind, animate = false) {
+  if (kind !== "evidence" || !pending.evidence) return false;
   const d = pending[kind], epoch = state.epoch;
   try {
-    const added = kind === "query" ? await sessionCall("/api/session/query", {query: d}, "Adding the decision query…")
-      : await sessionCall("/api/session/evidence", {variable: d.variable, value: d.value, source: d.source || undefined,
+    const added = await sessionCall("/api/session/evidence", {variable: d.variable, value: d.value, source: d.source || undefined,
                            at: new Date().toTimeString().slice(0, 8)},
                            "Taking the observation in: reweighting, or sampling again if too little weight is left…");
-    if (!added) return;
-    await say(kind, "agent", kind === "query" ? "Added to the decision queries and the roadmap."
-                                              : `Added (${state.session.timeline.at(-1).update}).`, undefined, animate);
-    if (epoch !== state.epoch) return;
+    if (!added) return false;
+    pending.evidence = null;
+    const acknowledgement = `Added (${state.session.timeline.at(-1).update}).`;
+    $("#observation-status").textContent = acknowledgement;
+    await say(kind, "agent", acknowledgement, undefined, animate);
+    if (epoch !== state.epoch) return false;
     talk[kind] = [];
     saveConversation();
-  } catch (e) { if (epoch === state.epoch) say(kind, "error", e.message); }
+    return true;
+  } catch (e) {
+    if (epoch === state.epoch) { $("#observation-error").textContent = e.message; say(kind, "error", e.message); }
+    return false;
+  }
 }
 
 // The agent: each panel is a short conversation. The questioner writes; the agent drafts, shown as its exact
 // formulation, or asks what the sentence leaves open, with choices. Nothing is added until the questioner says yes.
 const talk = { query: [], evidence: [] };
 async function say(kind, who, text, choices, animate = false, remember = true) {
+  if (kind !== "evidence") return;
   const epoch = state.epoch;
-  const box = kind === "query" ? $("#q-talk") : $("#e-talk"), el = document.createElement("div");
+  const box = $("#e-talk"), el = document.createElement("div");
   for (const b of box.querySelectorAll(".choices button")) b.disabled = true;
   messages[kind].push({who, text, choices});
   if (remember) saveConversation();
@@ -1404,7 +1627,7 @@ async function say(kind, who, text, choices, animate = false, remember = true) {
     el.textContent = "";
     el.classList.add("typing");
     // Reveal exactly one character per tick, even for long replies. Reduced motion disables the CSS
-    // dots/caret animation, while preserving the demo's requested character-by-character typing.
+    // dots/caret animation, while preserving character-by-character typing.
     for (const character of Array.from(text)) {
       if (epoch !== state.epoch || !el.isConnected) return;
       el.textContent += character;
@@ -1422,7 +1645,6 @@ async function say(kind, who, text, choices, animate = false, remember = true) {
     for (const c of choices) {
       const b = document.createElement("button");
       b.type = "button";
-      b.disabled = animate;  // The walkthrough supplies its scripted choice after the reply finishes.
       b.innerHTML = esc(c.label) + (c.definition ? `<span>${esc(c.definition)}</span>` : "");
       b.onclick = () => { for (const x of list.querySelectorAll("button")) x.disabled = true;
                           draft(kind, c.definition ? `${c.label}: ${c.definition}` : c.label); };
@@ -1437,122 +1659,58 @@ async function say(kind, who, text, choices, animate = false, remember = true) {
 const CONFIRM = "Say yes if this is correct; otherwise explain more.";
 const YES = /^\s*(yes|y|yep|correct|that's right|right|ok|okay)\b[\s.!]*$/i;
 
-// The demo's stand-in for the language model, for the pilot: on these examples each panel follows a fixed script,
-// in order, whatever is typed. A step either asks (with choices to click) or drafts. A trained model replaces it.
-const DEMO = {
-  "toy-ca/demo": [   // the steps of examples/toy-ca/walkthrough.md, in order
-    {kind: "query", label: "Decision", say: "I would like to priortise inspection to maximise the number of towns with access to the key destinations",
-     ask: {question: "Your query does not say what follows an inspection. What action will be done if an inspected bridge is found closed?",
-           choices: [{label: "repair", definition: "repair the bridge whatever its damage"},
-                     {label: "repair only when damage ≠ collapse", definition: "repair unless the bridge has collapsed (complete damage)"}]},
-     choice: "repair",
-     draft: {name: "Inspection priority for towns' access", target: {kind: "cut_off"}, decision: "inspect"}},
-    {kind: "evidence", label: "T1", say: "The station at bridge b6 reads 0.8 g",
-     draft: {variable: "SAObs(1.0)::b6", value: 0.8, source: "station"}},
-    {kind: "evidence", label: "T2", say: "Police report that e9 is closed",
-     draft: {variable: "EdgeOpen::e9", value: "closed", source: "police"}},
-    {kind: "evidence", label: "T3", say: "n4 can't get through to the destinations, says the police",
-     draft: {variable: "SystemState::n4", value: "Fail", source: "police"}},
-    {kind: "evidence", label: "T4", say: "The bridge near n4 has collapsed",
-     ask: {question: "Which bridge near n4 has collapsed?",
-           choices: [{label: "b4", definition: ""}, {label: "b6", definition: ""}, {label: "b7", definition: ""}]}, choice: "b4",
-     draft: {variable: "DamageState.HazusBridge::b4", value: "complete", source: "crew"}},
-  ],
-  "ema-highway/gmm": [   // the same storyline on EMA: people's access to the airports (n22 Boston, n66 CT)
-    {kind: "query", label: "Decision", say: "I would like to prioritise inspection to maximise the number of people with access to the airports",
-     ask: {question: "Your query does not say what follows an inspection. What action will be done if an inspected bridge is found closed?",
-           choices: [{label: "repair", definition: "repair the bridge whatever its damage"},
-                     {label: "repair only when damage ≠ collapse", definition: "repair unless the bridge has collapsed (complete damage)"}]},
-     choice: "repair",
-     draft: {name: "Inspection priority for people's access", target: {kind: "cut_off"}, decision: "inspect"}},
-    {kind: "evidence", label: "T1", say: "The station at bridge e0125 reads 0.6 g",
-     draft: {variable: "SAObs(1.0)::bridge-e0125", value: 0.6, source: "station"}},
-    {kind: "evidence", label: "T2", say: "Police report that e0124 is closed",
-     draft: {variable: "EdgeOpen::e0124", value: "closed", source: "police"}},
-    {kind: "evidence", label: "T3", say: "People in n62 can't get through to the airports",
-     draft: {variable: "SystemState::n62", value: "Fail", source: "police"}},
-    {kind: "evidence", label: "T4", say: "A crew found moderate damage on a bridge on n62's route",
-     ask: {question: "Which bridge did the crew inspect?",
-           choices: [{label: "bridge-e0122", definition: ""}, {label: "bridge-e0123", definition: ""}, {label: "bridge-e0125", definition: ""}]},
-     choice: "bridge-e0125",
-     draft: {variable: "DamageState.HazusBridge::bridge-e0125", value: "moderate", source: "crew"}},
-  ],
-};
-const asked = { query: null, evidence: null };   // the step whose question is waiting for its choice
-
-// The script's next step: the first one the session does not hold yet.
-function demoNext(kind) {
-  const s = state.session, held = st => st.kind === "query" ? s.queries.some(q => q.name === st.draft.name)
-                                                            : st.draft.variable in s.evidence;
-  return (DEMO[state.ex.assembly.id] || []).find(st => !held(st) && (!kind || st.kind === kind));
-}
-
-// The demo's stand-in for the language model: the panel's next step asks, if it does and has not yet, else drafts.
-function demoReply(kind) {
-  const st = demoNext(kind);
-  if (!st) return {note: "That is the end of the demo script."};
-  if (st.ask && asked[kind] !== st) { asked[kind] = st; return {clarification: st.ask}; }
-  asked[kind] = null;
-  return {draft: st.draft};
-}
-
-// The next step as a button in its panel; clicked, it plays the step: the sentence, the reply, the choice if it asks,
-// the formulation, yes, and the session's update.
 const pause = ms => new Promise(r => setTimeout(r, ms));
-function renderDemo() {
-  for (const kind of ["query", "evidence"]) (kind === "query" ? $("#q-demo") : $("#e-demo")).innerHTML = "";
-  const st = state.session && demoNext();
-  if (!st) return;
-  const box = st.kind === "query" ? $("#q-demo") : $("#e-demo"), b = document.createElement("button");
-  b.type = "button";
-  b.disabled = demoPlaying;
-  b.innerHTML = `▶ ${esc(st.label)}: ${esc(st.say)}<span>the next step of the walkthrough</span>`;
-  b.onclick = async () => {
-    if (demoPlaying) return;
-    const epoch = state.epoch;
-    setDemoPlaying(true);
-    try {
-      await draft(st.kind, st.say, true);
-      if (!b.isConnected) return;
-      if (st.ask) { await pause(900); if (!b.isConnected) return; await draft(st.kind, st.choice, true); }
-      await pause(900);
-      if (b.isConnected) await draft(st.kind, "yes", true);
-    } finally { if (epoch === state.epoch) setDemoPlaying(false); }
-  };
-  box.append(b);
-}
 
 // What the questioner writes: "yes" to a draft adds it; anything else goes to the agent, with the conversation so far.
 async function draft(kind, text, animate = false) {
-  if (state.loading || !state.session || (demoPlaying && !animate)) return;
+  if (kind !== "evidence" || state.loading || !state.session || panelBusy) return;
   const epoch = state.epoch;
-  const words = kind === "query" ? $("#q-words") : $("#e-words"), button = words.closest("form").querySelector("button");
-  words.value = ""; button.disabled = true;
+  $("#e-words").value = "";
+  $("#observation-error").textContent = "";
+  setPanelBusy(true);
   const session = state.session;
-  await say(kind, "user", text, undefined, animate);
-  if (epoch !== state.epoch || session !== state.session) return;
-  if (pending[kind] && YES.test(text)) {
-    await addPending(kind, animate);
-    if (epoch !== state.epoch) return;
-    pending[kind] = null; button.disabled = demoPlaying || !state.session;
-    return;
-  }
-  pending[kind] = null;
   try {
-    const d = DEMO[state.ex.assembly.id] ? demoReply(kind)
-      : await post("/api/session/draft", {assembly: state.ex.assembly.id, kind, text, history: talk[kind]});
+    await say(kind, "user", text, undefined, animate);
+    if (epoch !== state.epoch || session !== state.session) return;
+    if (pending[kind] && YES.test(text)) { await addPending(kind, animate); return; }
+    pending[kind] = null;
+    $("#observation-status").textContent = "Interpreting the observation…";
+    const d = await post("/api/session/draft", {assembly: state.ex.assembly.id, kind, text, history: talk[kind]});
     if (epoch !== state.epoch) return;
     talk[kind].push({role: "user", content: text});
     const reply = d.clarification ? d.clarification.question
       : d.draft ? `${formulation(kind, d.draft)}\n\n${CONFIRM}` : (d.note || "No draft was produced; try saying it another way.");
     talk[kind].push({role: "assistant", content: reply + (d.draft ? ` (draft: ${JSON.stringify(d.draft)})` : "")});
     if (d.draft) pending[kind] = d.draft;
+    $("#observation-status").textContent = d.draft ? "Review the draft, then add the observation."
+      : d.clarification ? "Please clarify the observation." : "";
     await say(kind, "agent", reply, d.clarification?.choices, animate);
-  } catch (err) { if (epoch === state.epoch) say(kind, "error", err.message); }
-  if (epoch !== state.epoch) return;
-  button.disabled = demoPlaying || !state.session;
-  saveConversation();
+  } catch (err) {
+    if (epoch === state.epoch) {
+      $("#observation-status").textContent = "";
+      $("#observation-error").textContent = err.message;
+      say(kind, "error", err.message);
+    }
+  }
+  finally { if (epoch === state.epoch) { setPanelBusy(false); saveConversation(); } }
 }
+
+// ---- panel input wiring -------------------------------------------------------------------------------
+for (const button of document.querySelectorAll("[data-observation-mode]"))
+  button.onclick = () => { rememberObservationFields(); setObservationMode(button.dataset.observationMode); };
+$("#observation-kind").onchange = () => {
+  Object.assign(observationUI, {kind: $("#observation-kind").value, variable: "", value: ""});
+  renderObservationFields(); updatePanelControls(); saveConversation();
+};
+$("#observation-variable").onchange = () => {
+  Object.assign(observationUI, {variable: $("#observation-variable").value, value: ""});
+  renderObservationFields(); updatePanelControls(); saveConversation();
+};
+for (const id of ["#observation-reading", "#observation-value", "#observation-source"])
+  $(id).oninput = () => { rememberObservationFields(); saveConversation(); };
+$("#observation-form").onsubmit = e => { e.preventDefault(); submitObservation(); };
+$("#e-confirm").onclick = () => draft("evidence", "yes");
+$("#e-words").oninput = () => saveConversation();
 
 for (const form of document.querySelectorAll("#map-side .say")) form.onsubmit = e => {
   e.preventDefault();
@@ -1564,43 +1722,59 @@ for (const t of document.querySelectorAll("#map-side .say textarea")) t.addEvent
 });
 
 async function agentStatus() {
-  if (DEMO[state.ex?.assembly.id]) return;          // the demo script stands in: preparePanels says so
   const epoch = state.epoch;
+  agentReady = false;
+  $("#agent-status").textContent = "Checking the observation agent…";
+  updatePanelControls();
   try {
     const s = await getJSON("/api/chat-status");
     if (epoch !== state.epoch) return;
-    $("#agent-status").textContent = s.available
-      ? `Drafting: ${s.provider} · ${s.model}`
-      : `No language model is ready (${s.reason})`;
+    agentReady = !!s.available;
+    $("#agent-status").textContent = agentReady
+      ? `Observation agent: ${s.provider} · ${s.model}`
+      : `Agent chat unavailable (${s.reason}). You can still add observations with the dropdowns.`;
   } catch (err) { if (epoch === state.epoch) $("#agent-status").textContent = err.message; }
+  finally { if (epoch === state.epoch) updatePanelControls(); }
 }
 
 // A BN node, clicked: its distribution given the session's evidence so far.
 function nodeChart(d) {
-  const W = 340;
+  const W = 340, previous = d.previous;
+  const key = `<div class="meta" style="margin-top:6px">` +
+    (previous ? `<span style="color:var(--idle)">━</span> Previous round (${esc(previous.at)}) · ` : "") +
+    `<span style="color:var(--accent)">━</span> Current round (${esc(d.at)})</div>`;
+  const note = previous ? "" : `<div class="meta">No previous round recorded yet.</div>`;
   if (d.kind === "discrete") {
-    const rowH = 20, H = d.states.length * rowH + 4, x0 = 90, bw = 170;
-    return `<svg viewBox="0 0 ${W} ${H}" aria-label="Probability of each state">` + d.states.map((s, i) => {
-      const y = i * rowH + 2, p = d.p[i];
-      return `<text x="${x0 - 6}" y="${y + 13}" text-anchor="end" font-size="12" style="fill:var(--ink-2)">${esc(s)}</text>` +
-        `<rect x="${x0}" y="${y + 3}" width="${Math.max(1, bw * p)}" height="12" rx="2" style="fill:var(--accent)"/>` +
-        `<text x="${x0 + bw + 6}" y="${y + 13}" font-size="12" style="fill:var(--ink)">${p.toFixed(3)} ± ${(2 * d.se[i]).toFixed(3)}</text>`;
-    }).join("") + `</svg>`;
+    const rowH = previous ? 34 : 22, H = d.states.length * rowH + 4, x0 = 90, bw = 150;
+    return key + `<svg viewBox="0 0 ${W} ${H}" aria-label="Current and previous probability of each state">` + d.states.map((s, i) => {
+      const y = i * rowH + 2;
+      const bar = (round, offset, colour) =>
+        `<rect x="${x0}" y="${y + offset + 2}" width="${bw * round.p[i]}" height="11" rx="2" style="fill:var(--${colour})"/>` +
+        `<text x="${x0 + bw + 6}" y="${y + offset + 12}" font-size="11" style="fill:var(--${colour === "idle" ? "ink-2" : colour})">${round.p[i].toFixed(3)} ± ${(2 * round.se[i]).toFixed(3)}</text>`;
+      return `<text x="${x0 - 6}" y="${y + (previous ? 21 : 13)}" text-anchor="end" font-size="12" style="fill:var(--ink-2)">${esc(s)}</text>` +
+        (previous ? bar(previous, 0, "idle") : "") + bar(d, previous ? 15 : 0, "accent");
+    }).join("") + `</svg>` + note;
   }
-  const H = 130, pad = 18, e = d.ln_edges, lo = e[0], hi = e.at(-1), top = Math.max(...d.density) || 1;
+  const H = 130, pad = 18, e = d.ln_edges, lo = e[0], hi = e.at(-1);
+  const top = Math.max(...d.density, ...(previous?.density || [])) || 1;
   const X = l => pad + (W - 2 * pad) * (l - lo) / (hi - lo), Y = v => H - 22 - (H - 34) * v / top;
-  let path = `M${X(lo)},${Y(0)}`;
-  d.density.forEach((v, i) => { path += ` L${X(e[i])},${Y(v)} L${X(e[i + 1])},${Y(v)}`; });
-  path += ` L${X(hi)},${Y(0)} Z`;
+  const curve = (round, colour) => {
+    let path = `M${X(lo)},${Y(0)}`;
+    round.density.forEach((v, i) => { path += ` L${X(e[i])},${Y(v)} L${X(e[i + 1])},${Y(v)}`; });
+    path += ` L${X(hi)},${Y(0)} Z`;
+    const m = X(Math.log(round.median_g));
+    return `<path d="${path}" style="fill:var(--${colour});fill-opacity:0.25;stroke:var(--${colour})"/>` +
+      `<line x1="${m}" x2="${m}" y1="${Y(0)}" y2="8" style="stroke:var(--${colour});stroke-dasharray:3 2"/>`;
+  };
   const ticks = [0.01, 0.02, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 1, 1.5, 2, 3, 5]
     .filter(g => Math.log(g) >= lo && Math.log(g) <= hi);
-  const m = Math.log(d.median_g);
-  return `<svg viewBox="0 0 ${W} ${H}" aria-label="Density of the logarithm">` +
-    `<path d="${path}" style="fill:var(--accent);fill-opacity:0.35;stroke:var(--accent)"/>` +
+  return key + `<svg viewBox="0 0 ${W} ${H}" aria-label="Current and previous density of the logarithm">` +
+    (previous ? curve(previous, "idle") : "") + curve(d, "accent") +
     `<line x1="${pad}" x2="${W - pad}" y1="${Y(0)}" y2="${Y(0)}" style="stroke:var(--axis)"/>` +
     ticks.map(g => `<text x="${X(Math.log(g))}" y="${H - 6}" text-anchor="middle" font-size="11" style="fill:var(--muted)">${g}</text>`).join("") +
-    `<line x1="${X(m)}" x2="${X(m)}" y1="${Y(0)}" y2="8" style="stroke:var(--ink);stroke-dasharray:3 2"/>` +
-    `<text x="${X(m) + 4}" y="14" font-size="11" style="fill:var(--ink)">median ${d.median_g.toFixed(3)} g</text></svg>`;
+    `</svg><div class="meta">Median: ` +
+    (previous ? `<span style="color:var(--ink-2)">${previous.median_g.toFixed(3)} g</span> → ` : "") +
+    `<span style="color:var(--accent)">${d.median_g.toFixed(3)} g</span></div>` + note;
 }
 
 async function showNodeDistribution(target) {
@@ -1609,7 +1783,7 @@ async function showNodeDistribution(target) {
   const g = target?.closest?.("[data-tip=bnnode]"), pop = $("#node-pop");
   if (!g) { pop.hidden = true; return; }
   const id = g.dataset.id, s = state.session, r = g.getBoundingClientRect();
-  pop.style.left = Math.min(r.right + 12, innerWidth - 400) + "px";
+  pop.style.left = Math.max(12, Math.min(r.right + 12, innerWidth - 400)) + "px";
   pop.style.top = Math.max(8, Math.min(r.top - 10, innerHeight - 240)) + "px";
   pop.hidden = false;
   if (!s) { pop.innerHTML = `<b>${esc(id)}</b><p>Start the session in the Roadmap tab to see this node's distribution given the evidence.</p>`; return; }
@@ -1619,6 +1793,7 @@ async function showNodeDistribution(target) {
     if (epoch !== state.epoch) return;
     pop.innerHTML = `<b>${esc(id)}</b>${d.observed ? " · observed" : ""}<div>as of discussion at ${esc(d.at)}</div>` +
       nodeChart(d) + (d.kind === "continuous" ? `<div class="meta">x: ${esc(d.unit)}, on a log scale</div>` : `<div class="meta">± 2 SE</div>`);
+    pop.style.top = Math.max(8, Math.min(r.top - 10, innerHeight - pop.getBoundingClientRect().height - 8)) + "px";
   } catch (err) { if (epoch === state.epoch) pop.innerHTML = `<b>${esc(id)}</b><p>${esc(err.message)}</p>`; }
 }
 document.addEventListener("click", e => {          // the BN viewport's own clicks come through showNodeDistribution
@@ -1638,6 +1813,7 @@ for (const b of document.querySelectorAll("nav button")) b.addEventListener("cli
 });
 $("#example").addEventListener("change", e => load(e.target.value));
 $("#run").addEventListener("click", () => run());
+$("#stop").addEventListener("click", () => stopInference());
 // A new session, and new memory: the current one is kept in records/sessions/archive/ by the server.
 $("#new-session").addEventListener("click", () => run());
 $("#theme").addEventListener("click", () => {
