@@ -69,16 +69,29 @@ nav button { flex: none; white-space: nowrap; border: none; border-bottom: 2px s
 nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 .pane { flex: 1; min-height: 0; overflow: auto; display: none; }
 .pane.on { display: block; }
-#pane-map.on { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: minmax(0, 1fr); }
+/* Column widths are --side-w and --results-w, set by dragging the dividers (and kept per browser). */
+#pane-map.on { display: grid; grid-template-columns: minmax(0, 1fr) 9px min(var(--results-w, 360px), max(260px, 100% - 9px - 640px));
+               grid-template-rows: minmax(0, 1fr); }
 #pane-map.on:has(#results[hidden]) { grid-template-columns: minmax(0, 1fr); }      /* no panel until a run */
-#map-wrap { min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+#pane-map:has(#results[hidden]) #split-results { display: none; }
+.divider { position: relative; cursor: col-resize; touch-action: none; outline: none; }
+.divider::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-50%);
+                   background: var(--border); transition: width 0.1s, background 0.1s; }
+.divider:hover::before, .divider:focus-visible::before, .divider.dragging::before { width: 3px; background: var(--accent); }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing iframe, body.resizing svg { pointer-events: none; }
+/* The map on the left; the decision task above the observations on its right. */
+#map-wrap { min-height: 0; overflow: hidden; padding: 12px; display: grid; gap: 12px 0;
+            grid-template-columns: minmax(0, 1fr) 17px min(var(--side-w, 340px), max(240px, 100% - 17px - 320px));
+            grid-template-rows: minmax(0, 1fr); }
+#map-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 #map { flex: 1 0 260px; min-height: 240px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: block; }
 #legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; font-size: 12px; color: var(--ink-2); padding: 0 4px; }
 #legend .scale { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 #legend .ramp { display: flex; height: 10px; width: 160px; border-radius: 2px; overflow: hidden; }
 #legend .ramp span { flex: 1; }
 #legend .key { display: flex; align-items: center; gap: 5px; }
-#results { border-left: 1px solid var(--border); background: var(--surface); padding: 12px 16px; overflow: auto; }
+#results { background: var(--surface); padding: 12px 16px; overflow: auto; }
 #results h3 { font-size: 13px; margin: 14px 0 6px; }
 #results h3:first-child { margin-top: 0; }
 .meta { color: var(--ink-2); font-size: 13px; }
@@ -148,7 +161,9 @@ svg text { fill: var(--ink-2); font-size: 11px; }
 #results ul.given { margin: 4px 0 12px; padding-left: 18px; font-size: 13px; }
 #results ul.given li { margin: 2px 0; }
 #results .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
-#map-side { flex: none; border-top: 1px solid var(--border); padding-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+#map-side { min-width: 0; min-height: 0; overflow: auto; padding-left: 7px;
+            display: flex; flex-direction: column; gap: 14px; }
+#map-side #panel-evidence { border-top: 1px solid var(--border); padding-top: 12px; }
 #map-side > .meta { grid-column: 1 / -1; margin: 0; }
 .side-panel { min-width: 0; font-size: 13px; }
 .side-panel h2 { font-size: 14px; margin: 0 0 6px; }
@@ -223,9 +238,50 @@ table.data { border-collapse: collapse; font-size: 12px; width: 100%; }
 table.data th, table.data td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
 table.data td.num, table.data th.num { text-align: right; }
 details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-top: 8px; }
+/* Real earthquakes: the ShakeMap in use, the Earthquakes panel, and notices of new events and revised maps. */
+#notice { flex: none; display: flex; flex-direction: column; }
+#notice:empty { display: none; }
+#notice .item { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 13px;
+  background: color-mix(in srgb, var(--cat-2) 12%, var(--surface)); border-bottom: 1px solid var(--border); }
+#notice .item b { color: var(--ink); }
+#notice .item span { flex: 1; min-width: 0; }
+#notice .item button { flex: none; padding: 3px 10px; }
+#quakes-btn .badge { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 9px;
+  background: var(--cat-2); color: #fff; font-size: 11px; font-weight: 600; text-align: center; }
+#quakes-btn .badge:empty { display: none; }
+#quakes { position: fixed; z-index: 30; top: 48px; right: 12px; width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - 64px);
+  overflow: auto; padding: 12px 14px; background: var(--raised); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.18); font-size: 13px; }
+#quakes h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 12px 0 6px; }
+#quakes h2:first-child { margin-top: 0; }
+#quakes .quake { display: grid; grid-template-columns: 52px 1fr; gap: 2px 8px; width: 100%; text-align: left; padding: 6px 8px; margin: 3px 0; }
+#quakes .quake .mag { grid-row: span 2; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+#quakes .quake .where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#quakes .quake .when { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+#quakes .quake.current { border-color: var(--accent); }
+.partial { color: var(--ink-2); font-style: italic; }
+#quakes .new { color: var(--cat-2); font-weight: 600; font-size: 11px; margin-left: 6px; }
+#quakes .row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+#quakes .row input { flex: 1; min-width: 0; background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+#quakes .list { max-height: 260px; overflow: auto; }
+#quake-line { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; color: var(--ink-2); }
+#quake-line:empty { display: none; }
+#quake-line b { color: var(--ink); }
+#quake-line button { padding: 3px 10px; }
+@container (max-width: 1100px) {
+  /* Too narrow for three columns: the two panels go under the map again, side by side. */
+  #map-wrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; overflow: auto; gap: 12px; }
+  #split-side { display: none; }
+  #map { flex: none; height: clamp(240px, 55dvh, 560px); }
+  #map-side { overflow: visible; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px;
+              display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  #map-side #panel-evidence { border-top: none; padding-top: 0; }
+  #map-main, #map-side { min-height: auto; }          /* stacked: each as tall as its content */
+}
 @container (max-width: 900px) {
   #pane-map.on { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
-  #map-wrap { overflow: visible; }
+  #split-results { display: none; }
+  #map-wrap { overflow: visible; min-height: auto; }
   #map { flex: none; height: clamp(200px, 42dvh, 420px); }
   #results { border-left: none; border-top: 1px solid var(--border); overflow: visible; }
 }
@@ -251,9 +307,12 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
   <button class="primary" id="run">Run</button>
   <span class="sub" id="status"></span>
   <button id="new-session" title="Start a new session with new memory; the current one is kept in records/sessions/archive/">New session</button>
+  <button id="quakes-btn" aria-expanded="false" aria-controls="quakes" title="Recent earthquakes with a USGS ShakeMap near the networks, and past ones near this network">Earthquakes<span class="badge" id="quakes-badge"></span></button>
   <button id="theme" title="Toggle light and dark">Theme</button>
   <button id="stop" disabled title="Stop running Bayesian-network computations and keep the last completed results">Stop</button>
 </header>
+<div id="notice" role="status" aria-live="polite"></div>
+<div id="quakes" role="dialog" aria-label="Earthquakes" hidden></div>
 <main>
   <section class="work">
     <nav>
@@ -267,8 +326,13 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
     </nav>
     <div class="pane on" id="pane-map">
       <div id="map-wrap">
-        <svg id="map" role="img" aria-label="Network map"></svg>
-        <div id="legend"></div>
+        <div id="map-main">
+          <div id="quake-line"></div>
+          <svg id="map" role="img" aria-label="Network map"></svg>
+          <div id="legend"></div>
+        </div>
+        <div class="divider" id="split-side" role="separator" aria-orientation="vertical" tabindex="0"
+             aria-label="Resize the map and the decision task panels" title="Drag to resize; double-click to reset"></div>
         <section id="map-side" aria-label="Decision task and observations">
           <div class="side-panel" id="panel-query">
             <h2>Decision task</h2>
@@ -310,6 +374,8 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; margin-
           </div>
         </section>
       </div>
+      <div class="divider" id="split-results" role="separator" aria-orientation="vertical" tabindex="0"
+           aria-label="Resize the results panel" title="Drag to resize; double-click to reset"></div>
       <div id="results" hidden></div>
     </div>
     <div class="pane" id="pane-bn">
@@ -401,6 +467,8 @@ async function load(id) {
   setStatus("Loading…");
   state.ex = state.session = state.result = null;
   state.preset = {};
+  state.pick = null;
+  renderQuakeLine();
   try {
     const example = await getJSON(`/api/example?assembly=${encodeURIComponent(id)}`);
     if (epoch !== state.epoch) return;
@@ -494,6 +562,12 @@ function interventions() {
 }
 
 function eventRow() {
+  // With a ShakeMap, the epicentre is the map's own event: the one picked for the next run, else the session's.
+  if (isShakemap()) {
+    const q = state.pick || state.session?.shakemap;
+    return q && q.lat != null ? { id: q.event_id, mw: q.magnitude, lat: q.lat, lon: q.lon, depth_km: q.depth_km ?? "?",
+                                  description: q.description || q.place || "" } : null;
+  }
   // The Event row as the controls now set it, so the map's epicentre follows the inputs.
   const ev = { ...(state.ex.network.tables.Event || [])[0] };
   Object.assign(ev, state.preset.rows?.[ev.id] || {});
@@ -1157,7 +1231,14 @@ function currentScenario() {
       ? deepMerge(out[k] || {}, v) : v;
     return out;
   };
-  return deepMerge(state.preset, interventions());
+  // A picked earthquake replaces the session's: its version is left open (null) unless one was asked for. With no
+  // pick, Run stays on the session's earthquake and the version it ran (the revised-map notice offers a newer one),
+  // not the example's default event.
+  const m = state.session?.shakemap;
+  const q = state.pick ? { event_id: state.pick.event_id, version: state.pick.version ?? null }
+          : m ? { event_id: m.event_id, version: m.version } : null;
+  const pick = q && isShakemap() ? { parameters: { [SHAKEMAP]: q } } : {};
+  return deepMerge(deepMerge(state.preset, interventions()), pick);
 }
 
 function applyScenarioControls() {
@@ -1254,7 +1335,8 @@ function renderRoadmap() {
 function showSession(s) {
   state.session = s;
   state.result = s ? s.result : null;
-  renderRoadmap(); preparePanels(); renderMap(); renderResults();
+  renderRoadmap(); preparePanels(); renderMap(); renderResults(); renderQuakeLine();
+  checkShakemapVersion();
 }
 
 const inferenceRequests = new Map();
@@ -1313,14 +1395,30 @@ async function run() {
   const samples = Math.round(Number($("#samples").value) || 200000);
   setPanelBusy(true);
   try {
+    const fetching = state.pick || (isShakemap() && !state.session) ? "Fetching the ShakeMap and sampling" : "Sampling";
     if (await sessionCall("/api/session", {scenario: currentScenario(), samples},
-                          `Sampling ${samples.toLocaleString()}…`)) {
+                          `${fetching} ${samples.toLocaleString()}…`)) {
       resetConversation();
       preparePanels();
       saveConversation();
     }
-  } catch {} finally { if (epoch === state.epoch) setPanelBusy(false); }
+  } catch (err) {
+    // A picked earthquake that cannot run leaves the previous session on screen: say so, or the page seems to
+    // have ignored the pick.
+    const m = state.session?.shakemap;
+    if (epoch === state.epoch && state.pick && !err.cancelled)
+      setStatus(`Could not run ShakeMap ${state.pick.event_id}: ${err.message}.` +
+                (m ? ` Still showing ${m.event_id} v${m.version}.` : ""), true);
+  } finally {
+    if (epoch === state.epoch) {
+      // Run or not, the line and the map go back to the session on screen; a failure is in the status line.
+      state.pick = null;
+      renderQuakeLine(); renderMap();
+      setPanelBusy(false);
+    }
+  }
 }
+
 
 // ---- decision task and observation entry ---------------------------------------------------------------
 const pending = { query: null, evidence: null };
@@ -1812,7 +1910,258 @@ document.addEventListener("change", e => {
   store.set("basemap", state.basemap ? "on" : "off");
   renderMap();
 });
+// ---- real earthquakes: USGS ShakeMaps -----------------------------------------------------------------------
+// A ShakeMap assembly (examples/<network>/shakemap.assembly.json) takes its ground motion from a real event's map.
+// The Earthquakes panel lists every USGS ShakeMap since 1900, M4 or more, whose map reaches this network's
+// bridges (a hundred or so at most, so all of them; one that reaches none cannot be run), and above that the last 30 days near every network, asked of USGS every 2 minutes;
+// one that appears after the page opened is NEW. Picking one runs it. While a ShakeMap session is
+// on screen, the page also asks whether USGS has revised that map, and offers the new version.
+
+const SHAKEMAP = "hazard.shakemap", QUAKE_POLL_MS = 120000;
+const quakes = { recent: null, error: "", seen: null, fresh: new Set(), unread: 0, history: null, historyFor: null,
+                 historyError: "", revised: null, dismissed: new Set() };
+const isShakemap = () => !!state.ex?.menu.settable.parameters.some(p => p.function === SHAKEMAP);
+const quakeWhen = t => t ? String(t).replace("T", " ").slice(0, 16) + " UTC" : "time unknown";
+const mag = m => m == null ? "M?" : `M${Number(m).toFixed(1)}`;
+
+function shakemapSetting(name) {
+  const p = state.ex?.menu.settable.parameters.find(x => x.function === SHAKEMAP && x.name === name);
+  return currentScenario().parameters?.[SHAKEMAP]?.[name] ?? p?.value;
+}
+
+function renderQuakeLine() {
+  const el = $("#quake-line");
+  if (!state.ex || !isShakemap()) { el.innerHTML = ""; return; }
+  const m = state.session?.shakemap, pick = state.pick;
+  let h;
+  if (pick) h = `<span>Running USGS ShakeMap <b>${esc(pick.event_id)}</b>${pick.version ? ` v${esc(pick.version)}` : ""}: ` +
+                `${esc(mag(pick.magnitude))} ${esc(pick.place || pick.description || "")}</span>`;
+  else if (m) h = `<span>USGS ShakeMap <b>${esc(m.event_id)}</b> v${esc(m.version)}: <b>${esc(mag(m.magnitude))}</b> ` +
+                  `${esc(m.description || "")}, ${esc(quakeWhen(m.time))} · ${m.seismic_stations ? `${m.seismic_stations} seismic stations`
+                  : "no seismic stations (a ground-motion-model estimate)"} · ${esc(m.map_status || "")}, via ${esc(m.source || "?")}` +
+                  `${m.covered != null && m.covered < m.sites ? ` · <span class="partial">map reaches ${m.covered} of ${m.sites} bridges; ` +
+                    `the rest are given its edge value, an upper bound</span>` : ""}</span>`;
+  else h = `<span>USGS ShakeMap <b>${esc(shakemapSetting("event_id"))}</b>: press Run to fetch it and sample, or choose another earthquake.</span>`;
+  el.innerHTML = h + `<button type="button" data-open-quakes>Choose earthquake</button>`;
+}
+
+// The ShakeMap assembly to run an event with: this one if it can, else this network's, else the first.
+function assemblyFor(ids) {
+  const here = state.ex?.assembly.id, network = state.ex?.assembly.network;
+  return ids.includes(here) ? here : ids.find(id => id.split("/")[0] === network) || ids[0];
+}
+
+async function openEvent(e, assemblies) {
+  if (state.loading || panelBusy) { setStatus("Wait for the current computation to finish, or Stop it.", true); return; }
+  closeQuakes();
+  const id = assemblyFor(assemblies);
+  if (!id) return;
+  if (id !== state.ex?.assembly.id) {
+    $("#example").value = id;
+    await load(id);
+    if (state.ex?.assembly.id !== id) return;
+  }
+  state.pick = { event_id: e.event_id, version: e.version ?? null, magnitude: e.magnitude, lat: e.lat, lon: e.lon,
+                 depth_km: e.depth_km, place: e.place, description: e.description, time: e.time };
+  quakes.fresh.delete(e.event_id);
+  renderQuakeLine(); renderMap(); renderNotices();
+  await run();
+}
+
+function quakeButton(e, assemblies, current) {
+  const fresh = quakes.fresh.has(e.event_id);
+  return `<button type="button" class="quake${current ? " current" : ""}" data-event="${esc(e.event_id)}" data-assemblies="${esc(assemblies.join(" "))}">` +
+    `<span class="mag">${esc(mag(e.magnitude))}</span><span class="where" title="${esc(e.place || "")}">${esc(e.place || e.event_id)}` +
+    `${fresh ? `<span class="new">NEW</span>` : ""}</span><span class="when">${esc(quakeWhen(e.time))} · ${esc(e.event_id)}` +
+    `${e.covered != null && e.covered < e.sites ? ` · <span class="partial" title="The other bridges are given the map's edge value, an upper bound">` +
+      `map reaches ${e.covered} of ${e.sites} bridges</span>` : ""}` +
+    `${e.networks ? ` · ${esc(e.networks.join(", "))}` : ""}</span></button>`;
+}
+
+function shakemapAssemblyHere() {
+  const network = state.ex?.assembly.network;
+  return state.examples.find(x => x.shakemap && x.network === network)?.id;
+}
+
+function renderQuakes() {
+  const el = $("#quakes"), current = state.session?.shakemap?.event_id;
+  const byId = new Map();
+  let h = `<h2>Last 30 days near the networks</h2>`;
+  if (quakes.recent == null) h += `<p class="meta">${quakes.error ? `Could not ask USGS: ${esc(quakes.error)}` : "Asking USGS…"}</p>`;
+  else if (!quakes.recent.length) h += `<p class="meta">None of M4 or more whose map reaches a network. USGS is asked again every 2 minutes.</p>`;
+  else h += `<div class="list">${quakes.recent.map(e => { byId.set(e.event_id, e); return quakeButton(e, e.assemblies, e.event_id === current); }).join("")}</div>`;
+  const here = shakemapAssemblyHere();
+  if (here) {
+    const network = state.ex.assembly.network;
+    const list = quakes.historyFor === network ? quakes.history : null;
+    h += `<h2>ShakeMaps reaching ${esc(network)} since 1900, M4 or more${list ? ` (${list.length})` : ""}</h2>`;
+    h += `<div class="row"><input id="quake-id" placeholder="a USGS event id, e.g. ${esc(shakemapSetting("event_id") || "nc216859")}" aria-label="USGS event id">` +
+         `<button type="button" id="quake-id-run">Run</button></div>`;
+    const outside = list && quakes.historyOutside ? `<p class="meta">${quakes.historyOutside} more near ${esc(network)} are left out: ` +
+      `their maps reach none of its bridges.</p>` : "";
+    const partial = list?.some(e => e.covered != null && e.covered < e.sites) ? `<p class="meta">Where a map reaches only some bridges, ` +
+      `the others are given its edge value: USGS maps reach to where shaking has faded to light, so that is an upper bound.</p>` : "";
+    if (list) h += (list.length ? `<div class="list">${list.map(e => quakeButton(e, [here], e.event_id === current)).join("")}</div>`
+                                : `<p class="meta">No ShakeMap of M4 or more reaches this network's bridges.</p>`) + partial + outside;
+    else if (quakes.historyFor === network && quakes.historyError)
+      h += `<p class="meta">Could not ask USGS: ${esc(quakes.historyError)}</p><button type="button" id="quake-history">Try again</button>`;
+    else h += `<p class="meta">Asking USGS, and checking which bridges each map reaches…</p>`;
+  } else {
+    h += `<p class="meta">${esc(state.ex?.assembly.network || "This network")} has no ShakeMap assembly, so past events cannot be run here.</p>`;
+  }
+  const typed = $("#quake-id")?.value || "";
+  el.innerHTML = h;
+  if (typed && $("#quake-id")) $("#quake-id").value = typed;
+  quakes.lookup = new Map([...byId, ...(quakes.history || []).map(e => [e.event_id, e])]);
+}
+
+// The network's whole ShakeMap catalogue, asked once per network while the page is open.
+async function loadHistory() {
+  const network = state.ex?.assembly.network;
+  if (!shakemapAssemblyHere() || quakes.loadingFor === network || (quakes.historyFor === network && quakes.history)) return;
+  quakes.loadingFor = network;
+  let reply = null, error = "";
+  try { reply = await getJSON(`/api/shakemap-events?network=${encodeURIComponent(network)}`); }
+  catch (err) { error = err.message; }
+  quakes.loadingFor = null;
+  quakes.history = reply?.events ?? null; quakes.historyOutside = reply?.outside || 0;
+  quakes.historyError = error; quakes.historyFor = network;
+  if (!$("#quakes").hidden) renderQuakes();
+}
+
+function openQuakes() {
+  quakes.unread = 0;
+  renderBadge();
+  renderQuakes();
+  loadHistory();
+  $("#quakes").hidden = false;
+  $("#quakes-btn").setAttribute("aria-expanded", "true");
+}
+function closeQuakes() { $("#quakes").hidden = true; $("#quakes-btn").setAttribute("aria-expanded", "false"); }
+
+function renderBadge() {
+  $("#quakes-badge").textContent = quakes.unread ? String(quakes.unread) : "";
+  document.title = quakes.unread ? `(${quakes.unread}) quakenet` : "quakenet";
+}
+
+function renderNotices() {
+  let h = "";
+  for (const id of quakes.fresh) {
+    const e = quakes.recent?.find(x => x.event_id === id);
+    if (!e || quakes.dismissed.has(id)) continue;
+    h += `<div class="item"><span>New earthquake: <b>${esc(mag(e.magnitude))}</b> ${esc(e.place || id)}, ${esc(quakeWhen(e.time))}, ` +
+         `near ${esc(e.networks.join(", "))}.</span><button type="button" data-event="${esc(id)}" data-assemblies="${esc(e.assemblies.join(" "))}">Run it</button>` +
+         `<button type="button" data-dismiss="${esc(id)}">Dismiss</button></div>`;
+  }
+  const r = quakes.revised, m = state.session?.shakemap;
+  if (r && m && r.event_id === m.event_id && r.version > m.version && !quakes.dismissed.has(`${r.event_id}@${r.version}`))
+    h += `<div class="item"><span>USGS has revised ShakeMap <b>${esc(r.event_id)}</b>: version ${esc(r.version)} is out; ` +
+         `this session used version ${esc(m.version)}.</span><button type="button" data-rerun="${esc(r.version)}">Re-run with version ${esc(r.version)}</button>` +
+         `<button type="button" data-dismiss="${esc(`${r.event_id}@${r.version}`)}">Dismiss</button></div>`;
+  $("#notice").innerHTML = h;
+}
+
+async function pollRecent() {
+  try {
+    const events = (await getJSON("/api/recent-earthquakes")).events;
+    if (quakes.seen) for (const e of events) if (!quakes.seen.has(e.event_id)) { quakes.fresh.add(e.event_id); quakes.unread++; }
+    quakes.seen = new Set([...(quakes.seen || []), ...events.map(e => e.event_id)]);
+    quakes.recent = events;
+    quakes.error = "";
+  } catch (err) { quakes.error = err.message; }
+  renderBadge(); renderNotices();
+  if (!$("#quakes").hidden) renderQuakes();
+}
+
+async function checkShakemapVersion() {
+  const m = state.session?.shakemap;
+  if (!m) { quakes.revised = null; renderNotices(); return; }
+  try {
+    const now = await getJSON(`/api/shakemap-version/${encodeURIComponent(m.event_id)}`);
+    if (state.session?.shakemap?.event_id === now.event_id) quakes.revised = now;
+  } catch {}                                     // offline, or USGS busy: ask again on the next tick
+  renderNotices();
+}
+
+$("#quakes-btn").addEventListener("click", () => $("#quakes").hidden ? openQuakes() : closeQuakes());
+document.addEventListener("click", async e => {
+  if (e.target.closest("[data-open-quakes]")) return openQuakes();
+  const pick = e.target.closest("[data-event]");
+  if (pick) {
+    const ev = quakes.lookup?.get(pick.dataset.event) || quakes.recent?.find(x => x.event_id === pick.dataset.event);
+    if (ev) return openEvent(ev, pick.dataset.assemblies.split(" ").filter(Boolean));
+  }
+  const dismiss = e.target.closest("[data-dismiss]");
+  if (dismiss) { quakes.dismissed.add(dismiss.dataset.dismiss); quakes.fresh.delete(dismiss.dataset.dismiss); return renderNotices(); }
+  const rerun = e.target.closest("[data-rerun]");
+  if (rerun && state.session?.shakemap) return openEvent({...state.session.shakemap, version: Number(rerun.dataset.rerun)}, [state.ex.assembly.id]);
+  if (e.target.id === "quake-history") {
+    quakes.historyFor = null; quakes.historyError = "";
+    renderQuakes();
+    return loadHistory();
+  }
+  if (e.target.id === "quake-id-run") {
+    const id = $("#quake-id").value.trim();
+    if (id) return openEvent({event_id: id}, [shakemapAssemblyHere()]);
+  }
+  if (!$("#quakes").hidden && !e.target.closest("#quakes, #quakes-btn")) closeQuakes();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("#quakes").hidden) closeQuakes();
+  if (e.key === "Enter" && e.target.id === "quake-id") $("#quake-id-run").click();
+});
+
+// ---- the Map tab's dividers ------------------------------------------------------------------------------
+// Each sets the width of the column to its right (--side-w, --results-w on #pane-map), by drag or arrow keys,
+// within limits that keep the map at least MAP_MIN wide; double-click resets it. Widths are kept per browser.
+const MAP_MIN = 320;
+function divider(handle, name, fallback, min, room) {
+  const pane = $("#pane-map"), prop = `--${name}`;
+  const set = (w, keep) => {
+    const width = Math.round(Math.max(min, Math.min(w, room())));
+    pane.style.setProperty(prop, `${width}px`);
+    handle.setAttribute("aria-valuenow", String(width));
+    if (keep) store.set(`split.${name}`, String(width));
+  };
+  const current = () => parseFloat(getComputedStyle(pane).getPropertyValue(prop)) || fallback;
+  const saved = Number(store.get(`split.${name}`));
+  if (saved) pane.style.setProperty(prop, `${saved}px`);
+  handle.setAttribute("aria-valuemin", String(min));
+  handle.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, w0 = current();
+    handle.classList.add("dragging"); document.body.classList.add("resizing");
+    const move = ev => set(w0 + x0 - ev.clientX, false);
+    const up = ev => {
+      set(w0 + x0 - ev.clientX, true);
+      handle.classList.remove("dragging"); document.body.classList.remove("resizing");
+      handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+    };
+    handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+  handle.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 64 : 16;
+    if (e.key === "ArrowLeft") set(current() + step, true);
+    else if (e.key === "ArrowRight") set(current() - step, true);
+    else return;
+    e.preventDefault();
+  });
+  handle.addEventListener("dblclick", () => { pane.style.removeProperty(prop); store.set(`split.${name}`, ""); });
+}
+divider($("#split-side"), "side-w", 340, 240, () => $("#map-wrap").clientWidth - 24 - 17 - MAP_MIN);
+divider($("#split-results"), "results-w", 360, 260, () => {
+  // What the map area needs: the map, its padding, and the side panels when they sit beside it.
+  const beside = getComputedStyle($("#split-side")).display !== "none";
+  return $("#pane-map").clientWidth - 9 - (MAP_MIN + 24 + (beside ? 17 + $("#map-side").offsetWidth : 0));
+});
+
 init().catch(err => setStatus(err.message, true));
+pollRecent();
+setInterval(() => { pollRecent(); checkShakemapVersion(); }, QUAKE_POLL_MS);
 </script>
 </body>
 </html>

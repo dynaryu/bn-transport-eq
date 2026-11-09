@@ -25,6 +25,7 @@ erDiagram
         GMResidual epsilon FK "input from Bridge via self"
         fixed lat "Bridge.lat"
         fixed lon "Bridge.lon"
+        table Bridge "whole table, fixed"
         theta parameters "inline, in each assembly that binds it"
         hazard role "deterministic, Marginal"
     }

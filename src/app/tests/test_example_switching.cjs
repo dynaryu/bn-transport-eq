@@ -95,6 +95,7 @@ function harness(sessions = {[toy]: session(toy), [ema]: session(ema)}, storage 
     },
     post: async (url, body) => { calls.push({url, body: clone(body)}); throw Error("Unexpected calculation request"); },
     renderRoadmap: () => { nodes["#road"].textContent = ctx.state.session?.result.marker || ""; },
+    renderQuakeLine() {}, checkShakemapVersion() {}, isShakemap: () => false,
   };
   for (const name of ["Controls", "Map", "Results", "BN", "Cliques", "Schema", "Assumptions"])
     ctx[`render${name}`] = () => { painted[name] = ctx.state.ex.assembly.id; };

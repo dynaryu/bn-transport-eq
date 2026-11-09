@@ -365,9 +365,12 @@ def _correlation_arguments(rows, params, tables, parent_rows, states):
 
 
 def _shakemap_arguments(rows, params, tables, parent_rows, states):
-    """ShakeMap: which map, from its parameter set; the site its own."""
+    """ShakeMap: which map, from its parameter set, with every bridge on it (to refuse a map that reaches
+    none); the site its own."""
     (row,), (p,) = rows, params
-    return ({"event_id": p["event_id"], "imt": p["imt"], "source": p.get("source"), "version": p.get("version")},
+    sites = [[r["lat"], r["lon"]] for r in tables.get("Bridge", []) if r.get("lat") is not None]
+    return ({"event_id": p["event_id"], "imt": p["imt"], "source": p.get("source"), "version": p.get("version"),
+             "sites": sites or None},
             {"lat": row["lat"], "lon": row["lon"]})
 
 

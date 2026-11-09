@@ -174,9 +174,15 @@ class ShakeMap(Probability):
     ln_median is the map's median at the site (grid.xml, e.g. PSA10) and sigma its uncertainty
     (uncertainty.xml, e.g. STDPSA10). The residual eps is drawn for every site jointly by a
     SpatialCorrelationField.
+
+    A site off the map is given the map's value at the nearest point of its edge, sigma included. USGS sizes
+    a map to reach where the shaking it predicts has faded to light (about MMI IV), and shaking keeps falling
+    with distance, so that is an upper bound on the site's shaking, not zero and not a guess at it. A map that
+    reaches none of the sites (``sites``, every site of the binding) is refused: it is some other region's.
     """
 
-    def __init__(self, childs, parents, event_id, imt, lat, lon, source=None, version=None, device="cpu"):
+    def __init__(self, childs, parents, event_id, imt, lat, lon, source=None, version=None, sites=None,
+                 device="cpu"):
         """
         childs   : [Variable IM], in g
         parents  : [Variable eps], the site's standardised residual
@@ -185,6 +191,7 @@ class ShakeMap(Probability):
         lat, lon : the site, in degrees
         source   : where to fetch the map ("shakecast" or "comcat"); None for shakemap.load's default
         version  : the map version; None for the current one
+        sites    : [[lat, lon], ...] of every site on this map, to refuse a map that reaches none of them
         """
         from .. import shakemap   # imported late: only this kernel fetches data
 
@@ -195,9 +202,17 @@ class ShakeMap(Probability):
         # every few minutes, so a long-running server picks up a revised map.
         grid = shakemap.load(event_id, source, version, imt)
         ln_median, sigma, inside = grid.sample([lat], [lon])
+        self.outside_km = 0.0
         if not inside[0]:
-            raise ValueError(f"{childs[0].name}'s site lies outside ShakeMap {grid.event_id} v{grid.version}; "
-                             f"outside the map means not estimated, not zero")
+            if sites is not None and not grid.sample([s[0] for s in sites], [s[1] for s in sites])[2].any():
+                raise ValueError(f"ShakeMap {grid.event_id} v{grid.version} reaches none of the {len(sites)} sites; "
+                                 f"it maps another region's shaking")
+            edge_lat, edge_lon = grid.nearest_on_map([lat], [lon])
+            ln_median, sigma, _ = grid.sample(edge_lat, edge_lon)
+            self.outside_km = float(great_circle_km(lat, lon, float(edge_lat[0]), float(edge_lon[0])))
+            self.notes.add(f"{childs[0].name}'s site lies {self.outside_km:.0f} km off ShakeMap {grid.event_id} "
+                           f"v{grid.version}: it is given the map's value at the nearest edge, an upper bound, since "
+                           f"USGS maps reach to where shaking has faded to light and it falls further with distance.")
         self.ln_median = float(ln_median[0])
         self.sigma = float(sigma[0])
         self.source = f"ShakeMap {grid.event_id} v{grid.version}, {imt}"

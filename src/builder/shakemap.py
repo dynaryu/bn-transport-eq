@@ -132,6 +132,11 @@ class ShakeMapGrid:
                  if self.std_im is not None else np.where(inside, 0.0, np.nan))
         return ln_sa, sigma, inside
 
+    def nearest_on_map(self, lats: Sequence[float], lons: Sequence[float]) -> tuple[np.ndarray, np.ndarray]:
+        """Each site moved to the nearest point of the map's rectangle (unchanged if it lies on it)."""
+        lon_min, lat_min, lon_max, lat_max = self.extent
+        return np.clip(np.asarray(lats, float), lat_min, lat_max), np.clip(np.asarray(lons, float), lon_min, lon_max)
+
 
 def _parse_grid_xml(path: Path, wanted: str) -> tuple[dict[str, Any], dict[str, float], np.ndarray, str]:
     """Header attributes, grid spec, the ``wanted`` field as (nlat, nlon), and its units.
@@ -352,7 +357,7 @@ class ComcatSource:
                 "event_id": feature["id"], "magnitude": props.get("mag"),
                 "time": datetime.fromtimestamp(props["time"] / 1000, timezone.utc).isoformat(timespec="seconds"),
                 "place": props.get("place"), "lat": lat, "lon": lon, "depth_km": depth,
-                "mmi": props.get("mmi"), "source": "comcat",
+                "mmi": props.get("mmi"), "updated": props.get("updated"), "source": "comcat",
             })
         return events
 
@@ -386,6 +391,41 @@ class ComcatSource:
         if version is not None and int(version) != current:
             product = self._superseded(event_id, product, int(version))
         return self._save(event_id, product)
+
+    def extent(self, event_id: str, updated: Any = None) -> dict[str, Any]:
+        """The preferred ShakeMap's {lat_min, lat_max, lon_min, lon_max, version}, as the catalogue lists it.
+
+        Kept on disk next to the grids, and asked again only when ``updated`` (the
+        catalogue's last change to the event, from ``search``) differs, so a revised
+        map is re-read and a list of a hundred events is not a hundred requests.
+        """
+        path = self.cache_dir / event_id / "extent.json"
+        if updated is not None:
+            try:
+                kept = json.loads(path.read_text(encoding="utf-8"))
+                if kept.get("updated") == updated:
+                    return kept
+            except (OSError, ValueError):
+                pass
+        detail = self._get_json({"eventid": event_id, "format": "geojson"})
+        products = detail.get("properties", {}).get("products", {}).get("shakemap") or []
+        if not products:
+            raise ShakeMapError(f"USGS has no ShakeMap for event {event_id!r}")
+        props = products[0].get("properties", {})
+        try:
+            out = {name: float(props[key]) for name, key in (
+                ("lat_min", "minimum-latitude"), ("lat_max", "maximum-latitude"),
+                ("lon_min", "minimum-longitude"), ("lon_max", "maximum-longitude"))}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ShakeMapError(f"the catalogue lists no extent for the ShakeMap of {event_id!r}") from exc
+        out.update(version=_product_version(products[0]),
+                   updated=updated if updated is not None else detail.get("properties", {}).get("updated"))
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(out) + "\n", encoding="utf-8")
+        except OSError:
+            pass                          # a read-only cache only costs a request next time
+        return out
 
     def current_version(self, event_id: str) -> int:
         """The version of the event's preferred ShakeMap, asked of the catalogue now."""
@@ -554,6 +594,47 @@ def bbox(rows: Iterable[dict[str, Any]], margin_deg: float = 1.0) -> tuple[float
         raise ShakeMapError("no rows with lat/lon to search around")
     lats, lons = zip(*points)
     return (min(lons) - margin_deg, min(lats) - margin_deg, max(lons) + margin_deg, max(lats) + margin_deg)
+
+
+def covered(extent: dict[str, Any], sites: Iterable[dict[str, Any]]) -> int:
+    """How many of the sites (rows with lat/lon) lie on the map."""
+    return sum(extent["lat_min"] <= float(r["lat"]) <= extent["lat_max"]
+               and extent["lon_min"] <= float(r["lon"]) <= extent["lon_max"]
+               for r in sites if r.get("lat") is not None)
+
+
+def covering(events: list[dict[str, Any]], sites: Iterable[dict[str, Any]], *,
+             cache_dir: Path | str = DEFAULT_CACHE, workers: int = 8) -> tuple[list[dict[str, Any]], int]:
+    """(the events whose ShakeMap reaches at least one site, how many were left out).
+
+    An epicentre near the network says nothing about how far its map reaches. A map
+    that reaches none of the sites cannot be run; one that reaches some can, its
+    edge bounding the shaking at the rest (``kernels.hazard.ShakeMap``). Each kept
+    event says how many sites its map reaches (``covered``, of ``sites``). The
+    catalogue's extent of each map decides, asked in parallel and cached
+    (``ComcatSource.extent``). An event whose extent cannot be had (a ShakeCast-only
+    event, or the catalogue unreachable) is kept with ``covered`` None: running it
+    is the check of last resort, and says why if it fails.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    sites = [r for r in sites if r.get("lat") is not None]
+    comcat = ComcatSource(cache_dir)
+
+    def count(event: dict[str, Any]) -> int | None:
+        if event.get("source") != "comcat":
+            return None
+        try:
+            return covered(comcat.extent(event["event_id"], event.get("updated")), sites)
+        except ShakeMapError:
+            return None
+
+    if not events or not sites:
+        return list(events), 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        counts = list(pool.map(count, events))
+    kept = [{**e, "covered": n, "sites": len(sites)} for e, n in zip(events, counts) if n != 0]
+    return kept, len(events) - len(kept)
 
 
 def search_events(rows: Iterable[dict[str, Any]], source: str | None = None, *,

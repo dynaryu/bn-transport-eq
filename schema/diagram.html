@@ -978,7 +978,9 @@ function diagramNavigation(viewport, { get, set, fit, ignoreDrag = () => false, 
       "lat",
       "lon"
      ],
-     "tables": [],
+     "tables": [
+      "Bridge"
+     ],
      "has_parameters": true,
      "implementation": "src.builder.kernels.hazard:ShakeMap",
      "deterministic": true,
@@ -987,7 +989,7 @@ function diagramNavigation(viewport, { get, set, fit, ignoreDrag = () => false, 
       "SampleForward",
       "EvaluateLikelihood"
      ],
-     "description": "ln IM = ln median + sigma * epsilon, with the median from grid.xml (e.g. PSA10 for SA(1.0)) and sigma from uncertainty.xml (STDPSA10), both interpolated bilinearly on the log scale at the site. Deterministic given epsilon: the randomness, and the dependence between sites, live in the residual field. A bridge outside the map is an error, not zero shaking; a map without uncertainty.xml gives sigma = 0 and says so.",
+     "description": "ln IM = ln median + sigma * epsilon, with the median from grid.xml (e.g. PSA10 for SA(1.0)) and sigma from uncertainty.xml (STDPSA10), both interpolated bilinearly on the log scale at the site. Deterministic given epsilon: the randomness, and the dependence between sites, live in the residual field. A bridge off the map gets the map's value at its nearest edge, an upper bound (USGS maps reach to where shaking has faded to light), not zero; a map that reaches no bridge is refused; a map without uncertainty.xml gives sigma = 0 and says so.",
      "parameter_sets": [],
      "n_parameter_sets": 0
     },
