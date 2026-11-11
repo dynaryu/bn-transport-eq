@@ -12,6 +12,7 @@
     export    the page's drawings as one file that opens without the server   (6)
     diagram   rewrite schema/diagram.md and .html, the schema drawn            (1)
     vs30      fill missing bridge Vs30 from the USGS map                      (2)
+    shakemap  real earthquakes: find, fetch and watch for USGS ShakeMaps      (2, 4)
 """
 
 from __future__ import annotations
@@ -267,6 +268,69 @@ def cmd_vs30(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_shakemap(args: argparse.Namespace) -> int:
+    from src.builder import shakemap
+
+    if args.action == "search":
+        from src.builder.load import load_network
+        from src.inference import engine
+
+        network = load_network(args.network, engine.library())
+        events = shakemap.search_events(network.rows("Node"), args.source, start=args.start, end=args.end,
+                                        min_magnitude=args.min_magnitude)
+        for e in events:
+            print(f"{(e.get('time') or '')[:10]:10}  M{e.get('magnitude') or 0:<4}  {e['event_id']:<16} {e.get('place') or ''}")
+        print(f"{len(events)} event(s) with a ShakeMap around {network.id}")
+        return 0
+    if args.action == "fetch":
+        grid = shakemap.load(args.event_id, args.source, args.version, args.imt)
+        print(json.dumps({**grid.meta, "extent": grid.extent, "has_uncertainty": grid.std_im is not None}, indent=2))
+        return 0
+
+    from src.monitor import feedwatch
+    from src.monitor import watch as watcher
+
+    if args.action == "lambda-zip":
+        import zipfile
+
+        found = watcher.regions()
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(args.output, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(feedwatch.__file__, "feedwatch.py")
+            zf.writestr("regions.json", json.dumps(found, indent=2) + "\n")
+        print(f"{args.output}: handler feedwatch.lambda_handler, regions {', '.join(found)}")
+        return 0
+    state_dir = args.state_dir or watcher.DEFAULT_STATE_DIR
+    if args.action == "heartbeat":
+        ok, message = watcher.check_heartbeat(state_dir, args.max_age_minutes)
+        print(message)
+        return 0 if ok else 1
+    if args.fetch_only:
+        store = feedwatch.DirStore({"watch": state_dir})
+        try:
+            beat = feedwatch.poll(store, watcher.regions(), feed=args.feed, min_magnitude=args.min_magnitude)
+        except feedwatch.WatchError as exc:
+            print(f"poll failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"{beat['status']}: {beat['events_in_feed']} event(s) in feed, {beat['events_matched']} near a network, "
+              f"{len(beat['updates'])} new ShakeMap version(s)")
+        return 0
+    options = dict(feed=args.feed, state_dir=state_dir, min_magnitude=args.min_magnitude, samples=args.samples)
+    if not args.once:
+        watcher.run_forever(args.interval, **options)
+    try:
+        beat = watcher.poll(**options)
+    except watcher.PollInProgress as exc:
+        print(exc)
+        return 0
+    except watcher.WatchError as exc:
+        print(f"poll failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"{beat['status']}: {beat['events_in_feed']} event(s) in feed, {beat['events_matched']} near a network, "
+          f"{len(beat['runs'])} run(s)")
+    return 0
+
+
 def cmd_diagram(args: argparse.Namespace) -> int:
     import webbrowser
 
@@ -368,6 +432,37 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--check", action="store_true", help="only report which bridges lack vs30")
     p.set_defaults(run=cmd_vs30)
 
+    p = sub.add_parser("shakemap", help="real earthquakes: find, fetch and watch for USGS ShakeMaps")
+    shake = p.add_subparsers(dest="action", required=True)
+    sources = ["auto", "shakecast", "comcat"]
+    q = shake.add_parser("search", help="events with a ShakeMap around a network")
+    q.add_argument("network", help="e.g. toy-ca")
+    q.add_argument("--start", default="1900-01-01")
+    q.add_argument("--end")
+    q.add_argument("--min-magnitude", type=float)
+    q.add_argument("--source", choices=sources)
+    q = shake.add_parser("fetch", help="download (or locate) one event's ShakeMap; print its header")
+    q.add_argument("event_id", help="a USGS event id, e.g. nc216859 (Loma Prieta, 1989)")
+    q.add_argument("--version", type=int)
+    q.add_argument("--source", choices=sources)
+    q.add_argument("--imt", default="SA(1.0)", choices=["PGA", "PGV", "SA(0.3)", "SA(1.0)", "SA(3.0)"])
+    q = shake.add_parser("watch", help="poll the USGS feed; run each ShakeMap assembly on new ShakeMaps")
+    q.add_argument("--once", action="store_true", help="poll once and exit (for cron or a scheduled job)")
+    q.add_argument("--interval", type=float, default=120, help="seconds between polls when looping")
+    q.add_argument("--feed", default="2.5_day", help="USGS summary feed, e.g. 2.5_hour, 2.5_day, all_week")
+    q.add_argument("--min-magnitude", type=float, default=4.0)
+    q.add_argument("-n", "--samples", type=int, default=100_000)
+    q.add_argument("--state-dir", type=Path, help="where state, results and the heartbeat are kept "
+                                                  "(default .cache/watch, or QUAKENET_WATCH_DIR)")
+    q.add_argument("--fetch-only", action="store_true",
+                   help="poll once as the Lambda does: note new ShakeMaps, run no BN, send no email")
+    q = shake.add_parser("heartbeat", help="exit 0 if the watcher is alive and well, 1 if not")
+    q.add_argument("--max-age-minutes", type=float, default=10)
+    q.add_argument("--state-dir", type=Path)
+    q = shake.add_parser("lambda-zip", help="build the feed watcher's AWS Lambda zip")
+    q.add_argument("--output", type=Path, default=Path("dist/feedwatch-lambda.zip"))
+    p.set_defaults(run=cmd_shakemap)
+
     p = sub.add_parser("diagram", help="rewrite schema/diagram.md and schema/diagram.html from the schema")
     p.add_argument("--check", action="store_true", help="fail if either is stale instead of rewriting them")
     p.add_argument("--open", action="store_true", help="open schema/diagram.html in the browser")
@@ -377,11 +472,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in ("query", "scope") and not (args.assembly or args.json):
         parser.error(f"{args.command} needs an assembly or --json")
     from src.builder.load import RegistryError
+    from src.builder.shakemap import ShakeMapError
     from src.inference.engine import QueryError
 
     try:
         return args.run(args)
-    except (RegistryError, QueryError) as exc:
+    except (RegistryError, QueryError, ShakeMapError) as exc:
         print(exc, file=sys.stderr)
         return 1
 

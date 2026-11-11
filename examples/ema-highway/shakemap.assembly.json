@@ -1,0 +1,42 @@
+{
+  "$schema": "../../schema/meta/assembly.schema.json",
+  "id": "ema-highway/shakemap",
+  "label": "EMA highway network: the 2020 Buzzards Bay earthquake (M3.6) from USGS ShakeMap",
+  "network": "ema-highway",
+  "description": "The 2020 M3.6 Buzzards Bay earthquake's USGS ShakeMap, the one recorded map that covers every bridge (it peaks at about 0.003 g, so damage is negligible). Pick another event, or a recent one, from the Earthquakes panel; a map that does not reach every bridge is refused. Sampling fetches the map unless it is cached.",
+  "bindings": [
+    {
+      "function": "hazard.spatial-correlation",
+      "parameter_set": "jayaram-baker-2009.sa1p0",
+      "note": "Its period matches the IM below. Swap for independent.any-im to see what the correlation changes."
+    },
+    {
+      "function": "hazard.shakemap",
+      "parameters": {
+        "event_id": "us7000cc4d",
+        "imt": "SA(1.0)",
+        "version": null,
+        "source": null
+      }
+    },
+    {
+      "function": "observation.intensity",
+      "parameter_set": "relative-sd-10pct.sa1p0"
+    },
+    {
+      "function": "fragility.bridge",
+      "parameter_set": "hazus61.{hazus_class}"
+    },
+    {
+      "function": "edge.open",
+      "parameter_set": "policy.closed-at-extensive"
+    },
+    {
+      "function": "system.travel-time-to-nearest",
+      "where": {
+        "key_destination": false
+      },
+      "note": "One system state per non-key node: it survives if it reaches its nearest key destination within the network's target_add_h of the intact time."
+    }
+  ]
+}

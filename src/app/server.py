@@ -10,8 +10,13 @@ Standard library only. Endpoints:
     GET  /api/views               the schema and every compiled BN, each with its query menu
     POST /api/query               a probabilistic query -> its answer          (src/inference)
     GET  /api/chat-status         whether a language-model backend is ready
-    GET  /api/shakemap-events?network=<id>&min_magnitude=5
-                                  USGS events with a ShakeMap near a network
+    GET  /api/shakemap-events?network=<id>&min_magnitude=4
+                                  USGS events since 1900 whose ShakeMap reaches a bridge of the
+                                  network (each with how many), and how many nearby reach none
+    GET  /api/recent-earthquakes  events of the last 30 days, M4+, with a ShakeMap reaching a network the
+                                  page offers a ShakeMap assembly for; straight from USGS, cached a minute
+    GET  /api/shakemap-version/<event id>
+                                  the version of the event's current ShakeMap, asked of USGS now
 
     The posterior session of an example (src/inference/session.py), one per example, saved to
     records/sessions/ after every change and reopened from there after a restart:
@@ -34,6 +39,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import subprocess
 import sys
 import threading
@@ -55,6 +61,7 @@ from src.builder.load import (ROOT, RegistryError, assembly_id_of, assembly_path
 from src.cancellation import InferenceCancelled, cancellable, check_cancelled
 from src.inference import engine
 from src.llm import chat
+from src.monitor.watch import shakemap_parameters
 
 from .views import app_assembly_paths, view_data
 
@@ -98,7 +105,8 @@ def examples() -> list[dict[str, Any]]:
     out = []
     for path in app_assembly_paths():
         a = load_assembly(path)
-        out.append({"id": assembly_id_of(path), "label": a["label"], "network": a["network"]})
+        out.append({"id": assembly_id_of(path), "label": a["label"], "network": a["network"],
+                    "shakemap": shakemap_parameters(assembly_id_of(path)) is not None})
     return out
 
 
@@ -209,11 +217,119 @@ def start_session(assembly_id: str, scenario: dict[str, Any] | None = None, samp
     from src.inference import session
 
     settings = {k: v for k, v in (scenario or {}).items() if k in ("rows", "parameters", "parameter_sets")}
+    settings = pin_shakemap(assembly_id, settings)
     t, probs, variables, population, computed = _session_bn(assembly_id, settings)
     n_keep = max(100, -(-int(samples or 200_000) // session.SAMPLER["n_chain"]))
     s = session.Session(t, probs, variables, population=population, sampler={"n_keep": n_keep})
     s.computed, s.scenario = computed, settings      # the assumptions the session was started under
+    s.shakemap = shakemap_info(assembly_id, settings)
     return s
+
+
+def pin_shakemap(assembly_id: str, settings: dict[str, Any]) -> dict[str, Any]:
+    """The settings with the ShakeMap version they will use written in, when the assembly binds a
+    ShakeMap and the settings leave its version open ("the current one").
+
+    A session saved on disk is reopened by rebuilding its BN from these settings. Left open, a server
+    restarted after USGS revised the map would rebuild it on the new version beneath samples drawn
+    from the old one. Pinned, the session is the map it was run on, and the page offers the new one.
+    """
+    params = shakemap_parameters(assembly_id, settings)
+    if params is None or params.get("version") is not None:
+        return settings
+    grid = shakemap.load(params["event_id"], params.get("source"), None, params.get("imt", "SA(1.0)"))
+    version = shakemap._int(grid.version)
+    if version is None:
+        return settings
+    pinned = copy.deepcopy(settings)
+    pinned.setdefault("parameters", {}).setdefault("hazard.shakemap", {})["version"] = version
+    return pinned
+
+
+def shakemap_info(assembly_id: str, settings: dict[str, Any]) -> dict[str, Any] | None:
+    """Which ShakeMap the settings use, for the page: the event, its version and where it came from."""
+    params = shakemap_parameters(assembly_id, settings)
+    if params is None:
+        return None
+    grid = shakemap.load(params["event_id"], params.get("source"), params.get("version"), params.get("imt", "SA(1.0)"))
+    keys = ("magnitude", "lat", "lon", "depth_km", "time", "description", "originator", "map_status",
+            "seismic_stations", "source")
+    info = {k: grid.meta.get(k) for k in keys}
+    # How many bridges the map reaches: the rest are bounded by its edge (kernels.hazard.ShakeMap).
+    from src.monitor.watch import sites
+    network = load_network(load_assembly(assembly_path(assembly_id))["network"], engine.library())
+    on = sites(network)
+    info["covered"], info["sites"] = int(grid.sample([s["lat"] for s in on], [s["lon"] for s in on])[2].sum()), len(on)
+    if info["description"]:
+        info["description"] = " ".join(info["description"].split())
+    # The id asked for, not grid.xml's: a regional network's map may record it without its prefix
+    # ("75337442" for nc75337442), and the catalogue knows only the full one.
+    return {"event_id": params["event_id"], "version": shakemap._int(grid.version), **info}
+
+
+RECENT_DAYS = 30
+RECENT_TTL = 60.0                 # seconds; the page asks every 2 minutes, the USGS feed updates every minute
+_recent: dict[str, Any] = {}
+_recent_lock = threading.Lock()
+
+
+def recent_earthquakes() -> list[dict[str, Any]]:
+    """Events of the last ``RECENT_DAYS`` with a ShakeMap, at the watcher's magnitude floor or above,
+    around a network the page offers a ShakeMap assembly for, whose map reaches that network's bridges;
+    newest first. Each names its networks and the assemblies that can run it. Asked of USGS directly,
+    so no watcher is needed for it."""
+    from datetime import datetime, timedelta, timezone
+    import time as _time
+
+    from src.monitor.feedwatch import DEFAULT_MIN_MAGNITUDE
+    from src.monitor.watch import shakemap_assemblies
+
+    with _recent_lock:
+        if _recent and _time.monotonic() - _recent["at"] < RECENT_TTL:
+            return _recent["events"]
+        networks: dict[str, dict[str, Any]] = {}
+        for assembly_id, w in shakemap_assemblies([assembly_id_of(p) for p in app_assembly_paths()]).items():
+            networks.setdefault(w["network"], {"bbox": w["bbox"], "sites": w["sites"], "assemblies": []})["assemblies"].append(assembly_id)
+        start = (datetime.now(timezone.utc) - timedelta(days=RECENT_DAYS)).strftime("%Y-%m-%d")
+        source, found = shakemap.ComcatSource(timeout=30), {}
+        for network_id, n in sorted(networks.items()):
+            near = source.search(n["bbox"], start=start, min_magnitude=DEFAULT_MIN_MAGNITUDE)
+            for e in shakemap.covering(near, n["sites"], cache_dir=source.cache_dir)[0]:
+                item = found.setdefault(e["event_id"], {**e, "networks": [], "assemblies": []})
+                item["networks"].append(network_id)
+                item["assemblies"] += n["assemblies"]
+        events = sorted(found.values(), key=lambda e: e.get("time") or "", reverse=True)
+        _recent.update(at=_time.monotonic(), events=events)
+        return events
+
+
+def past_earthquakes(network_id: str, min_magnitude: float | None = None) -> tuple[list[dict[str, Any]], int]:
+    """(USGS events since 1900 whose ShakeMap reaches a bridge of the network, how many nearby reach none).
+
+    The watcher's magnitude floor by default, so anything it emails can also be picked here. Near the network
+    is not enough: a map that reaches no bridge cannot be run. Each event says how many bridges it reaches;
+    the rest are given the map's edge value, an upper bound (kernels.hazard.ShakeMap).
+    """
+    from src.monitor.feedwatch import DEFAULT_MIN_MAGNITUDE
+    from src.monitor.watch import sites
+
+    network = load_network(network_id, engine.library())
+    floor = DEFAULT_MIN_MAGNITUDE if min_magnitude is None else min_magnitude
+    events = shakemap.search_events(network.rows("Node"), min_magnitude=floor)
+    return shakemap.covering(events, sites(network))
+
+
+def _warm_past_earthquakes() -> None:
+    """Ask each ShakeMap network's past earthquakes once at start, so the map extents are on disk before the
+    Earthquakes panel first opens (cold, toy-ca's 141 nearby maps take some 20 s; cached, under one)."""
+    from src.monitor.watch import shakemap_assemblies
+
+    try:
+        networks = {w["network"] for w in shakemap_assemblies([assembly_id_of(p) for p in app_assembly_paths()]).values()}
+        for network_id in sorted(networks):
+            past_earthquakes(network_id)
+    except Exception:                     # offline, or USGS busy: the panel asks again when opened
+        pass
 
 
 def archive_session(assembly_id: str) -> None:
@@ -240,6 +356,7 @@ def session_of(assembly_id: str, required: bool = True) -> Any:
             t, probs, variables, _, _ = _session_bn(assembly_id, meta.get("scenario") or {})
             s, meta = session.Session.load(path, t, probs, variables)
             s.computed, s.scenario = meta.get("computed", []), meta.get("scenario") or {}
+            s.shakemap = shakemap_info(assembly_id, s.scenario)
             _sessions[assembly_id] = s
         except InferenceCancelled:
             raise
@@ -258,7 +375,8 @@ def torch_load_meta(path: Path) -> dict[str, Any]:
 
 def session_reply(s: Any) -> dict[str, Any]:
     """The session's state for the page, with the map's numbers given the evidence so far."""
-    return {**s.state(), "result": s.result(computed=s.computed), "scenario": getattr(s, "scenario", {})}
+    return {**s.state(), "result": s.result(computed=s.computed), "scenario": getattr(s, "scenario", {}),
+            "shakemap": getattr(s, "shakemap", None)}
 
 
 # Rule extractions running in the background, one per (assembly, threshold). A separate process, so a
@@ -348,14 +466,29 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/shakemap-events":
             params = parse_qs(url.query)
             try:
-                network = load_network((params.get("network") or [""])[0], engine.library())
-                events = shakemap.search_events(network.rows("Node"),
-                                                min_magnitude=float((params.get("min_magnitude") or [5])[0]))
+                floor = params.get("min_magnitude")
+                events, outside = past_earthquakes((params.get("network") or [""])[0],
+                                                   float(floor[0]) if floor else None)
             except RegistryError as exc:
                 return self._json({"error": "; ".join(exc.problems)}, HTTPStatus.NOT_FOUND)
+            except ValueError as exc:                  # a ShakeMapError, or a min_magnitude that is no number
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return self._json({"events": events, "outside": outside})
+        if url.path == "/api/recent-earthquakes":
+            try:
+                return self._json({"days": RECENT_DAYS, "events": recent_earthquakes()})
             except shakemap.ShakeMapError as exc:
                 return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
-            return self._json({"events": events})
+        if url.path.startswith("/api/shakemap-version/"):
+            event_id = url.path.removeprefix("/api/shakemap-version/")
+            if not re.fullmatch(r"[A-Za-z0-9_.-]+", event_id):
+                return self._json({"error": f"{event_id!r} is not a USGS event id"}, HTTPStatus.BAD_REQUEST)
+            try:
+                return self._json({"event_id": event_id, "version": shakemap.ComcatSource(timeout=30).current_version(event_id)})
+            except shakemap.UnknownEvent as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
+            except shakemap.ShakeMapError as exc:
+                return self._json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
@@ -472,6 +605,13 @@ class _Server(ThreadingHTTPServer):
     # and requests then reach either: an old server keeps answering beside a new one. Refuse instead.
     allow_reuse_address = sys.platform != "win32"
 
+    def handle_error(self, request, client_address):
+        # A page reloaded or closed while its request was still being answered (reopening a session can take
+        # a while) leaves nobody to read the reply: that is the browser leaving, not a server fault.
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
+
 
 def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
     return _Server((host, port), Handler)
@@ -493,6 +633,7 @@ def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = False,
         webbrowser.open(url)
     if chat.provider() == "ollama":
         threading.Thread(target=lambda: print(f"[bn] {chat.preload_ollama()}", flush=True), daemon=True).start()
+    threading.Thread(target=_warm_past_earthquakes, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

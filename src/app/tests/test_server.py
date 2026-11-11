@@ -56,7 +56,7 @@ def post(url, body):
 
 def test_view_data_has_the_schema_and_every_bn():
     views = {v["id"]: v for v in view_data()["views"]}
-    assert set(views) == {"library", "ema-highway/gmm", "toy-ca/demo"}
+    assert set(views) == {"library", "ema-highway/gmm", "ema-highway/shakemap", "toy-ca/demo", "toy-ca/shakemap"}
     links = {(x["from"], x["to"]) for x in views["library"]["links"]}
     for hazard in ("hazard.gmm", "hazard.shakemap"):
         assert (hazard, "fragility.bridge") in links          # alternatives, all type-compatible
@@ -157,7 +157,9 @@ def test_inference_failures_return_json_instead_of_dropping_the_connection(
 
 def test_an_example_carries_its_network_menu_and_rules(base_url):
     status, body = get(base_url + "/api/examples")
-    assert status == 200 and {e["id"] for e in json.loads(body)["examples"]} == {"toy-ca/demo", "ema-highway/gmm"}
+    examples = {e["id"]: e for e in json.loads(body)["examples"]}
+    assert status == 200 and set(examples) == {"toy-ca/demo", "toy-ca/shakemap", "ema-highway/gmm", "ema-highway/shakemap"}
+    assert {i for i, e in examples.items() if e["shakemap"]} == {"toy-ca/shakemap", "ema-highway/shakemap"}
     status, body = get(base_url + "/api/example?assembly=toy-ca/demo")
     ex = json.loads(body)
     assert status == 200 and set(ex["network"]["tables"]) >= {"Node", "Edge", "Bridge", "Event", "SystemEvent"}
@@ -322,3 +324,142 @@ def test_stop_interrupts_a_queued_update_before_the_session_lock_is_available(ba
     finally:
         server.stop_inference("queued-update")
         worker.join(timeout=6)
+
+
+# ---- real earthquakes: USGS ShakeMaps ------------------------------------------------------
+
+
+@pytest.fixture
+def shakecast_grid(tmp_path, monkeypatch):
+    """One ShakeMap (two versions) covering Hebei, read from a ShakeCast directory: no network."""
+    from src.builder import shakemap
+    from src.builder.tests.test_shakemap import write_grid
+
+    root = tmp_path / ".shakecast"
+    for version in (1, 2):
+        write_grid(root / "data" / "test001" / f"test001-{version}", "test001", version)
+    monkeypatch.setenv("SHAKECAST_USER_DIRECTORY", str(root))
+    monkeypatch.setenv("BN_SHAKEMAP_SOURCE", "shakecast")
+    shakemap._load_cached.cache_clear()
+    shakemap._resolved.clear()
+    yield root
+    shakemap._load_cached.cache_clear()
+    shakemap._resolved.clear()
+
+
+def test_a_shakemap_session_pins_the_version_it_ran_on(base_url, shakecast_grid):
+    from src.app import server
+
+    scenario = {"parameters": {"hazard.shakemap": {"event_id": "test001"}}}
+    code, body = post(base_url + "/api/session", {"assembly": "hebei-transport/shakemap", "scenario": scenario,
+                                                  "samples": 500})
+    assert code == 200, body
+    # The newest version was used, and is written into the scenario, so a reopened session rebuilds the same map.
+    assert body["scenario"]["parameters"]["hazard.shakemap"] == {"event_id": "test001", "version": 2}
+    assert body["shakemap"]["event_id"] == "test001" and body["shakemap"]["version"] == 2
+    assert body["shakemap"]["magnitude"] == 6.8 and body["shakemap"]["source"] == "shakecast"
+    server._sessions.clear()                                 # as after a restart: reopened from disk
+    status, raw = get(base_url + "/api/session?assembly=hebei-transport/shakemap")
+    assert status == 200 and json.loads(raw)["session"]["shakemap"]["version"] == 2
+
+    scenario["parameters"]["hazard.shakemap"]["version"] = 1  # an earlier version, asked for
+    code, body = post(base_url + "/api/session", {"assembly": "hebei-transport/shakemap", "scenario": scenario,
+                                                  "samples": 500})
+    assert code == 200 and body["shakemap"]["version"] == 1
+
+
+def test_a_gmm_session_carries_no_shakemap(base_url):
+    code, body = post(base_url + "/api/session", {"assembly": "toy-ca/demo", "samples": 500})
+    assert code == 200 and body["shakemap"] is None
+
+
+def test_a_shakemap_that_cannot_be_had_is_a_readable_refusal(base_url, shakecast_grid):
+    code, body = post(base_url + "/api/session", {"assembly": "hebei-transport/shakemap", "samples": 500,
+                                                  "scenario": {"parameters": {"hazard.shakemap": {"event_id": "nothere"}}}})
+    assert code == 400 and "ShakeCast has no ShakeMap for 'nothere'" in body["error"]
+
+
+def test_recent_earthquakes_merge_the_networks_searches(base_url, monkeypatch):
+    from src.app import server
+    from src.builder import shakemap
+
+    calls = []
+
+    def search(self, bbox, start="1900-01-01", end=None, min_magnitude=None):
+        calls.append((bbox, min_magnitude))
+        lon_min = bbox[0]
+        shared = {"event_id": "both", "magnitude": 4.4, "time": "2026-11-01T00:00:00+00:00", "lat": 0, "lon": 0}
+        own = {"event_id": "ca1" if lon_min < -100 else "ne1", "magnitude": 5.0,
+               "time": "2026-11-02T00:00:00+00:00", "lat": 0, "lon": 0}
+        return [own, shared]
+
+    monkeypatch.setattr(shakemap.ComcatSource, "search", search)
+    monkeypatch.setattr(server, "_recent", {})
+    status, body = get(base_url + "/api/recent-earthquakes")
+    events = {e["event_id"]: e for e in json.loads(body)["events"]}
+    assert status == 200 and len(calls) == 2 and all(m == 4.0 for _, m in calls)
+    assert events["both"]["networks"] == ["ema-highway", "toy-ca"]
+    assert events["both"]["assemblies"] == ["ema-highway/shakemap", "toy-ca/shakemap"]
+    assert events["ca1"]["assemblies"] == ["toy-ca/shakemap"] and events["ne1"]["networks"] == ["ema-highway"]
+    get(base_url + "/api/recent-earthquakes")
+    assert len(calls) == 2                                   # asked again within a minute: from memory
+
+    def offline(self, *a, **k):
+        raise shakemap.ShakeMapError("could not reach the USGS catalogue: offline")
+
+    monkeypatch.setattr(shakemap.ComcatSource, "search", offline)
+    monkeypatch.setattr(server, "_recent", {})
+    with pytest.raises(HTTPError) as failed:
+        get(base_url + "/api/recent-earthquakes")
+    assert failed.value.code == 502 and "offline" in json.loads(failed.value.read())["error"]
+
+
+def test_the_page_can_ask_for_a_shakemaps_current_version(base_url, monkeypatch):
+    from src.builder import shakemap
+
+    def current(self, event_id):
+        if event_id == "gone":
+            raise shakemap.UnknownEvent("USGS has no event with id 'gone'")
+        return 7
+
+    monkeypatch.setattr(shakemap.ComcatSource, "current_version", current)
+    status, body = get(base_url + "/api/shakemap-version/nc216859")
+    assert status == 200 and json.loads(body) == {"event_id": "nc216859", "version": 7}
+    for event_id, code in (("gone", 404), ("bad%20id", 400)):
+        with pytest.raises(HTTPError) as failed:
+            get(base_url + f"/api/shakemap-version/{event_id}")
+        assert failed.value.code == code
+
+
+def test_past_shakemaps_say_how_many_bridges_they_reach_and_those_reaching_none_are_not_offered(base_url, monkeypatch):
+    # toy-ca's bridges run from 36.1 to 36.9 N: a map stopping at 36.7 N (the 1922 Parkfield Atlas map) reaches
+    # some; one stopping at 35 N reaches none.
+    from src.builder import shakemap
+
+    events = [{"event_id": e, "source": "comcat", "updated": 1} for e in ("whole", "south", "away")]
+    monkeypatch.setattr(shakemap, "search_events", lambda rows, **k: list(events))
+    extents = {"whole": (34.0, 39.0), "south": (31.7, 36.7), "away": (31.0, 35.0)}
+    monkeypatch.setattr(shakemap.ComcatSource, "extent", lambda self, event_id, updated=None: {
+        "lat_min": extents[event_id][0], "lat_max": extents[event_id][1], "lon_min": -125.0, "lon_max": -115.0})
+    status, body = get(base_url + "/api/shakemap-events?network=toy-ca")
+    body = json.loads(body)
+    assert status == 200 and body["outside"] == 1
+    reached = {e["event_id"]: (e["covered"], e["sites"]) for e in body["events"]}
+    assert reached["whole"] == (10, 10) and 0 < reached["south"][0] < 10
+
+
+def test_a_browser_that_leaves_mid_reply_is_not_reported_as_a_server_fault(capsys):
+    from src.app.server import _Server
+
+    server = _Server.__new__(_Server)                 # handle_error needs no socket
+    for exc in (BrokenPipeError(32, "Broken pipe"), ConnectionResetError(104, "reset")):
+        try:
+            raise exc
+        except OSError:
+            server.handle_error(None, ("127.0.0.1", 1))
+    assert capsys.readouterr().err == ""
+    try:
+        raise RuntimeError("a real fault")
+    except RuntimeError:
+        server.handle_error(None, ("127.0.0.1", 1))
+    assert "a real fault" in capsys.readouterr().err

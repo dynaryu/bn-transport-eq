@@ -321,6 +321,40 @@ def test_nearby_sites_share_their_residuals_unless_told_otherwise(shakecast_dir)
 
 def test_a_network_outside_the_shakemap_is_refused_not_zeroed(shakecast_dir):
     write_grid(shakecast_dir / "ev2" / "ev2-1", "ev2", 1, extent=(100.0, 20.0, 105.0, 25.0))
-    with pytest.raises(engine.QueryError, match="outside ShakeMap ev2"):
+    with pytest.raises(engine.QueryError, match="ShakeMap ev2 v1 reaches none of the 33 sites"):
         engine.answer({"assembly": "hebei-transport/shakemap", "targets": ["SA(1.0)::*"],
                        "parameters": {"hazard.shakemap": {"event_id": "ev2"}}, "samples": 100})
+
+
+def _detail(lat=(36.0, 38.0), lon=(-123.0, -121.0), version=3):
+    props = {"minimum-latitude": str(lat[0]), "maximum-latitude": str(lat[1]),
+             "minimum-longitude": str(lon[0]), "maximum-longitude": str(lon[1]), "version": str(version)}
+    return {"properties": {"updated": 1, "products": {"shakemap": [{"properties": props}]}}}
+
+
+def test_a_maps_extent_is_kept_until_the_catalogue_changes_the_event(tmp_path, monkeypatch):
+    asked = []
+    monkeypatch.setattr(shakemap.ComcatSource, "_get_json", lambda self, params: asked.append(params) or _detail())
+    source = shakemap.ComcatSource(tmp_path)
+    extent = source.extent("ev1", updated=10)
+    assert extent == {"lat_min": 36.0, "lat_max": 38.0, "lon_min": -123.0, "lon_max": -121.0, "version": 3, "updated": 10}
+    assert source.extent("ev1", updated=10) == extent and len(asked) == 1     # from disk
+    source.extent("ev1", updated=11)
+    assert len(asked) == 2                                                    # revised: asked again
+
+
+def test_maps_that_reach_a_site_are_offered_with_how_many_they_reach(tmp_path, monkeypatch):
+    # ev_small stops at 37 N, short of the northern site; ev_far is elsewhere; ev_cast has no catalogue
+    # extent; ev_gone cannot be asked.
+    def get_json(self, params):
+        if params["eventid"] == "ev_gone":
+            raise shakemap.ShakeMapError("could not reach the USGS catalogue: offline")
+        return {"ev_small": _detail(lat=(36.0, 37.0)), "ev_far": _detail(lat=(10.0, 12.0))}.get(params["eventid"], _detail())
+
+    monkeypatch.setattr(shakemap.ComcatSource, "_get_json", get_json)
+    sites = [{"lat": 36.5, "lon": -122.0}, {"lat": 37.5, "lon": -122.0}]
+    events = [{"event_id": i, "source": s, "updated": 1} for i, s in (("ev_big", "comcat"), ("ev_small", "comcat"),
+              ("ev_far", "comcat"), ("ev_cast", "shakecast"), ("ev_gone", "comcat"))]
+    kept, outside = shakemap.covering(events, sites, cache_dir=tmp_path)
+    assert {e["event_id"]: e["covered"] for e in kept} == {"ev_big": 2, "ev_small": 1, "ev_cast": None, "ev_gone": None}
+    assert outside == 1 and all(e["sites"] == 2 for e in kept)

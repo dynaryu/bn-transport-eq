@@ -375,7 +375,7 @@ def test_every_system_node_reads_every_edge(lib):
     assert len(nodes[f"SystemState::{origins[0]}"]["parents"]) == 129
 
 
-def test_shakemap_kernel_samples_and_refuses_outside(monkeypatch):
+def test_shakemap_kernel_samples_and_bounds_a_site_off_the_map_by_its_edge(monkeypatch):
     from src.builder import shakemap
 
     grid = shakemap.ShakeMapGrid(
@@ -384,9 +384,9 @@ def test_shakemap_kernel_samples_and_refuses_outside(monkeypatch):
     )
     monkeypatch.setattr(shakemap, "load", lambda *a, **k: grid)
 
-    def shakemap_at(lat, lon):
+    def shakemap_at(lat, lon, sites=None):
         return ShakeMap([Variable("SA(1.0)::x", (0.0, inf))], [Variable("GMResidual::x", (-inf, inf))],
-                        event_id="test", imt="SA(1.0)", lat=lat, lon=lon)
+                        event_id="test", imt="SA(1.0)", lat=lat, lon=lon, sites=sites)
 
     prob = shakemap_at(0.5, 0.5)
     epsilon = torch.tensor([[-1.0], [0.0], [2.0]], dtype=torch.float64)
@@ -394,8 +394,15 @@ def test_shakemap_kernel_samples_and_refuses_outside(monkeypatch):
     assert np.allclose(np.log(sa.numpy()), log(0.4) + 0.5 * epsilon[:, 0].numpy())     # deterministic given the residual
     assert any("no seismic station" in w for w in prob.notes)
 
-    with pytest.raises(ValueError, match="outside ShakeMap"):
-        shakemap_at(5.0, 5.0)
+    # Off the map (it spans 0-1 degrees), with another site on it: the value at the nearest edge point, (1, 1).
+    from dataclasses import replace
+    corner = replace(grid, ln_im=np.array([[log(0.4), log(0.3)], [log(0.4), log(0.4)]]))   # row 0 is lat 1: (1, 1) is 0.3 g
+    monkeypatch.setattr(shakemap, "load", lambda *a, **k: corner)
+    off = shakemap_at(1.5, 1.5, sites=[[0.5, 0.5], [1.5, 1.5]])
+    assert np.isclose(off.ln_median, log(0.3)) and np.isclose(off.sigma, 0.5) and 70 < off.outside_km < 80
+    assert any("79 km off ShakeMap test v1" in w and "upper bound" in w for w in off.notes)
+    with pytest.raises(ValueError, match="reaches none of the 1 sites"):
+        shakemap_at(5.0, 5.0, sites=[[5.0, 5.0]])
 
 
 @pytest.mark.parametrize("period, clustered, expected", [
